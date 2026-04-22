@@ -1,0 +1,23 @@
+{
+  "name": "learncode",
+  "version": "0.1.0",
+  "private": true,
+  "description": "LearnCode — interactive learning platform built on MERN + AWS",
+  "workspaces": [
+    "server",
+    "client"
+  ],
+  "scripts": {
+    "dev:server": "npm run dev --workspace server",
+    "dev:client": "npm run dev --workspace client",
+    "test:server": "npm test --workspace server",
+    "test:client": "npm test --workspace client",
+    "lint": "npm run lint --workspaces --if-present"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "dependencies": {
+    "mongodb": "^7.1.1"
+  }
+}
