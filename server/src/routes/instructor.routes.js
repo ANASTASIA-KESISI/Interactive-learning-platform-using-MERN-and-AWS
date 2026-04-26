@@ -8,6 +8,16 @@ const router = express.Router();
 
 const auth = [requireAuth, requireRole(['instructor', 'admin']), attachUser];
 
+// GET /api/instructor/courses — every course owned by the caller (drafts + published)
+router.get('/courses', ...auth, async (req, res, next) => {
+  try {
+    const courses = await courseService.listInstructorCourses(req.dbUser._id);
+    res.json({ data: courses });
+  } catch (err) {
+    next(err);
+  }
+});
+
 // POST /api/instructor/courses
 router.post('/courses', ...auth, async (req, res, next) => {
   try {

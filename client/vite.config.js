@@ -3,6 +3,11 @@ import react from '@vitejs/plugin-react';
 
 export default defineConfig({
   plugins: [react()],
+  // amazon-cognito-identity-js pulls in the `buffer` polyfill which references
+  // Node's `global`. Alias it to `globalThis` so the browser build doesn't crash.
+  define: {
+    global: 'globalThis',
+  },
   server: {
     port: 5173,
     proxy: {

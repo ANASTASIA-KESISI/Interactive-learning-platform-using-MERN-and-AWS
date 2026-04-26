@@ -16,6 +16,12 @@ const listPublishedCourses = (filter = {}) =>
     .populate('instructor', 'firstName lastName email')
     .sort({ createdAt: -1 });
 
+// Returns every course owned by an instructor, published or not. Used by the
+// authoring dashboard where drafts must be visible alongside live courses.
+const listInstructorCourses = (instructorId) =>
+  Course.find({ instructor: instructorId })
+    .sort({ createdAt: -1 });
+
 const getCourseById = async (courseId) => {
   const course = await Course.findById(courseId)
     .populate('instructor', 'firstName lastName email')
@@ -138,6 +144,7 @@ const enrollStudent = async (courseId, userId) => {
 module.exports = {
   createCourse,
   listPublishedCourses,
+  listInstructorCourses,
   getCourseById,
   publishCourse,
   updateCourse,
