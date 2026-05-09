@@ -12,6 +12,7 @@
     "lint": "eslint src"
   },
   "dependencies": {
+    "@monaco-editor/react": "^4.7.0",
     "amazon-cognito-identity-js": "^6.3.12",
     "axios": "^1.7.2",
     "react": "^18.3.1",

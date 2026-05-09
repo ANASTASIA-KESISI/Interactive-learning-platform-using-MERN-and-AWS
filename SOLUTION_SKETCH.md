@@ -245,8 +245,8 @@ Order matters: S1 → S2 → S3 is a strict dependency chain. S4 can start in pa
 
 These are decisions left to make at implementation time:
 
-1. **CodeRunner isolation strategy** — Docker-per-submission (flexible, heavier), AWS Lambda (stateless, scales, cold-start cost), or `vm2` (lightweight, riskier)? The thesis doesn't pin this down.
-2. **Which languages does the code editor support?** The thesis mentions JavaScript for the pilot modules; is Python a stretch goal?
+1. ~~**CodeRunner isolation strategy**~~ — **Resolved (S3 kickoff, 2026-04-26).** Dual adapter behind a single `CodeRunnerService` interface: **AWS Lambda** in production (one function per language, starting with `runner-js`), **`isolated-vm`** in local dev (in-process V8 isolate, no Docker needed). Adapter selected by env var at boot. `vm2` was rejected — deprecated 2023 due to repeated sandbox-escape CVEs. Rationale: Lambda gives multi-language support and AWS-grade isolation; isolated-vm keeps laptop dev friction-free. Deployment via **AWS SAM** (`template.yaml` at repo root). The `CodeRunnerService` interface stays narrow (`run(code, language) → {stdout, stderr, exitCode, durationMs}`) so the adapters are swappable.
+2. ~~**Which languages does the code editor support?**~~ — **Resolved (S3 kickoff, 2026-04-26).** **JavaScript only for the pilot**, per thesis Chapter 4 default. Python and other languages are future work — adding one is a new Lambda + a `language` enum value, no architectural change. `lessons.language` (default `"javascript"`) is the schema field that drives runner selection.
 3. **Real-time feedback transport** — polling after submit, or WebSockets? Polling is simpler and likely sufficient for the pilot.
 4. **Hint reveal cost** — does revealing a hint reduce earned XP? The thesis doesn't specify; it's a design knob for the gamification module.
 5. **Instructor course approval flow** — do instructors publish directly, or does admin approve? Depends on institutional policy.

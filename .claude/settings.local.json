@@ -1,0 +1,9 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(git -C /c/Interactive-learning-platform-using-MERN-and-AWS log --oneline -20)",
+      "Bash(git -C /c/Interactive-learning-platform-using-MERN-and-AWS status)",
+      "Bash(git -C /c/Interactive-learning-platform-using-MERN-and-AWS check-ignore client/.env server/.env)"
+    ]
+  }
+}

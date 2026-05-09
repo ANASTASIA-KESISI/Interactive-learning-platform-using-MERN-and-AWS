@@ -1,0 +1,10 @@
+{
+  "name": "learncode-runner-js",
+  "version": "0.1.0",
+  "private": true,
+  "description": "AWS Lambda runner for student JavaScript submissions",
+  "main": "index.js",
+  "engines": {
+    "node": ">=22"
+  }
+}

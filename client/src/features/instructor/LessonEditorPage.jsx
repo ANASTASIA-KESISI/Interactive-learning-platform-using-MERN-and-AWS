@@ -7,6 +7,7 @@ import { getLesson, updateLesson } from '../../services/lessons.js';
 import { Spinner, ErrorBanner } from '../../components/Spinner.jsx';
 
 const LESSON_TYPES = ['tutorial', 'exercise', 'quiz'];
+const LESSON_LANGUAGES = ['javascript'];
 
 export const LessonEditorPage = () => {
   const { id } = useParams();
@@ -29,6 +30,7 @@ export const LessonEditorPage = () => {
           content: l.content || '',
           codeTemplate: l.codeTemplate || '',
           expectedOutput: l.expectedOutput || '',
+          language: l.language || 'javascript',
           hints: (l.hints && l.hints.length > 0) ? l.hints : [''],
           xpReward: l.xpReward ?? 10,
         });
@@ -65,6 +67,7 @@ export const LessonEditorPage = () => {
         content: form.content,
         codeTemplate: form.codeTemplate,
         expectedOutput: form.expectedOutput,
+        language: form.language,
         hints: form.hints.map((h) => h.trim()).filter(Boolean),
         xpReward: Number(form.xpReward) || 0,
       };
@@ -145,6 +148,13 @@ export const LessonEditorPage = () => {
       {isCodeLesson && (
         <section className="space-y-4 rounded-lg border border-slate-200 bg-white p-6 shadow-sm">
           <h2 className="text-lg font-semibold text-slate-900">Exercise scaffolding</h2>
+
+          <div>
+            <label htmlFor="language" className="label">Language</label>
+            <select id="language" value={form.language} onChange={update('language')} className="field w-48">
+              {LESSON_LANGUAGES.map((l) => <option key={l} value={l}>{l}</option>)}
+            </select>
+          </div>
 
           <div>
             <label htmlFor="codeTemplate" className="label">Starter code (shown to student)</label>

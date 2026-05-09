@@ -72,7 +72,7 @@ Five core service modules. Each has its own folder under `server/src/services/` 
 | **Course Service** | CRUD for courses → modules → lessons hierarchy. Persists to MongoDB. |
 | **Progress Service** | Tracks learner interactions (completion, time-on-task, code submissions, hints used). Writes to DynamoDB. |
 | **Gamification Service** | XP accrual, badge award rules, streak tracking. Reads/writes user gamification state in MongoDB and listens to Progress Service events. |
-| **Code Runner Service** | Sandboxed execution of learner code and validation against `expectedOutput`. Must be isolated — never `eval` or execute untrusted code in the main Node process. |
+| **Code Runner Service** | Sandboxed execution of learner code and validation against `expectedOutput`. Must be isolated — never `eval` or execute untrusted code in the main Node process. Implemented as a thin orchestrator over two adapters: `isolated-vm` for dev, AWS Lambda (per-language functions, e.g. `runner-js`) for prod. |
 
 Route handlers are thin: they parse/validate input, call one or more services, and format the response. Business logic belongs in services, not routes.
 
@@ -119,7 +119,7 @@ From Chapter 3.2 of the thesis. Treat these as acceptance criteria when implemen
 - Rate limiting on all public endpoints
 - Encryption at rest (Mongo Atlas + DynamoDB default) and in transit
 - Follow OWASP Top 10 — if a change touches auth, input handling, or code execution, re-check against OWASP before merging
-- The Code Runner Service handles untrusted user code — it must run in a sandbox (container, Lambda, or vm2 at minimum), never in the main API process
+- The Code Runner Service handles untrusted user code — it must run in a sandbox, **never in the main API process**. Use **AWS Lambda** in production (one function per language, isolated by AWS) and **`isolated-vm`** for local dev (V8 isolates, no Docker required). Do **not** use `vm2` — it was deprecated in 2023 after repeated sandbox-escape CVEs. The two adapters live behind the `CodeRunnerService` interface and are picked by env var at boot.
 
 ## Deployment
 

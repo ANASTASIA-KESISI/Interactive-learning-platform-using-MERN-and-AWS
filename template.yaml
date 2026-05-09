@@ -1,0 +1,23 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+Description: LearnCode code-runner Lambdas (per-language sandboxed execution)
+
+Globals:
+  Function:
+    Timeout: 10
+    MemorySize: 256
+    Runtime: nodejs22.x
+
+Resources:
+  RunnerJs:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: learncode-runner-js
+      CodeUri: server/runners/js/
+      Handler: index.handler
+      Description: Sandboxed JavaScript execution for student code submissions
+
+Outputs:
+  RunnerJsArn:
+    Description: ARN of the JavaScript runner Lambda
+    Value: !GetAtt RunnerJs.Arn

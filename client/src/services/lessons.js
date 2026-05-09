@@ -8,3 +8,6 @@ export const updateLesson = (lessonId, payload) =>
 
 export const revealHint = (lessonId, hintIndex) =>
   api.post(`/lessons/${lessonId}/hint`, { hintIndex }).then(unwrap);
+
+export const submitCode = (lessonId, code) =>
+  api.post(`/lessons/${lessonId}/submit`, { code }).then(unwrap);

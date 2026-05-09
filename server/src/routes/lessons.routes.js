@@ -19,75 +19,78 @@ router.get('/:id', requireAuth, requireRole(['student', 'instructor', 'admin']),
   }
 });
 
-// POST /api/lessons/:id/hint — reveal the next hint (analytics event)
-router.post(
-  '/:id/hint',
+// Instructors and admins can call /submit and /hint to preview their own
+// lessons end-to-end. Their interactions intentionally do NOT write to the
+// progress table or trigger gamification — only `student` events count toward
+// pedagogical analytics (preserves the SUS / DynamoDB metric integrity).
+const learnerOrPreview = [
   requireAuth,
-  requireRole('student'),
+  requireRole(['student', 'instructor', 'admin']),
   attachUser,
-  async (req, res, next) => {
-    try {
-      const lesson = await courseService.getLessonById(req.params.id);
-      const { hintIndex } = req.body;
+];
 
-      if (hintIndex === undefined || hintIndex < 0 || hintIndex >= lesson.hints.length) {
-        return res.status(400).json({ error: { message: 'Invalid hintIndex' } });
-      }
+// POST /api/lessons/:id/hint — reveal the next hint (analytics event for students)
+router.post('/:id/hint', ...learnerOrPreview, async (req, res, next) => {
+  try {
+    const lesson = await courseService.getLessonById(req.params.id);
+    const { hintIndex } = req.body;
 
-      await progressService.recordHintReveal(req.dbUser._id.toString(), req.params.id);
-
-      res.json({ data: { hint: lesson.hints[hintIndex] } });
-    } catch (err) {
-      next(err);
+    if (hintIndex === undefined || hintIndex < 0 || hintIndex >= lesson.hints.length) {
+      return res.status(400).json({ error: { message: 'Invalid hintIndex' } });
     }
-  },
-);
+
+    if (req.dbUser.role === 'student') {
+      await progressService.recordHintReveal(req.dbUser._id.toString(), req.params.id);
+    }
+
+    res.json({ data: { hint: lesson.hints[hintIndex] } });
+  } catch (err) {
+    next(err);
+  }
+});
 
 // POST /api/lessons/:id/submit — execute code, record progress, apply gamification
 // This is the primary learner interaction endpoint. Response is intentionally
 // aggregated so the client updates in one round-trip (user-centric API design).
-router.post(
-  '/:id/submit',
-  requireAuth,
-  requireRole('student'),
-  attachUser,
-  async (req, res, next) => {
-    try {
-      const lesson = await courseService.getLessonById(req.params.id);
-      const { code } = req.body;
+router.post('/:id/submit', ...learnerOrPreview, async (req, res, next) => {
+  try {
+    const lesson = await courseService.getLessonById(req.params.id);
+    const { code } = req.body;
 
-      if (!code || typeof code !== 'string') {
-        return res.status(400).json({ error: { message: 'code is required' } });
-      }
+    if (!code || typeof code !== 'string') {
+      return res.status(400).json({ error: { message: 'code is required' } });
+    }
 
-      const runResult = await codeRunnerService.run(code, lesson.expectedOutput);
+    const runResult = await codeRunnerService.run(code, lesson.expectedOutput, lesson.language);
 
-      const progressUpdate = await progressService.recordSubmission(
+    let progressUpdate = { previewMode: true };
+    let gamificationResult = { xpDelta: 0, newBadges: [] };
+
+    if (req.dbUser.role === 'student') {
+      progressUpdate = await progressService.recordSubmission(
         req.dbUser._id.toString(),
         req.params.id,
         runResult,
       );
-
-      let gamificationResult = { xpDelta: 0, newBadges: [] };
       if (runResult.passed && progressUpdate.firstCompletion) {
         gamificationResult = await gamificationService.onLessonCompleted(
           req.dbUser,
           lesson.xpReward,
         );
       }
-
-      res.json({
-        data: {
-          execution: runResult,
-          progress: progressUpdate,
-          xpDelta: gamificationResult.xpDelta,
-          newBadges: gamificationResult.newBadges,
-        },
-      });
-    } catch (err) {
-      next(err);
     }
-  },
-);
+
+    res.json({
+      data: {
+        execution: runResult,
+        progress: progressUpdate,
+        xpDelta: gamificationResult.xpDelta,
+        newBadges: gamificationResult.newBadges,
+      },
+    });
+  } catch (err) {
+    next(err);
+  }
+});
 
 module.exports = router;
