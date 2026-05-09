@@ -75,15 +75,20 @@ export const CourseEditorPage = () => {
         </Link>
         <div className="mt-2 flex items-center justify-between">
           <h1 className="text-3xl font-semibold text-slate-900">Edit course</h1>
-          {course.isPublished ? (
-            <span className="rounded bg-green-100 px-3 py-1 text-sm font-medium text-green-800">
-              Published
-            </span>
-          ) : (
-            <button type="button" onClick={handlePublish} className="btn-primary">
-              Publish
-            </button>
-          )}
+          <div className="flex items-center gap-3">
+            <Link to={`/instructor/courses/${id}/analytics`} className="btn-ghost">
+              View analytics
+            </Link>
+            {course.isPublished ? (
+              <span className="rounded bg-green-100 px-3 py-1 text-sm font-medium text-green-800">
+                Published
+              </span>
+            ) : (
+              <button type="button" onClick={handlePublish} className="btn-primary">
+                Publish
+              </button>
+            )}
+          </div>
         </div>
       </div>
 

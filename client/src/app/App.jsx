@@ -13,6 +13,7 @@ import { InstructorDashboardPage } from '../features/instructor/InstructorDashbo
 import { NewCoursePage } from '../features/instructor/NewCoursePage.jsx';
 import { CourseEditorPage } from '../features/instructor/CourseEditorPage.jsx';
 import { LessonEditorPage } from '../features/instructor/LessonEditorPage.jsx';
+import { InstructorAnalyticsPage } from '../features/instructor/InstructorAnalyticsPage.jsx';
 
 const App = () => (
   <ApiBinding>
@@ -53,6 +54,14 @@ const App = () => (
           element={
             <RequireAuth roles={['instructor', 'admin']}>
               <CourseEditorPage />
+            </RequireAuth>
+          }
+        />
+        <Route
+          path="instructor/courses/:id/analytics"
+          element={
+            <RequireAuth roles={['instructor', 'admin']}>
+              <InstructorAnalyticsPage />
             </RequireAuth>
           }
         />

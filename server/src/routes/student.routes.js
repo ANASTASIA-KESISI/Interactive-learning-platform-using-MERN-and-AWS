@@ -4,6 +4,7 @@ const { requireRole } = require('../middleware/requireRole');
 const { attachUser } = require('../middleware/attachUser');
 const progressService = require('../services/progressService');
 const courseService = require('../services/courseService');
+const { Lesson } = require('../models/Lesson');
 
 const router = express.Router();
 
@@ -51,11 +52,24 @@ router.get('/dashboard', ...studentAuth, async (req, res, next) => {
       };
     });
 
-    const recentActivity = progressRecords
+    const recent = progressRecords
       .filter((r) => r.completedAt)
       .sort((a, b) => new Date(b.completedAt) - new Date(a.completedAt))
-      .slice(0, 5)
-      .map((r) => ({ lessonId: r.lessonId, completedAt: r.completedAt }));
+      .slice(0, 5);
+
+    const lessonsById = recent.length
+      ? Object.fromEntries(
+          (await Lesson.find({ _id: { $in: recent.map((r) => r.lessonId) } })
+            .select('title')
+            .lean()).map((l) => [l._id.toString(), l.title]),
+        )
+      : {};
+
+    const recentActivity = recent.map((r) => ({
+      lessonId: r.lessonId,
+      lessonTitle: lessonsById[r.lessonId] || 'Untitled lesson',
+      completedAt: r.completedAt,
+    }));
 
     res.json({
       data: {

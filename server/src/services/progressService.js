@@ -76,9 +76,53 @@ const getStudentProgress = async (userId) => {
   return records;
 };
 
+// Aggregates DynamoDB progress records for a known set of lesson IDs into the
+// per-lesson stats the instructor analytics view consumes. Returns one row per
+// requested lessonId (zeros if no learner has touched it yet) so the client
+// can render a complete table without holes.
+const getCourseAnalytics = async (lessonIds) => {
+  const records = await progressTable.scanByLessonIds(lessonIds);
+
+  const seed = (id) => ({
+    lessonId: id,
+    uniqueLearners: 0,
+    totalAttempts: 0,
+    completions: 0,
+    totalHintsUsed: 0,
+    totalTimeSpent: 0,
+  });
+
+  const byLesson = Object.fromEntries(lessonIds.map((id) => [id, seed(id)]));
+
+  for (const r of records) {
+    const agg = byLesson[r.lessonId];
+    if (!agg) continue;
+    agg.uniqueLearners += 1;
+    agg.totalAttempts += r.attempts || 0;
+    if (r.status === 'completed') agg.completions += 1;
+    agg.totalHintsUsed += r.hintsUsed || 0;
+    agg.totalTimeSpent += r.timeSpent || 0;
+  }
+
+  return lessonIds.map((id) => {
+    const a = byLesson[id];
+    const learners = a.uniqueLearners;
+    return {
+      lessonId: id,
+      uniqueLearners: learners,
+      totalAttempts: a.totalAttempts,
+      completions: a.completions,
+      passRate: learners > 0 ? Math.round((a.completions / learners) * 100) : 0,
+      avgHintsUsed: learners > 0 ? Number((a.totalHintsUsed / learners).toFixed(1)) : 0,
+      avgTimeSpentSec: learners > 0 ? Math.round(a.totalTimeSpent / learners) : 0,
+    };
+  });
+};
+
 module.exports = {
   recordLessonStart,
   recordSubmission,
   recordHintReveal,
   getStudentProgress,
+  getCourseAnalytics,
 };

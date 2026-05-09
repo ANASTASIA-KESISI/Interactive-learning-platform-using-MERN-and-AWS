@@ -1,8 +1,10 @@
 const express = require('express');
 const courseService = require('../services/courseService');
+const progressService = require('../services/progressService');
 const { requireAuth } = require('../middleware/requireAuth');
 const { requireRole } = require('../middleware/requireRole');
 const { attachUser } = require('../middleware/attachUser');
+const { forbidden } = require('../utils/httpError');
 
 const router = express.Router();
 
@@ -73,6 +75,55 @@ router.patch('/lessons/:id', ...auth, async (req, res, next) => {
   try {
     const lesson = await courseService.updateLesson(req.params.id, req.dbUser._id, req.body);
     res.json({ data: lesson });
+  } catch (err) {
+    next(err);
+  }
+});
+
+// GET /api/instructor/courses/:id/analytics
+// Per-lesson aggregates across all learners (pass rate, hint usage, time-on-task).
+// Admins can view any course; instructors only their own.
+router.get('/courses/:id/analytics', ...auth, async (req, res, next) => {
+  try {
+    const course = await courseService.getCourseById(req.params.id);
+    if (
+      req.dbUser.role !== 'admin' &&
+      course.instructor._id.toString() !== req.dbUser._id.toString()
+    ) {
+      throw forbidden('Only the course instructor can view analytics');
+    }
+
+    const lessons = course.modules.flatMap((m) =>
+      m.lessons.map((l) => ({
+        lessonId: l._id.toString(),
+        title: l.title,
+        moduleTitle: m.title,
+        type: l.type,
+      })),
+    );
+
+    const aggregates = await progressService.getCourseAnalytics(
+      lessons.map((l) => l.lessonId),
+    );
+
+    const lessonsAnalytics = lessons.map((meta, i) => ({ ...meta, ...aggregates[i] }));
+
+    const totalLearners = course.enrollmentCount || 0;
+    const totalCompletions = aggregates.reduce((s, a) => s + a.completions, 0);
+    const totalPossible = totalLearners * lessons.length;
+    const overallCompletionRate =
+      totalPossible > 0 ? Math.round((totalCompletions / totalPossible) * 100) : 0;
+
+    res.json({
+      data: {
+        courseId: course._id,
+        courseTitle: course.title,
+        totalLearners,
+        totalLessons: lessons.length,
+        overallCompletionRate,
+        lessons: lessonsAnalytics,
+      },
+    });
   } catch (err) {
     next(err);
   }

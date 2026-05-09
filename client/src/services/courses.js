@@ -30,3 +30,6 @@ export const addModule = (courseId, payload) =>
 
 export const addLesson = (moduleId, payload) =>
   api.post(`/instructor/modules/${moduleId}/lessons`, payload).then(unwrap);
+
+export const getCourseAnalytics = (courseId) =>
+  api.get(`/instructor/courses/${courseId}/analytics`).then(unwrap);
