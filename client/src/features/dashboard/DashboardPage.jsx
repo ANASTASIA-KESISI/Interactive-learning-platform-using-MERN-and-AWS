@@ -52,13 +52,15 @@ const StudentDashboard = ({ firstName }) => {
         xpPoints={data.xpPoints}
         streak={data.streak}
         completionRate={data.completionRate}
-        badgeCount={data.badgeCount}
+        badges={data.badges}
       />
 
       <div className="grid gap-6 lg:grid-cols-2">
         <CourseProgressChart courses={data.enrolledCourses} />
         <RecentActivity items={data.recentActivity} />
       </div>
+
+      <BadgeGallery badges={data.badges} />
 
       <EnrolledCourses courses={data.enrolledCourses} />
     </div>
@@ -73,18 +75,79 @@ const KpiCard = ({ label, value, hint }) => (
   </div>
 );
 
-const KpiRow = ({ xpPoints, streak, completionRate, badgeCount }) => (
-  <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-    <KpiCard label="XP" value={xpPoints} hint="Earned across all lessons" />
-    <KpiCard
-      label="Streak"
-      value={`${streak} day${streak === 1 ? '' : 's'}`}
-      hint="Consecutive active days"
-    />
-    <KpiCard label="Completion" value={`${completionRate}%`} hint="Of lessons started" />
-    <KpiCard label="Badges" value={badgeCount} hint="Achievements unlocked" />
-  </div>
-);
+const KpiRow = ({ xpPoints, streak, completionRate, badges }) => {
+  const earned = badges?.filter((b) => b.earned).length ?? 0;
+  const total = badges?.length ?? 0;
+  return (
+    <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+      <KpiCard label="XP" value={xpPoints} hint="Earned across all lessons" />
+      <KpiCard
+        label="Streak"
+        value={`${streak} day${streak === 1 ? '' : 's'}`}
+        hint="Consecutive active days"
+      />
+      <KpiCard label="Completion" value={`${completionRate}%`} hint="Of lessons started" />
+      <KpiCard
+        label="Badges"
+        value={total > 0 ? `${earned} / ${total}` : earned}
+        hint={total > 0 ? 'Earned out of available' : 'Achievements unlocked'}
+      />
+    </div>
+  );
+};
+
+const formatCriteria = (c) => {
+  if (c.type === 'lessons_completed') return `Complete ${c.threshold} lesson${c.threshold === 1 ? '' : 's'}`;
+  if (c.type === 'streak_days') return `Reach a ${c.threshold}-day streak`;
+  if (c.type === 'xp_reached') return `Earn ${c.threshold} XP`;
+  return '';
+};
+
+const BadgeGallery = ({ badges }) => {
+  if (!badges || badges.length === 0) return null;
+  return (
+    <section className="space-y-3">
+      <h2 className="text-lg font-semibold text-slate-900">Badges</h2>
+      <ul className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+        {badges.map((b) => (
+          <li
+            key={b.id}
+            className={`rounded-lg border p-4 shadow-sm ${
+              b.earned
+                ? 'border-amber-200 bg-amber-50'
+                : 'border-slate-200 bg-white opacity-70'
+            }`}
+            title={b.earned ? 'Earned' : 'Locked'}
+          >
+            <div className="flex items-start gap-3">
+              <div
+                className={`flex h-10 w-10 items-center justify-center rounded-full text-xl ${
+                  b.earned ? 'bg-amber-100' : 'bg-slate-100 grayscale'
+                }`}
+              >
+                {b.icon || '🏅'}
+              </div>
+              <div className="min-w-0 flex-1">
+                <div className="flex items-center gap-2">
+                  <h3 className="font-semibold text-slate-900">{b.name}</h3>
+                  {b.earned && (
+                    <span className="rounded bg-amber-200 px-1.5 py-0.5 text-[10px] font-medium uppercase tracking-wide text-amber-900">
+                      Earned
+                    </span>
+                  )}
+                </div>
+                <p className="mt-0.5 text-xs text-slate-600">{b.description}</p>
+                {!b.earned && (
+                  <p className="mt-1 text-[11px] text-slate-500">{formatCriteria(b.criteria)}</p>
+                )}
+              </div>
+            </div>
+          </li>
+        ))}
+      </ul>
+    </section>
+  );
+};
 
 const CourseProgressChart = ({ courses }) => {
   if (!courses || courses.length === 0) {

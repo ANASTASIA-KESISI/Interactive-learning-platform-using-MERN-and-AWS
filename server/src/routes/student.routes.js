@@ -5,6 +5,7 @@ const { attachUser } = require('../middleware/attachUser');
 const progressService = require('../services/progressService');
 const courseService = require('../services/courseService');
 const { Lesson } = require('../models/Lesson');
+const { Badge } = require('../models/Badge');
 
 const router = express.Router();
 
@@ -71,11 +72,32 @@ router.get('/dashboard', ...studentAuth, async (req, res, next) => {
       completedAt: r.completedAt,
     }));
 
+    // Full badge gallery with earned/locked state — drives the dashboard's
+    // gamification panel. Sorted so earned ones surface first, then by
+    // ascending threshold so the next attainable badge is visible.
+    const allBadges = await Badge.find().lean();
+    const earnedBadgeIds = new Set(user.badges.map((id) => id.toString()));
+    const badges = allBadges
+      .map((b) => ({
+        id: b._id,
+        name: b.name,
+        description: b.description,
+        icon: b.icon,
+        criteria: b.criteria,
+        xpValue: b.xpValue,
+        earned: earnedBadgeIds.has(b._id.toString()),
+      }))
+      .sort((a, b) => {
+        if (a.earned !== b.earned) return a.earned ? -1 : 1;
+        return a.criteria.threshold - b.criteria.threshold;
+      });
+
     res.json({
       data: {
         xpPoints: user.xpPoints,
         streak: user.streak,
-        badgeCount: user.badges.length,
+        lessonsCompleted: user.lessonsCompleted,
+        badges,
         completionRate:
           progressRecords.length
             ? Math.round(

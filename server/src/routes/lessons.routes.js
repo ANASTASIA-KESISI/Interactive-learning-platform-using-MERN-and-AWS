@@ -73,10 +73,11 @@ router.post('/:id/submit', ...learnerOrPreview, async (req, res, next) => {
         runResult,
       );
       if (runResult.passed && progressUpdate.firstCompletion) {
-        gamificationResult = await gamificationService.onLessonCompleted(
-          req.dbUser,
-          lesson.xpReward,
-        );
+        gamificationResult = await gamificationService.onLessonCompleted({
+          userId: req.dbUser._id,
+          xpReward: lesson.xpReward,
+          hintsUsed: progressUpdate.hintsUsed,
+        });
       }
     }
 

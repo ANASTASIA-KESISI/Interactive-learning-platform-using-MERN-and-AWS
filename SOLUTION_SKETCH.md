@@ -248,7 +248,30 @@ These are decisions left to make at implementation time:
 1. ~~**CodeRunner isolation strategy**~~ — **Resolved (S3 kickoff, 2026-04-26).** Dual adapter behind a single `CodeRunnerService` interface: **AWS Lambda** in production (one function per language, starting with `runner-js`), **`isolated-vm`** in local dev (in-process V8 isolate, no Docker needed). Adapter selected by env var at boot. `vm2` was rejected — deprecated 2023 due to repeated sandbox-escape CVEs. Rationale: Lambda gives multi-language support and AWS-grade isolation; isolated-vm keeps laptop dev friction-free. Deployment via **AWS SAM** (`template.yaml` at repo root). The `CodeRunnerService` interface stays narrow (`run(code, language) → {stdout, stderr, exitCode, durationMs}`) so the adapters are swappable.
 2. ~~**Which languages does the code editor support?**~~ — **Resolved (S3 kickoff, 2026-04-26).** **JavaScript only for the pilot**, per thesis Chapter 4 default. Python and other languages are future work — adding one is a new Lambda + a `language` enum value, no architectural change. `lessons.language` (default `"javascript"`) is the schema field that drives runner selection.
 3. **Real-time feedback transport** — polling after submit, or WebSockets? Polling is simpler and likely sufficient for the pilot.
-4. **Hint reveal cost** — does revealing a hint reduce earned XP? The thesis doesn't specify; it's a design knob for the gamification module.
+4. ~~**Hint reveal cost**~~ — **Resolved (S5 kickoff, 2026-05-10).** Tiered discount: 0 hints → 100% XP, 1 hint → 50%, 2+ hints → 20%. Implemented in `gamificationService.applyHintDiscount`. Encourages self-attempt without zeroing the reward.
 5. **Instructor course approval flow** — do instructors publish directly, or does admin approve? Depends on institutional policy.
 
 Resolve these before the relevant sprint starts, not during it.
+
+---
+
+## 11. Future Work (post-pilot)
+
+Items intentionally **out of scope for the pilot** but worth recording so they aren't re-litigated:
+
+1. **Richer exercise validation beyond stdout matching.** Today `codeRunnerService` compares `lesson.expectedOutput` to the student's stdout (whitespace-normalised). Suitable for "print X" exercises, insufficient for anything that returns values, has side effects, or needs multiple test cases. Extension path:
+   - Add `Lesson.validationType` (`stdout` | `tests`) and `Lesson.testCases: [{input, expected}]`
+   - In `codeRunnerService`, generate a per-strategy wrapper script that combines student code + harness, run via the existing adapter, parse structured results back into `passed` + per-test detail
+   - Update `LessonEditorPage` to author test cases; update the lesson output panel to render per-test pass/fail
+   - The runner interface (`run(code, language) → {stdout, stderr, exitCode, durationMs}`) does **not** need to change — wrapping is the orchestrator's job
+   - Roughly half a sprint. Worth doing if pilot SUS feedback indicates exercises feel too shallow.
+
+2. **Multi-language support (Python, etc.).** JavaScript is the only language wired today by deliberate pilot-scope decision (see §10 item 2). Cookbook to add a language:
+   - Extend `Lesson.LESSON_LANGUAGES` enum to include the new language
+   - Create `server/runners/<lang>/` with the runner handler
+   - Add a `Runner<Lang>` resource to `template.yaml` and `sam deploy`
+   - Add an entry to `lambdaAdapter.FUNCTION_NAMES` and a corresponding `LAMBDA_RUNNER_<LANG>_FUNCTION` env var
+   - Decide what to do in **dev mode**: the Node `vm` dev adapter can only run JavaScript. Options: (a) gate non-JS exercises behind `CODE_RUNNER_ADAPTER=lambda` only, (b) shell out to the system interpreter (`python3`, `java`, etc.), (c) reintroduce a containerised dev adapter (rejected at S3 for Windows toolchain reasons — re-evaluate if Docker becomes a hard dependency anyway)
+   - Architecture is intentionally ready for this — the per-language Lambda topology was chosen at S3 specifically to keep adding languages a config change, not a redesign.
+
+These connect to the thesis Chapter 7 "future work" framing: validation extensibility serves H1 (better feedback signal density), and multi-language support broadens institutional applicability beyond the JavaScript pilot.

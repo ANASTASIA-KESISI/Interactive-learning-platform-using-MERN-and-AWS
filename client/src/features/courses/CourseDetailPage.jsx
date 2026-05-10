@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 
 import { enrollInCourse, getCourse } from '../../services/courses.js';
+import { getStudentProgress } from '../../services/student.js';
 import { Spinner, ErrorBanner } from '../../components/Spinner.jsx';
 import { useAuth } from '../../hooks/useAuth.js';
 
@@ -11,6 +12,7 @@ export const CourseDetailPage = () => {
   const { user } = useAuth();
 
   const [course, setCourse] = useState(null);
+  const [completedLessonIds, setCompletedLessonIds] = useState(new Set());
   const [error, setError] = useState(null);
   const [enrolling, setEnrolling] = useState(false);
 
@@ -21,6 +23,19 @@ export const CourseDetailPage = () => {
       .then(setCourse)
       .catch((err) => setError(err.response?.data?.error?.message || err.message));
   }, [id]);
+
+  useEffect(() => {
+    if (user?.role !== 'student') return;
+    getStudentProgress()
+      .then((records) => {
+        setCompletedLessonIds(
+          new Set(records.filter((r) => r.status === 'completed').map((r) => r.lessonId)),
+        );
+      })
+      .catch(() => {
+        // Non-fatal: course page still renders without checkmarks if progress fetch fails.
+      });
+  }, [id, user?.role]);
 
   const handleEnroll = async () => {
     setEnrolling(true);
@@ -102,22 +117,41 @@ export const CourseDetailPage = () => {
                 </h3>
                 {mod.lessons && mod.lessons.length > 0 ? (
                   <ul className="mt-3 divide-y divide-slate-100">
-                    {mod.lessons.map((lesson) => (
-                      <li key={lesson._id} className="flex items-center justify-between py-2">
-                        <div>
-                          <Link
-                            to={`/lessons/${lesson._id}`}
-                            className="font-medium text-slate-800 hover:text-brand-700"
-                          >
-                            {lesson.title}
-                          </Link>
-                          <span className="ml-2 rounded bg-slate-100 px-2 py-0.5 text-xs text-slate-600">
-                            {lesson.type}
-                          </span>
-                        </div>
-                        <span className="text-xs text-slate-500">{lesson.xpReward} XP</span>
-                      </li>
-                    ))}
+                    {mod.lessons.map((lesson) => {
+                      const completed = completedLessonIds.has(lesson._id.toString());
+                      return (
+                        <li key={lesson._id} className="flex items-center justify-between py-2">
+                          <div className="flex items-center gap-2">
+                            {completed ? (
+                              <span
+                                className="flex h-5 w-5 items-center justify-center rounded-full bg-green-100 text-xs font-bold text-green-700"
+                                title="Completed"
+                                aria-label="Completed"
+                              >
+                                ✓
+                              </span>
+                            ) : (
+                              <span
+                                className="h-5 w-5 rounded-full border border-slate-300"
+                                aria-hidden="true"
+                              />
+                            )}
+                            <Link
+                              to={`/lessons/${lesson._id}`}
+                              className={`font-medium hover:text-brand-700 ${
+                                completed ? 'text-slate-500 line-through' : 'text-slate-800'
+                              }`}
+                            >
+                              {lesson.title}
+                            </Link>
+                            <span className="ml-1 rounded bg-slate-100 px-2 py-0.5 text-xs text-slate-600">
+                              {lesson.type}
+                            </span>
+                          </div>
+                          <span className="text-xs text-slate-500">{lesson.xpReward} XP</span>
+                        </li>
+                      );
+                    })}
                   </ul>
                 ) : (
                   <p className="mt-2 text-sm text-slate-500">No lessons in this module yet.</p>

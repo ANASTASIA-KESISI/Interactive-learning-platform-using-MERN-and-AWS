@@ -61,6 +61,7 @@ const recordSubmission = async (userId, lessonId, runResult) => {
     attempts: newAttempts,
     status: updates.status || existing.status,
     firstCompletion: runResult.passed && !wasCompleted,
+    hintsUsed: existing.hintsUsed || 0,
   };
 };
 

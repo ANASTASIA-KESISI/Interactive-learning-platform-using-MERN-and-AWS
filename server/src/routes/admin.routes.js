@@ -1,6 +1,7 @@
 const express = require('express');
 const { User } = require('../models/User');
 const { Course } = require('../models/Course');
+const { Badge, CRITERIA_TYPES } = require('../models/Badge');
 const { requireAuth } = require('../middleware/requireAuth');
 const { requireRole } = require('../middleware/requireRole');
 const { attachUser } = require('../middleware/attachUser');
@@ -71,6 +72,35 @@ router.get('/courses', ...adminAuth, async (req, res, next) => {
       .populate('instructor', 'firstName lastName email')
       .sort({ createdAt: -1 });
     res.json({ data: courses });
+  } catch (err) {
+    next(err);
+  }
+});
+
+// GET /api/admin/badges — list every badge
+router.get('/badges', ...adminAuth, async (_req, res, next) => {
+  try {
+    const badges = await Badge.find().sort({ 'criteria.threshold': 1 });
+    res.json({ data: badges });
+  } catch (err) {
+    next(err);
+  }
+});
+
+// POST /api/admin/badges — create a badge
+router.post('/badges', ...adminAuth, async (req, res, next) => {
+  try {
+    const { name, description, icon, criteria, xpValue } = req.body;
+    if (!name || !description) throw badRequest('name and description are required');
+    if (!criteria || !CRITERIA_TYPES.includes(criteria.type)) {
+      throw badRequest(`criteria.type must be one of ${CRITERIA_TYPES.join(', ')}`);
+    }
+    if (typeof criteria.threshold !== 'number' || criteria.threshold < 1) {
+      throw badRequest('criteria.threshold must be a positive number');
+    }
+
+    const badge = await Badge.create({ name, description, icon, criteria, xpValue });
+    res.status(201).json({ data: badge });
   } catch (err) {
     next(err);
   }

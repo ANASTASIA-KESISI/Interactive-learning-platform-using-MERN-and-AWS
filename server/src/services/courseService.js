@@ -102,10 +102,25 @@ const getLessonById = async (lessonId) => {
 
 // Returns lesson without revealing all hint text — only hint count and
 // whether each index has been revealed is managed on the client/progress layer.
+// Also resolves the parent courseId so the client can deep-link back to the
+// course (e.g. from the lesson-complete celebration screen).
 const getLessonForStudent = async (lessonId) => {
-  const lesson = await Lesson.findById(lessonId).select('-__v');
+  const lesson = await Lesson.findById(lessonId)
+    .populate({
+      path: 'moduleId',
+      select: 'courseId',
+      populate: { path: 'courseId', select: 'title' },
+    })
+    .lean();
   if (!lesson) throw notFound('Lesson not found');
-  return lesson;
+  const module = lesson.moduleId;
+  const course = module?.courseId;
+  return {
+    ...lesson,
+    moduleId: module?._id ?? null,
+    courseId: course?._id ?? null,
+    courseTitle: course?.title ?? null,
+  };
 };
 
 const updateLesson = async (lessonId, instructorId, updates) => {

@@ -9,6 +9,7 @@ import { DashboardPage } from '../features/dashboard/DashboardPage.jsx';
 import { CoursesListPage } from '../features/courses/CoursesListPage.jsx';
 import { CourseDetailPage } from '../features/courses/CourseDetailPage.jsx';
 import { LessonPage } from '../features/lesson/LessonPage.jsx';
+import { LessonCompletePage } from '../features/lesson/LessonCompletePage.jsx';
 import { InstructorDashboardPage } from '../features/instructor/InstructorDashboardPage.jsx';
 import { NewCoursePage } from '../features/instructor/NewCoursePage.jsx';
 import { CourseEditorPage } from '../features/instructor/CourseEditorPage.jsx';
@@ -32,6 +33,7 @@ const App = () => (
         <Route path="courses" element={<CoursesListPage />} />
         <Route path="courses/:id" element={<CourseDetailPage />} />
         <Route path="lessons/:id" element={<LessonPage />} />
+        <Route path="lessons/:id/complete" element={<LessonCompletePage />} />
 
         <Route
           path="instructor"

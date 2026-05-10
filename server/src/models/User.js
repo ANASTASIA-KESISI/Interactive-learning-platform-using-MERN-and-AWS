@@ -14,6 +14,11 @@ const userSchema = new mongoose.Schema(
     xpPoints: { type: Number, default: 0, min: 0 },
     badges: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Badge' }],
     streak: { type: Number, default: 0, min: 0 },
+    // Authoritative count of distinct lessons the user has completed (set on
+    // first pass only). Used by gamification to evaluate `lessons_completed`
+    // badge criteria — replaces the old xpPoints/xpReward heuristic, which
+    // broke as soon as XP came from anywhere other than lesson completion.
+    lessonsCompleted: { type: Number, default: 0, min: 0 },
     lastActiveAt: { type: Date },
   },
   { timestamps: true },
@@ -29,6 +34,7 @@ userSchema.methods.toSafeJSON = function toSafeJSON() {
     avatar: this.avatar,
     xpPoints: this.xpPoints,
     streak: this.streak,
+    lessonsCompleted: this.lessonsCompleted,
     enrolledCourses: this.enrolledCourses,
     badges: this.badges,
   };

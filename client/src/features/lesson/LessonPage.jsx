@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Link, useParams } from 'react-router-dom';
+import { Link, useNavigate, useParams } from 'react-router-dom';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import Editor from '@monaco-editor/react';
@@ -57,6 +57,7 @@ const ReadOnlyView = ({ lesson }) => (
 );
 
 const ExerciseView = ({ lesson }) => {
+  const navigate = useNavigate();
   const [code, setCode] = useState(lesson.codeTemplate || '');
   const [running, setRunning] = useState(false);
   const [result, setResult] = useState(null);
@@ -67,6 +68,22 @@ const ExerciseView = ({ lesson }) => {
     setRunError(null);
     try {
       const res = await submitCode(lesson._id, code);
+      // On a passing run, jump to the celebration page. Failed runs stay
+      // inline so the student can iterate without losing editor state.
+      if (res?.execution?.passed) {
+        navigate(`/lessons/${lesson._id}/complete`, {
+          state: {
+            lessonTitle: lesson.title,
+            courseId: lesson.courseId,
+            courseTitle: lesson.courseTitle,
+            xpDelta: res.xpDelta,
+            xpReward: lesson.xpReward,
+            hintsUsed: res.progress?.hintsUsed ?? 0,
+            newBadges: res.newBadges ?? [],
+          },
+        });
+        return;
+      }
       setResult(res);
     } catch (err) {
       setRunError(err.response?.data?.error?.message || err.message);
@@ -123,7 +140,7 @@ const ExerciseView = ({ lesson }) => {
 
         {runError && <ErrorBanner message={runError} />}
 
-        {result && <OutputPanel result={result} />}
+        {result && <OutputPanel result={result} xpReward={lesson.xpReward} />}
       </section>
     </div>
   );
@@ -186,17 +203,17 @@ const HintList = ({ lessonId, hints }) => {
   );
 };
 
-const OutputPanel = ({ result }) => {
-  const { execution, xpDelta, newBadges } = result;
+const OutputPanel = ({ result, xpReward }) => {
+  const { execution, xpDelta, newBadges, progress } = result;
   const passed = execution.passed;
+  const hintsUsed = progress?.hintsUsed ?? 0;
+  const discounted = passed && xpDelta > 0 && xpReward > 0 && xpDelta < xpReward;
 
   return (
     <div className="space-y-2">
       <div
         className={`rounded-md px-3 py-2 text-sm font-medium ${
-          passed
-            ? 'bg-green-50 text-green-800'
-            : 'bg-amber-50 text-amber-900'
+          passed ? 'bg-green-50 text-green-800' : 'bg-amber-50 text-amber-900'
         }`}
       >
         {passed ? '✓ Passed — output matches expected' : '✗ Output did not match expected'}
@@ -204,6 +221,13 @@ const OutputPanel = ({ result }) => {
           <span className="ml-2 font-normal">+{xpDelta} XP</span>
         )}
       </div>
+
+      {discounted && (
+        <div className="rounded-md bg-slate-50 px-3 py-2 text-xs text-slate-600">
+          Earned {xpDelta} of {xpReward} XP — {hintsUsed} hint{hintsUsed === 1 ? '' : 's'} used
+          ({hintsUsed === 1 ? '50%' : '20%'} of full reward).
+        </div>
+      )}
 
       {execution.error && (
         <pre className="overflow-x-auto rounded-md bg-red-50 p-3 font-mono text-xs text-red-800">
@@ -221,8 +245,21 @@ const OutputPanel = ({ result }) => {
       )}
 
       {newBadges && newBadges.length > 0 && (
-        <div className="rounded-md bg-brand-50 px-3 py-2 text-sm text-brand-900">
-          New badge{newBadges.length > 1 ? 's' : ''}: {newBadges.map((b) => b.name).join(', ')}
+        <div className="space-y-2 rounded-md border border-amber-200 bg-amber-50 p-3">
+          <div className="text-sm font-semibold text-amber-900">
+            🎉 New badge{newBadges.length > 1 ? 's' : ''} unlocked!
+          </div>
+          <ul className="space-y-1">
+            {newBadges.map((b) => (
+              <li key={b.id} className="flex items-center gap-2 text-sm text-amber-900">
+                <span className="text-lg">{b.icon || '🏅'}</span>
+                <div>
+                  <div className="font-medium">{b.name}</div>
+                  {b.description && <div className="text-xs text-amber-800">{b.description}</div>}
+                </div>
+              </li>
+            ))}
+          </ul>
         </div>
       )}
     </div>
