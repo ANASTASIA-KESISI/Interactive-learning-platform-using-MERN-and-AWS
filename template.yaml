@@ -30,7 +30,9 @@ Resources:
       Handler: index.handler
       # Per-language runtimes are the point of the per-function topology
       # (CHALLENGES.md Challenge 4) — this one overrides the Node default.
-      Runtime: python3.13
+      # Matches the deployed function; the handler uses only long-stable stdlib
+      # (contextlib, io, signal, os), so it is not sensitive to the minor version.
+      Runtime: python3.14
       Description: Sandboxed Python execution for student code submissions
 
 Outputs:
