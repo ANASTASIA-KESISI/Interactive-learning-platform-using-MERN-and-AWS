@@ -273,6 +273,15 @@ Run in order once the platform is live:
 
 ## 9. Known gaps at S6
 
+- **The API host runs Node 20, which reached end-of-life in April 2026** and so
+  receives no further security patches. `deploy/setup-ec2.sh` pins `nodejs20`.
+  Deliberately deferred during the 2026-08-12 deployment to avoid churn
+  mid-setup; the AWS SDK also drops Node 20 in January 2027, which is a second
+  reason to move. Upgrade path is `dnf install nodejs22`, repoint the
+  `alternatives` symlink, re-run `npm ci --omit=dev --workspace server`, restart
+  the unit — and update the pin in the setup script so a rebuild does not
+  reintroduce it. The Lambda runner is unaffected (Node 24).
+
 - **No client test suite.** CI lints and builds the frontend; React Testing
   Library specs are planned but unwritten, so the build is the only frontend
   regression signal.

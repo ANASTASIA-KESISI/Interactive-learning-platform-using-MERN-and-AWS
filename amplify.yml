@@ -1,0 +1,38 @@
+# AWS Amplify Hosting build spec for the React client.
+#
+# Amplify picks this up automatically from the repo root. Keeping it in version
+# control rather than in the Console means the build is reviewable and survives
+# the app being recreated.
+#
+# This is an npm workspaces monorepo, so the install runs at the ROOT (which
+# resolves both workspaces) and only the client workspace is built. Setting
+# Amplify's "base directory" to `client` instead would break the install, since
+# client/package.json alone cannot resolve the workspace tree.
+#
+# The VITE_* variables are inlined into the bundle at build time, so they must
+# be set as Amplify environment variables BEFORE the first build, and changing
+# one requires a rebuild rather than a restart. Required:
+#   VITE_API_BASE_URL          https://<api-host>/api
+#   VITE_COGNITO_USER_POOL_ID  eu-west-1_Spm4bEWSk
+#   VITE_COGNITO_CLIENT_ID     1u36e3aa9ruk51v7eaetlpliqn
+#   VITE_COGNITO_REGION        eu-west-1
+#
+# VITE_API_BASE_URL must be https. Amplify serves the app over TLS, and a
+# browser blocks an https page calling an http API as mixed content.
+
+version: 1
+frontend:
+  phases:
+    preBuild:
+      commands:
+        - npm ci
+    build:
+      commands:
+        - npm run build --workspace client
+  artifacts:
+    baseDirectory: client/dist
+    files:
+      - '**/*'
+  cache:
+    paths:
+      - node_modules/**/*
