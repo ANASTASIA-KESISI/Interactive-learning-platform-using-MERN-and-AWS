@@ -12,11 +12,15 @@
 set -euo pipefail
 
 REPO_URL="${1:-}"
+# The application lives on `dev`; `main` holds only scaffolding docs, and it is
+# the repository's default branch — so a plain `git clone` checks out a tree
+# with no package.json and the dependency install fails with ENOENT.
+BRANCH="${2:-dev}"
 APP_DIR=/opt/learncode
 SERVICE_USER=learncode
 
 if [[ -z "$REPO_URL" ]]; then
-  echo "usage: bash setup-ec2.sh <git-clone-url>" >&2
+  echo "usage: bash setup-ec2.sh <git-clone-url> [branch]   # branch defaults to dev" >&2
   exit 1
 fi
 
@@ -36,13 +40,19 @@ if ! id "$SERVICE_USER" &>/dev/null; then
   sudo useradd --system --home-dir "$APP_DIR" --shell /sbin/nologin "$SERVICE_USER"
 fi
 
-echo "==> Fetching application to ${APP_DIR}"
+echo "==> Fetching application (${BRANCH}) to ${APP_DIR}"
 if [[ -d "$APP_DIR/.git" ]]; then
   sudo git -C "$APP_DIR" fetch --all
-  sudo git -C "$APP_DIR" reset --hard origin/dev
+  sudo git -C "$APP_DIR" checkout "$BRANCH"
+  sudo git -C "$APP_DIR" reset --hard "origin/${BRANCH}"
 else
   sudo mkdir -p "$APP_DIR"
-  sudo git clone "$REPO_URL" "$APP_DIR"
+  sudo git clone --branch "$BRANCH" "$REPO_URL" "$APP_DIR"
+fi
+
+if [[ ! -f "$APP_DIR/package.json" ]]; then
+  echo "ERROR: no package.json at ${APP_DIR} — wrong branch checked out?" >&2
+  exit 1
 fi
 
 echo "==> Installing production dependencies"
