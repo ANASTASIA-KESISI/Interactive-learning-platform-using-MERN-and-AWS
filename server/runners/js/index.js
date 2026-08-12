@@ -9,6 +9,27 @@ const vm = require('vm');
 
 const TIMEOUT_MS = 5000;
 
+// `vm` is not a sandbox and never was — student code can reach the real global
+// object through any constructor it can see (`console.log.constructor(...)`),
+// which is why Lambda's microVM is the actual security boundary. Verified
+// against the deployed function on 2026-08-12: the escape works, and it read
+// the execution role's temporary credentials straight out of `process.env`.
+//
+// Playing whack-a-mole with escape routes is the wrong game. Removing the
+// target is not: this handler calls no AWS service, so the credentials have no
+// business being reachable. Scrubbed per invocation rather than once at cold
+// start, because Lambda re-injects them into the environment when they refresh.
+const CREDENTIAL_VARS = [
+  'AWS_ACCESS_KEY_ID',
+  'AWS_SECRET_ACCESS_KEY',
+  'AWS_SESSION_TOKEN',
+  'AWS_SECURITY_TOKEN',
+];
+
+const scrubCredentials = () => {
+  for (const key of CREDENTIAL_VARS) delete process.env[key];
+};
+
 const stringify = (v) => {
   if (v === null) return 'null';
   if (v === undefined) return 'undefined';
@@ -19,6 +40,8 @@ const stringify = (v) => {
 };
 
 exports.handler = async (event) => {
+  scrubCredentials();
+
   const { code } = event || {};
   if (typeof code !== 'string') {
     return { stdout: '', stderr: 'Invalid payload: expected { code: string }', exitCode: 1 };

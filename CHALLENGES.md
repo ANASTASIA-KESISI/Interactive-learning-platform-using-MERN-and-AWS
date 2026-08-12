@@ -487,6 +487,65 @@ header is forgeable when there is no proxy in front.
 
 ---
 
+### Challenge 13 — Credentials inside the code-runner sandbox
+
+**Found by testing, not review.** The first end-to-end invocation of the
+deployed `learncode-runner-js` (2026-08-12, immediately after the Console
+deploy) included a deliberate escape probe. It succeeded.
+
+**Problem.** `vm` is not a sandbox — student code reaches the real global object
+through any constructor it can see:
+
+```js
+console.log.constructor('return process.env')()
+```
+
+Run against the live Lambda, that returned the full environment, including the
+execution role's temporary credentials (`ASIA…` key id plus an
+`AWS_SESSION_TOKEN`, i.e. STS credentials belonging to the function itself, not
+the `learncode-backend` IAM user).
+
+**What was and was not compromised.** The microVM boundary held: the escape
+reached the *inside of the disposable sandbox* and no further — not the API
+host, MongoDB, DynamoDB, S3, or the backend's IAM keys. The leaked credentials
+carry only `AWSLambdaBasicExecutionRole`, so the realistic worst case is a
+student writing junk into one CloudWatch log group. The architecture behaved as
+Challenge 1 and Challenge 6 said it would; what was wrong is that a credential
+was sitting inside the blast radius with no reason to be there.
+
+**Options considered:**
+
+| Option | Pros | Cons |
+|---|---|---|
+| **Harden the `vm` context against known escapes** | No infrastructure change | Whack-a-mole against a mechanism Node's own docs say is not a security boundary; every hardening is one new constructor away from being bypassed |
+| **Scrub the credential variables before executing** | Removes the target rather than chasing the route; 4 lines; the handler calls no AWS service so nothing legitimate breaks | Does not stop a student reaching anything else in the sandbox (network egress, `/tmp`) |
+| **Run the Lambda in a VPC with no NAT gateway** | Kills outbound network entirely — no exfiltration, no calling out | Extra infrastructure; cold starts grow with ENI attachment; overkill for a 15–30 person pilot |
+
+**Decision.** Scrub `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`,
+`AWS_SESSION_TOKEN` and `AWS_SECURITY_TOKEN` from `process.env` at the top of
+every invocation. Per-invocation rather than once at cold start, because Lambda
+re-injects refreshed credentials into the environment of a warm container.
+
+**Rationale.** The threat is not "student reads an environment variable", it is
+"student obtains a usable AWS credential". Deleting the credential addresses the
+threat directly and cannot be routed around by a cleverer escape, whereas
+hardening `vm` can. This is defence in depth *behind* the real boundary, not a
+replacement for it — the security story remains "Lambda's microVM isolates
+untrusted code", exactly as at S3.
+
+**Residual risk, accepted for the pilot.** Escaped code still has ordinary Node
+capabilities inside the sandbox: outbound HTTP and `/tmp`, bounded by the 10s
+function timeout and 256MB. For a small academic pilot with identified
+participants this is proportionate. If the platform were ever opened to
+anonymous users, the VPC-without-NAT option above is the next control to add.
+
+**Lesson for the write-up.** This is worth a paragraph in the thesis security
+chapter: a design can be correct and still ship an avoidable weakness, and it
+was a five-line adversarial test against the *deployed* system — not code
+review, which had passed this file twice — that surfaced it.
+
+---
+
 ## How to add a new entry
 
 When making a non-trivial decision, add a `### Challenge N — <topic>` section

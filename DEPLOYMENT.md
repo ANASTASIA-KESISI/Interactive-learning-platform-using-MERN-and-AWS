@@ -47,14 +47,26 @@ sam build
 sam deploy --guided     # stack name e.g. learncode-runners, region eu-west-1
 ```
 
-**Option B — Console upload, no CLI.** Create the function by hand:
+**Option B — Console upload, no CLI (used for the pilot).** Create the function
+by hand:
 
 1. Lambda → Create function → Author from scratch
 2. Name `learncode-runner-js`, runtime **Node.js 22.x**, architecture x86_64
 3. Configuration → General → Timeout **10s**, Memory **256MB**
-4. Zip the contents of `server/runners/js/` (`index.js` + `package.json`, no
-   `node_modules` — the handler has no dependencies) and upload under Code
+4. Upload the deployment zip under Code → Upload from → .zip file
 5. Handler must be `index.handler`
+
+Rebuild the zip from the repo root any time the runner changes — the two files
+must sit at the **archive root**, not inside a folder, or Lambda cannot find the
+handler:
+
+```powershell
+Compress-Archive -Path server/runners/js/index.js, server/runners/js/package.json `
+  -DestinationPath learncode-runner-js.zip -Force
+```
+
+The handler has no dependencies, so there is no `node_modules` to include. The
+artifact is gitignored.
 
 **Option C — GitHub Actions.** If you would rather not install anything
 locally, add a manually-triggered workflow that runs `sam deploy` with
@@ -70,6 +82,26 @@ overkill for a single pilot function.
 Expected response: `{"stdout":"Hello, World!","stderr":"","exitCode":0}`.
 Then verify a failing case — `{ "code": "throw new Error('boom')" }` should
 return `exitCode: 1` with `boom` in `stderr`.
+
+**Then test the adapter → Lambda contract**, which the Console test does not
+cover. From `/server`, with the `lambda:InvokeFunction` policy of §3 attached:
+
+```bash
+CODE_RUNNER_ADAPTER=lambda node -e "const a=require('./src/services/codeRunner/lambdaAdapter'); a.run({code:\"console.log('hi')\",language:'javascript'}).then(console.log).catch(e=>console.error(e.name,e.message))"
+```
+
+`AccessDeniedException` means the policy is missing or its ARN is wrong;
+`ResourceNotFoundException` means a name or region mismatch.
+
+**And re-run the credential probe after any runner redeploy** (Challenge 13):
+
+```json
+{ "code": "console.log(console.log.constructor('return process.env')().AWS_SECRET_ACCESS_KEY)" }
+```
+
+Expected `stdout` is `undefined`. Anything else means the credential scrub in
+`server/runners/js/index.js` is missing from the deployed artifact — most
+likely a stale zip.
 
 ---
 

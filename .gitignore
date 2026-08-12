@@ -13,6 +13,9 @@ build/
 coverage/
 .nyc_output/
 
+# Lambda deployment artifact, rebuilt from server/runners/<lang>/ on demand
+*.zip
+
 .DS_Store
 Thumbs.db
 

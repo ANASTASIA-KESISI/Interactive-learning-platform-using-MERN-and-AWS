@@ -6,7 +6,12 @@ Globals:
   Function:
     Timeout: 10
     MemorySize: 256
-    Runtime: nodejs22.x
+    # Matches what is deployed in eu-west-1 (created via the Console, see
+    # DEPLOYMENT.md §2 Option B). The handler is plain CommonJS with no
+    # dependencies, so it is not sensitive to the Node major version — keep
+    # this in step with the live function so a later `sam deploy` cannot
+    # silently downgrade the runtime.
+    Runtime: nodejs24.x
 
 Resources:
   RunnerJs:
