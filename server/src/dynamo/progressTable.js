@@ -54,23 +54,51 @@ const queryByUser = async (userId) => {
   return result.Items || [];
 };
 
+// DynamoDB caps a Scan page at 1MB of pre-filter data and returns
+// LastEvaluatedKey when more remains. Items now carry submitted source code, so
+// the table reaches that ceiling far sooner than it used to — a single-shot
+// Scan would silently return partial results and quietly understate analytics.
+const scanAllPages = async (params) => {
+  const client = getDynamoDocClient();
+  const items = [];
+  let startKey;
+
+  do {
+    // eslint-disable-next-line no-await-in-loop
+    const page = await client.send(
+      new ScanCommand({ ...params, ExclusiveStartKey: startKey }),
+    );
+    items.push(...(page.Items || []));
+    startKey = page.LastEvaluatedKey;
+  } while (startKey);
+
+  return items;
+};
+
 // Reads every progress record across the whole table for a fixed set of lesson
 // IDs. Uses Scan + FilterExpression — fine at pilot scale (≤30 learners,
 // ≤ a few hundred items). If the table grows past low thousands, swap for a
 // GSI on `lessonId` and replace this with a Query per lesson.
 const scanByLessonIds = async (lessonIds) => {
   if (!lessonIds || lessonIds.length === 0) return [];
-  const client = getDynamoDocClient();
   const placeholders = lessonIds.map((_, i) => `:l${i}`);
   const values = Object.fromEntries(lessonIds.map((id, i) => [`:l${i}`, id]));
-  const result = await client.send(
-    new ScanCommand({
-      TableName: TABLE,
-      FilterExpression: `lessonId IN (${placeholders.join(', ')})`,
-      ExpressionAttributeValues: values,
-    }),
-  );
-  return result.Items || [];
+  return scanAllPages({
+    TableName: TABLE,
+    FilterExpression: `lessonId IN (${placeholders.join(', ')})`,
+    ExpressionAttributeValues: values,
+  });
 };
 
-module.exports = { getProgress, putProgress, updateProgress, queryByUser, scanByLessonIds };
+// Whole-table read for the offline research export. Not used by any request
+// path — see scripts/exportSubmissions.js.
+const scanAll = () => scanAllPages({ TableName: TABLE });
+
+module.exports = {
+  getProgress,
+  putProgress,
+  updateProgress,
+  queryByUser,
+  scanByLessonIds,
+  scanAll,
+};

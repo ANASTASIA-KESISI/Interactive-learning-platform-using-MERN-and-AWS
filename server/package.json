@@ -9,8 +9,8 @@
     "start": "node src/server.js",
     "test": "jest",
     "test:watch": "jest --watch",
-    "lint": "eslint src tests",
-    "format": "prettier --write src tests"
+    "lint": "eslint src tests scripts",
+    "format": "prettier --write src tests scripts"
   },
   "dependencies": {
     "@aws-sdk/client-dynamodb": "^3.600.0",

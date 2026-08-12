@@ -25,3 +25,9 @@ logs/
 
 .aws/
 *.pem
+
+# Pilot research data — learner code submissions (pseudonymised) and the
+# re-identification key produced by server/scripts/exportSubmissions.js.
+# Personal data under GDPR: never commit either file.
+exports/
+*.key.json

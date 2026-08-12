@@ -107,8 +107,12 @@ const ExerciseView = ({ lesson }) => {
           </ReactMarkdown>
         </article>
 
-        {lesson.hints && lesson.hints.length > 0 && (
-          <HintList lessonId={lesson._id} hints={lesson.hints} />
+        {lesson.hintCount > 0 && (
+          <HintList
+            lessonId={lesson._id}
+            hintCount={lesson.hintCount}
+            initialRevealed={lesson.revealedHints || []}
+          />
         )}
       </section>
 
@@ -146,18 +150,21 @@ const ExerciseView = ({ lesson }) => {
   );
 };
 
-const HintList = ({ lessonId, hints }) => {
-  const [revealedCount, setRevealedCount] = useState(0);
+// Hint TEXT is never bundled with the lesson — only the count, plus whichever
+// hints this learner has already unlocked (replayed from their progress record
+// so a refresh doesn't hide them again). Each new hint arrives from the reveal
+// endpoint, which is also what logs the scaffolding event for analytics.
+const HintList = ({ lessonId, hintCount, initialRevealed }) => {
+  const [hints, setHints] = useState(initialRevealed);
   const [revealing, setRevealing] = useState(false);
   const [revealError, setRevealError] = useState(null);
 
   const handleReveal = async () => {
-    const next = revealedCount;
     setRevealing(true);
     setRevealError(null);
     try {
-      await revealHint(lessonId, next);
-      setRevealedCount(next + 1);
+      const { hint } = await revealHint(lessonId, hints.length);
+      setHints((current) => [...current, hint]);
     } catch (err) {
       setRevealError(err.response?.data?.error?.message || err.message);
     } finally {
@@ -165,14 +172,15 @@ const HintList = ({ lessonId, hints }) => {
     }
   };
 
-  const allRevealed = revealedCount >= hints.length;
+  const revealedCount = hints.length;
+  const allRevealed = revealedCount >= hintCount;
 
   return (
     <div className="rounded-md border border-slate-200 bg-white p-4">
       <h2 className="mb-2 text-sm font-semibold text-slate-700">Hints</h2>
 
       <ol className="space-y-2 text-sm">
-        {hints.slice(0, revealedCount).map((hint, i) => (
+        {hints.map((hint, i) => (
           <li key={i} className="rounded bg-slate-50 p-2 text-slate-800">
             <span className="mr-2 font-medium text-slate-500">#{i + 1}</span>
             {hint}
@@ -196,7 +204,7 @@ const HintList = ({ lessonId, hints }) => {
               : `Reveal hint #${revealedCount + 1}`}
         </button>
       )}
-      {allRevealed && hints.length > 0 && (
+      {allRevealed && hintCount > 0 && (
         <p className="mt-3 text-xs text-slate-500">All hints revealed.</p>
       )}
     </div>

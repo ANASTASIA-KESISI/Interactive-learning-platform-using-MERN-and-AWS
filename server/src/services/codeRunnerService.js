@@ -5,8 +5,27 @@
 
 const { env } = require('../config/env');
 
-const adapterName =
-  process.env.CODE_RUNNER_ADAPTER || (env.isProduction ? 'lambda' : 'dev');
+// The dev adapter runs student code in-process via Node `vm`, which is NOT a
+// sandbox — `console.log.constructor('return process')()` reaches process.env
+// (AWS keys, Mongo URI). Lambda's microVM is the only security boundary we
+// have, so adapter selection is a security decision and fails SAFE:
+//
+//   - `dev` is never a default; it must be opted into explicitly.
+//   - Anything else (unset, typo'd, `lambda`) resolves to Lambda, where the
+//     worst case is a loud runtime failure rather than a silent downgrade.
+//   - Asking for `dev` in production is refused outright.
+//
+// Deliberately not keyed on NODE_ENV alone: a host that never sets NODE_ENV is
+// the likeliest deployment mistake, and that path must not select `dev`.
+const adapterName = process.env.CODE_RUNNER_ADAPTER === 'dev' ? 'dev' : 'lambda';
+
+if (env.isProduction && adapterName !== 'lambda') {
+  throw new Error(
+    `Refusing to start: CODE_RUNNER_ADAPTER="${process.env.CODE_RUNNER_ADAPTER}" in ` +
+      'production. The dev adapter executes untrusted code in the API process and ' +
+      'is not a security boundary. Set CODE_RUNNER_ADAPTER=lambda.',
+  );
+}
 
 const adapter =
   adapterName === 'lambda'

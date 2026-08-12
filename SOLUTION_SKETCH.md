@@ -164,6 +164,7 @@ The response is aggregated so the client gets everything it needs to update the 
   - PK: `userId` (String)
   - SK: `lessonId` (String)
   - attrs: `status` (not_started|in_progress|completed), `attempts`, `score`, `timeSpent` (s), `completedAt` (ISO), `hintsUsed`, `codeSubmissions[]`
+  - `codeSubmissions[]` entries are `{ code, stdout, error, passed, hintsUsedAtSubmit, submittedAt }`, size-bounded (code ≤4KB, stdout ≤2KB, error ≤1KB) and windowed to the most recent 20 — `attempts` remains the true lifetime count. `hintsUsedAtSubmit` snapshots the hint count at that attempt so consecutive entries answer "did revealing a hint change what the learner wrote next" (H1). Submitted code is **pseudonymous at rest, anonymous on export**: the partition key is an opaque ObjectId and no read surface pairs code with a name; `server/scripts/exportSubmissions.js` emits `learner-NN` tokens and writes no re-identification mapping unless `--with-key` is passed. See CHALLENGES.md Challenge 9.
 
 The composite key lets us answer both "show me one learner's full history" (query by PK) and "did this learner complete this lesson" (get by PK+SK) with single-digit-ms latency.
 
@@ -199,7 +200,7 @@ All protected endpoints pass through `requireAuth → requireRole([...])`.
 
 ---
 
-## 7. Implementation Roadmap (6 sprints, from thesis §3.4.2)
+## 7. Implementation Roadmap (6 sprints from thesis §3.4.2, plus S5.5 added at the 2026-08-12 review)
 
 | Sprint | Focus | Exit criteria |
 |---|---|---|
@@ -208,9 +209,10 @@ All protected endpoints pass through `requireAuth → requireRole([...])`.
 | **S3 — Interactive coding** | Monaco editor integration, CodeRunnerService (sandboxed), automated output validation, progressive hint reveal | A student can write code, run it, see pass/fail, and reveal hints one at a time |
 | **S4 — Progress & analytics** | DynamoDB `progress` table, ProgressService, student dashboard with Recharts, instructor analytics view | All meaningful interactions are logged; dashboards render real data |
 | **S5 — Gamification** | XP accrual, badge award engine, streak tracking, progress bars, notifications | Completing a lesson updates XP, may award a badge, and updates the streak |
-| **S6 — Admin + Deploy** | Admin panel, AWS deployment (EC2/Amplify), GitHub Actions CI/CD, CloudWatch wiring | Platform is live on AWS, CI runs on every PR, logs land in CloudWatch |
+| **S5.5 — Hardening refactor** *(added + shipped 2026-08-12)* | Fixes from the pre-deployment code review (see `REFACTOR.md`): streak tracking off a dedicated completion timestamp, idempotent hint counting, stop leaking `expectedOutput`/hints to the client, runner-adapter boot guard, mass-assignment allowlists, DynamoDB submission size caps | ✅ Met. Streaks increment through the real submit flow; hint counts survive refresh; answers absent from student payloads; prod boot refuses the dev runner adapter; 68 server tests pass |
+| **S6 — Admin + Deploy** | Admin panel (role management via Cognito groups), deferred module/lesson CRUD, AWS deployment (EC2/Amplify), `sam deploy` of `runner-js`, GitHub Actions CI/CD, CloudWatch wiring (structured JSON logs) | Platform is live on AWS, CI runs on every PR, logs land in CloudWatch |
 
-Order matters: S1 → S2 → S3 is a strict dependency chain. S4 can start in parallel with late S3. S5 depends on S4 (gamification reads progress events). S6 runs throughout but hardens at the end.
+Order matters: S1 → S2 → S3 is a strict dependency chain. S4 can start in parallel with late S3. S5 depends on S4 (gamification reads progress events). **S5.5 was inserted after the 2026-08-12 review and must complete before S6's deploy** — its findings silently corrupt the pilot data (streaks, hint usage, pass rates) that the thesis evaluation depends on. S6 runs throughout but hardens at the end.
 
 ---
 

@@ -19,10 +19,16 @@ router.get('/', requireAuth, async (req, res, next) => {
   }
 });
 
-// GET /api/courses/:id — full course tree (modules + lessons)
-router.get('/:id', requireAuth, async (req, res, next) => {
+// GET /api/courses/:id — course tree (modules + lesson metadata).
+// `attachUser` is needed to identify the viewer: unpublished drafts are visible
+// only to the owning instructor and admins, and the instructor course editor
+// reads its drafts through this route.
+router.get('/:id', requireAuth, attachUser, async (req, res, next) => {
   try {
-    const course = await courseService.getCourseById(req.params.id);
+    const course = await courseService.getCourseById(req.params.id, {
+      id: req.dbUser._id,
+      role: req.dbUser.role,
+    });
     res.json({ data: course });
   } catch (err) {
     next(err);

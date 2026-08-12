@@ -47,29 +47,42 @@ describe('utcDayDiff', () => {
 });
 
 describe('updateStreak', () => {
-  test('first activity ever sets streak to 1', () => {
-    const user = { streak: 0, lastActiveAt: null };
+  test('first completion ever sets streak to 1', () => {
+    const user = { streak: 0, lastCompletionAt: null };
     updateStreak(user, new Date('2026-05-10T10:00:00Z'));
     expect(user.streak).toBe(1);
-    expect(user.lastActiveAt.toISOString()).toBe('2026-05-10T10:00:00.000Z');
+    expect(user.lastCompletionAt.toISOString()).toBe('2026-05-10T10:00:00.000Z');
   });
 
   test('same-day completion does not change streak', () => {
-    const user = { streak: 3, lastActiveAt: new Date('2026-05-10T08:00:00Z') };
+    const user = { streak: 3, lastCompletionAt: new Date('2026-05-10T08:00:00Z') };
     updateStreak(user, new Date('2026-05-10T22:00:00Z'));
     expect(user.streak).toBe(3);
   });
 
   test('next-day completion increments streak', () => {
-    const user = { streak: 3, lastActiveAt: new Date('2026-05-10T22:00:00Z') };
+    const user = { streak: 3, lastCompletionAt: new Date('2026-05-10T22:00:00Z') };
     updateStreak(user, new Date('2026-05-11T08:00:00Z'));
     expect(user.streak).toBe(4);
   });
 
   test('gap of 2+ days resets streak to 1', () => {
-    const user = { streak: 12, lastActiveAt: new Date('2026-05-01T10:00:00Z') };
+    const user = { streak: 12, lastCompletionAt: new Date('2026-05-01T10:00:00Z') };
     updateStreak(user, new Date('2026-05-05T10:00:00Z'));
     expect(user.streak).toBe(1);
+  });
+
+  // Regression for S5.5 finding A1: `attachUser` refreshes `lastActiveAt` on
+  // every request, so a same-day login used to make the streak diff 0 and
+  // pinned the streak forever. Streaks must key off completions only.
+  test('a login today does not suppress yesterday-to-today increment', () => {
+    const user = {
+      streak: 4,
+      lastCompletionAt: new Date('2026-05-10T20:00:00Z'),
+      lastActiveAt: new Date('2026-05-11T09:00:00Z'),
+    };
+    updateStreak(user, new Date('2026-05-11T10:00:00Z'));
+    expect(user.streak).toBe(5);
   });
 });
 

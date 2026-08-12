@@ -70,6 +70,22 @@ router.post('/modules/:id/lessons', ...auth, async (req, res, next) => {
   }
 });
 
+// GET /api/instructor/lessons/:id — full lesson for authoring.
+// The learner endpoint (GET /api/lessons/:id) withholds `expectedOutput` and
+// hint text, so the editor reads through this ownership-gated route instead.
+router.get('/lessons/:id', ...auth, async (req, res, next) => {
+  try {
+    const lesson = await courseService.getLessonForAuthor(
+      req.params.id,
+      req.dbUser._id,
+      req.dbUser.role,
+    );
+    res.json({ data: lesson });
+  } catch (err) {
+    next(err);
+  }
+});
+
 // PATCH /api/instructor/lessons/:id
 router.patch('/lessons/:id', ...auth, async (req, res, next) => {
   try {
@@ -85,7 +101,10 @@ router.patch('/lessons/:id', ...auth, async (req, res, next) => {
 // Admins can view any course; instructors only their own.
 router.get('/courses/:id/analytics', ...auth, async (req, res, next) => {
   try {
-    const course = await courseService.getCourseById(req.params.id);
+    const course = await courseService.getCourseById(req.params.id, {
+      id: req.dbUser._id,
+      role: req.dbUser.role,
+    });
     if (
       req.dbUser.role !== 'admin' &&
       course.instructor._id.toString() !== req.dbUser._id.toString()

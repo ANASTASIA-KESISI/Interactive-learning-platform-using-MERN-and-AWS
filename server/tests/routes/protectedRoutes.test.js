@@ -9,6 +9,10 @@ const protectedRoutes = [
   ['GET', '/api/student/dashboard'],
   ['GET', '/api/student/progress'],
   ['POST', '/api/instructor/courses'],
+  // Serves full lesson documents including expectedOutput and hint text — must
+  // never be reachable unauthenticated (S5.5 B1).
+  ['GET', '/api/instructor/lessons/000000000000000000000000'],
+  ['GET', '/api/lessons/000000000000000000000000'],
   ['GET', '/api/admin/kpis'],
   ['GET', '/api/admin/users'],
 ];

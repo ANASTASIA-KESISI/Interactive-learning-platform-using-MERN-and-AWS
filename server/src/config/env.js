@@ -1,8 +1,17 @@
 const path = require('path');
 const dotenv = require('dotenv');
 
+// Precedence: real process environment > server/.env > repo-root .env.
+//
+// dotenv does not overwrite variables that already exist, so loading the more
+// specific file FIRST gives it priority while leaving anything the deployment
+// platform injected untouched. The previous ordering used `override: true` on
+// server/.env, which meant a checked-out dev file beat the real environment —
+// `NODE_ENV=production node src/server.js` resolved to "development", so the
+// code-runner boot guard never fired and the in-process dev adapter would have
+// run untrusted student code on the deployed host.
+dotenv.config({ path: path.resolve(__dirname, '../../.env') });
 dotenv.config({ path: path.resolve(__dirname, '../../../.env') });
-dotenv.config({ path: path.resolve(__dirname, '../../.env'), override: true });
 
 const required = (key) => {
   const value = process.env[key];

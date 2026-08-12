@@ -3,7 +3,7 @@ import { Link, useParams } from 'react-router-dom';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 
-import { getLesson, updateLesson } from '../../services/lessons.js';
+import { getLessonForEdit, updateLesson } from '../../services/lessons.js';
 import { Spinner, ErrorBanner } from '../../components/Spinner.jsx';
 
 const LESSON_TYPES = ['tutorial', 'exercise', 'quiz'];
@@ -21,7 +21,7 @@ export const LessonEditorPage = () => {
   const [showPreview, setShowPreview] = useState(false);
 
   useEffect(() => {
-    getLesson(id)
+    getLessonForEdit(id)
       .then((l) => {
         setLesson(l);
         setForm({

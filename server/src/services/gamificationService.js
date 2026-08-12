@@ -22,20 +22,24 @@ const utcDayDiff = (earlier, later) => {
   return Math.round((b - a) / 86_400_000);
 };
 
+// Streaks count consecutive days on which the learner COMPLETED a lesson, so
+// the input is `lastCompletionAt` — not `lastActiveAt`, which `attachUser`
+// stamps on every authenticated request and which therefore always read as
+// "today", freezing every streak (S5.5 finding A1).
 const updateStreak = (user, now) => {
-  if (!user.lastActiveAt) {
+  if (!user.lastCompletionAt) {
     user.streak = 1;
   } else {
-    const days = utcDayDiff(user.lastActiveAt, now);
+    const days = utcDayDiff(user.lastCompletionAt, now);
     if (days <= 0) {
-      // already active today — leave streak alone
+      // already completed a lesson today — leave streak alone
     } else if (days === 1) {
       user.streak += 1;
     } else {
       user.streak = 1;
     }
   }
-  user.lastActiveAt = now;
+  user.lastCompletionAt = now;
 };
 
 // Idempotent badge award. Loops because a badge's xpValue can cross the next

@@ -9,15 +9,33 @@ const { attachUser } = require('../middleware/attachUser');
 
 const router = express.Router();
 
-// GET /api/lessons/:id — lesson content for student
-router.get('/:id', requireAuth, requireRole(['student', 'instructor', 'admin']), async (req, res, next) => {
-  try {
-    const lesson = await courseService.getLessonForStudent(req.params.id);
-    res.json({ data: lesson });
-  } catch (err) {
-    next(err);
-  }
-});
+// GET /api/lessons/:id — learner-facing lesson content.
+// Never includes `expectedOutput` or unrevealed hint text (see
+// courseService.getLessonForStudent). Hints the student has already unlocked
+// are replayed from their progress record so a refresh doesn't lose them.
+router.get(
+  '/:id',
+  requireAuth,
+  requireRole(['student', 'instructor', 'admin']),
+  attachUser,
+  async (req, res, next) => {
+    try {
+      let revealedCount = 0;
+      if (req.dbUser.role === 'student') {
+        const progress = await progressService.getLessonProgress(
+          req.dbUser._id.toString(),
+          req.params.id,
+        );
+        revealedCount = progress?.hintsUsed || 0;
+      }
+
+      const lesson = await courseService.getLessonForStudent(req.params.id, revealedCount);
+      res.json({ data: lesson });
+    } catch (err) {
+      next(err);
+    }
+  },
+);
 
 // Instructors and admins can call /submit and /hint to preview their own
 // lessons end-to-end. Their interactions intentionally do NOT write to the
@@ -35,12 +53,12 @@ router.post('/:id/hint', ...learnerOrPreview, async (req, res, next) => {
     const lesson = await courseService.getLessonById(req.params.id);
     const { hintIndex } = req.body;
 
-    if (hintIndex === undefined || hintIndex < 0 || hintIndex >= lesson.hints.length) {
+    if (!Number.isInteger(hintIndex) || hintIndex < 0 || hintIndex >= lesson.hints.length) {
       return res.status(400).json({ error: { message: 'Invalid hintIndex' } });
     }
 
     if (req.dbUser.role === 'student') {
-      await progressService.recordHintReveal(req.dbUser._id.toString(), req.params.id);
+      await progressService.recordHintReveal(req.dbUser._id.toString(), req.params.id, hintIndex);
     }
 
     res.json({ data: { hint: lesson.hints[hintIndex] } });
@@ -71,6 +89,7 @@ router.post('/:id/submit', ...learnerOrPreview, async (req, res, next) => {
         req.dbUser._id.toString(),
         req.params.id,
         runResult,
+        code,
       );
       if (runResult.passed && progressUpdate.firstCompletion) {
         gamificationResult = await gamificationService.onLessonCompleted({

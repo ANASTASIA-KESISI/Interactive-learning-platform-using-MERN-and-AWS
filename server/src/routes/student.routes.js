@@ -23,12 +23,11 @@ router.get('/dashboard', ...studentAuth, async (req, res, next) => {
   try {
     const user = req.dbUser;
 
-    // Enrolled courses with basic module info for progress bars
-    const enrolledCourses = await Promise.all(
-      user.enrolledCourses.map((id) =>
-        courseService.getCourseById(id).catch(() => null),
-      ),
-    ).then((results) => results.filter(Boolean));
+    // Enrolled courses, projected down to card metadata + lesson IDs — one
+    // query for all of them, and no lesson bodies on the wire.
+    const enrolledCourses = await courseService.getEnrolledCourseSummaries(
+      user.enrolledCourses,
+    );
 
     // Progress records for all lessons the student has touched
     const progressRecords = await progressService.getStudentProgress(user._id.toString());
@@ -38,7 +37,9 @@ router.get('/dashboard', ...studentAuth, async (req, res, next) => {
     );
 
     const courseSummaries = enrolledCourses.map((course) => {
-      const lessonIds = course.modules.flatMap((m) => m.lessons.map((l) => l._id.toString()));
+      const lessonIds = (course.modules || []).flatMap((m) =>
+        (m.lessons || []).map((l) => l._id.toString()),
+      );
       const completedInCourse = lessonIds.filter((id) => completedLessonIds.has(id)).length;
       return {
         id: course._id,
