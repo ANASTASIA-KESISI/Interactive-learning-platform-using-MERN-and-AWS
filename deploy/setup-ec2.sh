@@ -41,6 +41,10 @@ if ! id "$SERVICE_USER" &>/dev/null; then
 fi
 
 echo "==> Fetching application (${BRANCH}) to ${APP_DIR}"
+# The tree is chowned to the service account below, but git runs here as root.
+# Without this exception git refuses every later fetch with "dubious ownership",
+# which breaks the re-run path this script relies on for updates.
+sudo git config --global --add safe.directory "$APP_DIR" 2>/dev/null || true
 if [[ -d "$APP_DIR/.git" ]]; then
   sudo git -C "$APP_DIR" fetch --all
   sudo git -C "$APP_DIR" checkout "$BRANCH"
