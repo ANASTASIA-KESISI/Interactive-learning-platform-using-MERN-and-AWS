@@ -392,6 +392,101 @@ understated the instructor analytics. Both scans now page to exhaustion.
 
 ---
 
+## S6 — Admin + Deploy Sprint
+
+Decisions made during the final roadmap sprint (2026-08-12).
+
+### Challenge 10 — Where application roles actually live
+
+**Problem.** `PATCH /api/admin/users/:id/role` wrote `role` to Mongo and looked
+like it worked, but `requireAuth` derives the role from the `cognito:groups`
+JWT claim and `syncUserFromClaims` mirrors that back into Mongo on every
+request. The write therefore survived until the user's next call and no further
+(S5.5 finding A3). Something had to become authoritative.
+
+**Options considered:**
+
+| Option | Pros | Cons |
+|---|---|---|
+| **Mongo is authoritative; stop syncing role from the claim** | No AWS calls; role changes take effect instantly | Contradicts "delegate identity to Cognito" (CLAUDE.md); two systems disagree about who is an admin; a Cognito group grant would silently do nothing |
+| **Cognito is authoritative; admin writes move group membership** | One source of truth; group membership is visible and auditable in the Console; matches the S1 design | Needs extra IAM permissions; change is not instant — it lands on the user's next token refresh |
+| **Dual-write and reconcile** | Instant locally, eventually consistent | Two writers to the same fact; reconciliation logic is a bug farm for no real gain at pilot scale |
+
+**Decision.** Cognito is authoritative. `authService.setUserRole` calls
+`AdminListGroupsForUser`, removes any *other* application-role group, then
+`AdminAddUserToGroup` for the target role; the Mongo write only refreshes the
+mirror.
+
+**Rationale.** The alternative asks the platform to disagree with its own
+identity provider. Removing stale groups first is not incidental: `resolveRole`
+returns the highest-privilege group a user holds, so demoting an admin while
+leaving them in the `admin` group would appear to succeed and change nothing.
+
+**Consequences.** The backend IAM identity needs `cognito-idp:AdminAddUserToGroup`,
+`AdminRemoveUserFromGroup` and `AdminListGroupsForUser` (`DEPLOYMENT.md` §3) —
+without them the endpoint fails with an AWS authorization error rather than
+silently doing nothing, which is the better failure. The admin UI states plainly
+that a change lands on the user's next sign-in, because existing access tokens
+keep the old claim until they expire. Admins cannot change their own role, so a
+sole admin cannot lock themselves out.
+
+---
+
+### Challenge 11 — What to do with progress records when content is deleted
+
+**Problem.** S6 added module and lesson deletion (deferred from S5). Learner
+progress in DynamoDB is keyed by `lessonId`; deleting a lesson leaves records
+pointing at content that no longer exists.
+
+**Options considered:**
+
+| Option | Pros | Cons |
+|---|---|---|
+| **Cascade-delete the progress records** | No orphans; dashboard denominators stay exact | Destroys pilot research data to tidy up a content edit; a mid-pilot deletion would silently rewrite the evaluation's history |
+| **Retain them** | The record of what learners actually did is preserved | Orphaned records slightly skew the learner's own dashboard completion rate |
+| **Block deletion once a lesson has progress** | No orphans and no data loss | Requires a Scan per delete (no GSI on `lessonId`); makes instructors fight the tool to fix a typo'd lesson |
+
+**Decision.** Retain the progress records. Deleting a module removes its lessons
+from MongoDB; DynamoDB is untouched.
+
+**Rationale.** These records are the pilot's evidence. An instructor tidying
+content in week 3 should not be able to alter what the evaluation says happened
+in week 2. The cost is confined and small: `getCourseAnalytics` only aggregates
+lessons that still belong to the course, so instructor analytics are unaffected;
+only the learner's personal completion-rate denominator drifts, and only if
+content they touched was later deleted.
+
+**Sidebar — dense ordering.** `addModule`/`addLesson` derive the next `order`
+from the array length, so a deletion that left a gap would hand the next new
+item an order that collides with an existing one. Both delete paths renumber the
+survivors.
+
+---
+
+### Challenge 12 — Request logging format
+
+**Problem.** CLAUDE.md requires structured JSON logs so CloudWatch Logs Insights
+can query them, but the API used `morgan('combined')`, which emits a single
+opaque string per request. Insights can only regex over that.
+
+**Decision.** Replaced morgan with `middleware/requestLogger.js`, built on the
+existing `utils/logger` JSON emitter. Fields: method, route path, status,
+duration, caller role, IP. Log level derives from the status class so 5xx lands
+on stderr. `morgan` was removed from the dependencies.
+
+**Rationale.** `fields @timestamp, path, durationMs | stats avg(durationMs) by
+path` is the NFR3 (<3s interactions) check, and it needs real fields. Request
+bodies, query strings and the `authorization` header are deliberately excluded —
+bodies carry learner source code.
+
+**Sidebar — `trust proxy`.** Behind an ALB or Amplify the client address arrives
+in `X-Forwarded-For`; without `app.set('trust proxy', 1)` every request appears
+to originate from the proxy, which would bucket the entire user base into one
+rate-limit key and log the wrong address. Enabled in production only, since the
+header is forgeable when there is no proxy in front.
+
+---
+
 ## How to add a new entry
 
 When making a non-trivial decision, add a `### Challenge N — <topic>` section

@@ -145,6 +145,61 @@ const getModuleById = async (moduleId) => {
   return module;
 };
 
+// Resolves a module together with its course, enforcing instructor ownership.
+const loadOwnedModule = async (moduleId, instructorId) => {
+  const module = await Module.findById(moduleId);
+  if (!module) throw notFound('Module not found');
+
+  const course = await Course.findById(module.courseId);
+  if (!course) throw notFound('Course not found');
+  if (course.instructor.toString() !== instructorId.toString())
+    throw forbidden('Only the course instructor can modify this course');
+
+  return { module, course };
+};
+
+// `order` is derived from array length when appending, so a delete that leaves
+// a gap would hand the next new item an order that collides with an existing
+// one. Renumber the survivors to stay dense.
+const renumber = (ids, Model) =>
+  Promise.all(ids.map((id, order) => Model.updateOne({ _id: id }, { $set: { order } })));
+
+const updateModule = async (moduleId, instructorId, updates) => {
+  const { module } = await loadOwnedModule(moduleId, instructorId);
+  Object.assign(module, pick(updates, MODULE_WRITABLE));
+  return module.save();
+};
+
+// Deleting a module removes its lessons too. DynamoDB progress records for
+// those lessons are deliberately left in place: they are the pilot's research
+// record, and rewriting history to match a later content edit would falsify it.
+const deleteModule = async (moduleId, instructorId) => {
+  const { module, course } = await loadOwnedModule(moduleId, instructorId);
+
+  await Lesson.deleteMany({ _id: { $in: module.lessons } });
+  await Module.deleteOne({ _id: module._id });
+
+  course.modules = course.modules.filter((id) => id.toString() !== moduleId.toString());
+  await course.save();
+  await renumber(course.modules, Module);
+
+  return { deletedModuleId: moduleId, deletedLessons: module.lessons.length };
+};
+
+const deleteLesson = async (lessonId, instructorId) => {
+  const lesson = await Lesson.findById(lessonId);
+  if (!lesson) throw notFound('Lesson not found');
+
+  const { module } = await loadOwnedModule(lesson.moduleId, instructorId);
+
+  await Lesson.deleteOne({ _id: lesson._id });
+  module.lessons = module.lessons.filter((id) => id.toString() !== lessonId.toString());
+  await module.save();
+  await renumber(module.lessons, Lesson);
+
+  return { deletedLessonId: lessonId };
+};
+
 // ── Lesson ────────────────────────────────────────────────────────────────────
 
 const addLesson = async (moduleId, instructorId, data) => {
@@ -263,6 +318,9 @@ module.exports = {
   updateCourse,
   addModule,
   getModuleById,
+  updateModule,
+  deleteModule,
+  deleteLesson,
   addLesson,
   getLessonById,
   getLessonForStudent,

@@ -60,6 +60,37 @@ router.post('/courses/:id/modules', ...auth, async (req, res, next) => {
   }
 });
 
+// PATCH /api/instructor/modules/:id — rename a module
+router.patch('/modules/:id', ...auth, async (req, res, next) => {
+  try {
+    const module = await courseService.updateModule(req.params.id, req.dbUser._id, req.body);
+    res.json({ data: module });
+  } catch (err) {
+    next(err);
+  }
+});
+
+// DELETE /api/instructor/modules/:id — removes the module and its lessons.
+// Learner progress records are retained (see courseService.deleteModule).
+router.delete('/modules/:id', ...auth, async (req, res, next) => {
+  try {
+    const result = await courseService.deleteModule(req.params.id, req.dbUser._id);
+    res.json({ data: result });
+  } catch (err) {
+    next(err);
+  }
+});
+
+// DELETE /api/instructor/lessons/:id
+router.delete('/lessons/:id', ...auth, async (req, res, next) => {
+  try {
+    const result = await courseService.deleteLesson(req.params.id, req.dbUser._id);
+    res.json({ data: result });
+  } catch (err) {
+    next(err);
+  }
+});
+
 // POST /api/instructor/modules/:id/lessons
 router.post('/modules/:id/lessons', ...auth, async (req, res, next) => {
   try {

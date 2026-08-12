@@ -7,6 +7,9 @@ import {
   updateCourse,
   addModule,
   addLesson,
+  updateModule,
+  deleteModule,
+  deleteLesson,
 } from '../../services/courses.js';
 import { Spinner, ErrorBanner } from '../../components/Spinner.jsx';
 
@@ -189,6 +192,9 @@ const ModulesSection = ({ course, onChange, setError }) => {
 const ModuleCard = ({ module, index, onChange, setError }) => {
   const [adding, setAdding] = useState(false);
   const [lessonForm, setLessonForm] = useState({ title: '', type: 'tutorial', xpReward: 10 });
+  const [renaming, setRenaming] = useState(false);
+  const [title, setTitle] = useState(module.title);
+  const [busy, setBusy] = useState(false);
 
   const handleAddLesson = async (e) => {
     e.preventDefault();
@@ -208,11 +214,111 @@ const ModuleCard = ({ module, index, onChange, setError }) => {
     }
   };
 
+  const handleRename = async (e) => {
+    e.preventDefault();
+    if (!title.trim() || title.trim() === module.title) {
+      setRenaming(false);
+      return;
+    }
+    setBusy(true);
+    try {
+      await updateModule(module._id, { title: title.trim() });
+      setRenaming(false);
+      await onChange();
+    } catch (err) {
+      setError(err.response?.data?.error?.message || err.message);
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  // Deleting a module takes its lessons with it, so the count goes in the
+  // prompt — an instructor should not discover that after the fact.
+  const handleDeleteModule = async () => {
+    const lessonCount = module.lessons?.length || 0;
+    const detail = lessonCount
+      ? ` and its ${lessonCount} lesson${lessonCount === 1 ? '' : 's'}`
+      : '';
+    if (!window.confirm(`Delete "${module.title}"${detail}? This cannot be undone.`)) return;
+
+    setBusy(true);
+    try {
+      await deleteModule(module._id);
+      await onChange();
+    } catch (err) {
+      setError(err.response?.data?.error?.message || err.message);
+      setBusy(false);
+    }
+  };
+
+  const handleDeleteLesson = async (lesson) => {
+    if (!window.confirm(`Delete lesson "${lesson.title}"? This cannot be undone.`)) return;
+    setBusy(true);
+    try {
+      await deleteLesson(lesson._id);
+      await onChange();
+    } catch (err) {
+      setError(err.response?.data?.error?.message || err.message);
+    } finally {
+      setBusy(false);
+    }
+  };
+
   return (
     <li className="rounded-lg border border-slate-200 bg-white p-5 shadow-sm">
-      <h3 className="font-semibold text-slate-900">
-        {index + 1}. {module.title}
-      </h3>
+      <div className="flex items-start justify-between gap-3">
+        {renaming ? (
+          <form onSubmit={handleRename} className="flex flex-1 items-center gap-2">
+            <label className="sr-only" htmlFor={`module-title-${module._id}`}>
+              Module title
+            </label>
+            <input
+              id={`module-title-${module._id}`}
+              value={title}
+              onChange={(e) => setTitle(e.target.value)}
+              className="field flex-1"
+              autoFocus
+            />
+            <button type="submit" className="btn-primary text-sm" disabled={busy}>
+              Save
+            </button>
+            <button
+              type="button"
+              className="btn-ghost text-sm"
+              onClick={() => {
+                setTitle(module.title);
+                setRenaming(false);
+              }}
+            >
+              Cancel
+            </button>
+          </form>
+        ) : (
+          <>
+            <h3 className="font-semibold text-slate-900">
+              {index + 1}. {module.title}
+            </h3>
+            <div className="flex shrink-0 items-center gap-1">
+              <button
+                type="button"
+                className="btn-ghost text-sm"
+                onClick={() => setRenaming(true)}
+                disabled={busy}
+              >
+                Rename
+              </button>
+              <button
+                type="button"
+                className="btn-ghost text-sm text-red-600"
+                onClick={handleDeleteModule}
+                disabled={busy}
+              >
+                Delete
+              </button>
+            </div>
+          </>
+        )}
+      </div>
 
       {module.lessons && module.lessons.length > 0 ? (
         <ul className="mt-3 divide-y divide-slate-100">
@@ -225,9 +331,19 @@ const ModuleCard = ({ module, index, onChange, setError }) => {
                 </span>
                 <span className="ml-2 text-xs text-slate-500">{lesson.xpReward} XP</span>
               </div>
-              <Link to={`/instructor/lessons/${lesson._id}`} className="text-sm text-brand-600 hover:text-brand-700">
-                Edit →
-              </Link>
+              <div className="flex items-center gap-3">
+                <Link to={`/instructor/lessons/${lesson._id}`} className="text-sm text-brand-600 hover:text-brand-700">
+                  Edit →
+                </Link>
+                <button
+                  type="button"
+                  className="text-sm text-red-600 hover:text-red-700 disabled:opacity-50"
+                  onClick={() => handleDeleteLesson(lesson)}
+                  disabled={busy}
+                >
+                  Delete
+                </button>
+              </div>
             </li>
           ))}
         </ul>

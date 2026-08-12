@@ -11,6 +11,7 @@ const navLinkClass = ({ isActive }) =>
 export const AppShell = () => {
   const { user, logout } = useAuth();
   const canAuthor = user?.role === 'instructor' || user?.role === 'admin';
+  const isAdmin = user?.role === 'admin';
 
   return (
     <div className="min-h-screen">
@@ -25,6 +26,9 @@ export const AppShell = () => {
               <NavLink to="/courses" className={navLinkClass}>Courses</NavLink>
               {canAuthor && (
                 <NavLink to="/instructor" className={navLinkClass}>Authoring</NavLink>
+              )}
+              {isAdmin && (
+                <NavLink to="/admin" className={navLinkClass}>Admin</NavLink>
               )}
             </nav>
           </div>

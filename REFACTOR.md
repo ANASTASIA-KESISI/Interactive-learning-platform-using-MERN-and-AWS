@@ -51,7 +51,7 @@ Status legend: ☐ open · ☑ done
   progress so the client can restore state after refresh — cosmetic, not
   required for data integrity.)
 
-### A3 ☐ Admin role-change endpoint is a no-op
+### A3 ☑ Admin role-change endpoint is a no-op *(fixed in S6)*
 
 - **Where:** `server/src/routes/admin.routes.js:50`,
   `server/src/middleware/requireAuth.js:39-44`, `server/src/services/authService.js:8`
@@ -250,7 +250,11 @@ All eight in-scope findings are closed. Server suite: **68 tests passing**
 
 **Deferred out of S5.5 (unchanged, still open)**
 
-- **A3** — Cognito-group role management, executed with S6's admin panel.
+- ~~**A3** — Cognito-group role management~~ **done in S6:**
+  `authService.setUserRole` moves the user between Cognito groups (clearing any
+  other role group first, since `resolveRole` picks the highest-privilege match
+  and a stale group would make demotions ineffective). Requires the
+  `cognito-idp:Admin*` IAM policy in `DEPLOYMENT.md` §3.
 - **C3** — per-request Mongo write in `attachUser`; harmless once A1 landed.
 - ~~**C1 decision** — submitted *code* is still not persisted.~~ **Resolved
   2026-08-12: capture it.** `codeSubmissions[]` entries now carry `code` (≤4KB)

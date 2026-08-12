@@ -3,9 +3,21 @@
 // B4 (draft visibility). Mongoose models are mocked — these assert the service's
 // own filtering logic, not persistence.
 
-jest.mock('../../src/models/Course', () => ({ Course: { findById: jest.fn(), create: jest.fn() } }));
-jest.mock('../../src/models/Module', () => ({ Module: { findById: jest.fn(), create: jest.fn() } }));
-jest.mock('../../src/models/Lesson', () => ({ Lesson: { findById: jest.fn(), create: jest.fn() } }));
+jest.mock('../../src/models/Course', () => ({
+  Course: { findById: jest.fn(), create: jest.fn(), find: jest.fn() },
+}));
+jest.mock('../../src/models/Module', () => ({
+  Module: { findById: jest.fn(), create: jest.fn(), deleteOne: jest.fn(), updateOne: jest.fn() },
+}));
+jest.mock('../../src/models/Lesson', () => ({
+  Lesson: {
+    findById: jest.fn(),
+    create: jest.fn(),
+    deleteOne: jest.fn(),
+    deleteMany: jest.fn(),
+    updateOne: jest.fn(),
+  },
+}));
 jest.mock('../../src/models/User', () => ({ User: { findById: jest.fn() } }));
 
 const { Course } = require('../../src/models/Course');
@@ -202,6 +214,36 @@ describe('mass assignment (B3 — server-owned fields are not client-writable)',
     expect(lesson.expectedOutput).toBe('ok'); // authoring field, legitimately writable
   });
 
+  test('updateModule applies only whitelisted fields', async () => {
+    const save = jest.fn().mockResolvedValue(true);
+    const module = { _id: 'module1', courseId: 'course1', title: 'Old', order: 3, save };
+    Module.findById.mockReturnValue(query(module));
+    Course.findById.mockReturnValue(
+      query({ _id: 'course1', instructor: { toString: () => 'owner1' } }),
+    );
+
+    await courseService.updateModule('module1', 'owner1', {
+      title: 'New',
+      order: 99,
+      courseId: 'elsewhere',
+    });
+
+    expect(module.title).toBe('New');
+    expect(module.order).toBe(3);
+    expect(module.courseId).toBe('course1');
+  });
+
+  test('module mutations are refused for a non-owner', async () => {
+    Module.findById.mockReturnValue(query({ _id: 'module1', courseId: 'course1' }));
+    Course.findById.mockReturnValue(
+      query({ _id: 'course1', instructor: { toString: () => 'owner1' } }),
+    );
+
+    await expect(
+      courseService.updateModule('module1', 'someone-else', { title: 'Hijack' }),
+    ).rejects.toMatchObject({ status: 403 });
+  });
+
   test('addLesson keeps server-computed order and moduleId', async () => {
     Module.findById.mockReturnValue(
       query({ _id: 'module1', courseId: 'course1', lessons: [{}, {}], save: jest.fn() }),
@@ -224,5 +266,105 @@ describe('mass assignment (B3 — server-owned fields are not client-writable)',
       moduleId: 'module1',
       order: 2,
     });
+  });
+});
+
+// `order` is derived from array length when appending, so a delete that leaves
+// a gap would hand the next new item a colliding order. Deletions must renumber.
+describe('deletion (S6 — deferred CRUD)', () => {
+  test('deleteModule removes its lessons and detaches it from the course', async () => {
+    const courseSave = jest.fn().mockResolvedValue(true);
+    const course = {
+      _id: 'course1',
+      instructor: { toString: () => 'owner1' },
+      modules: [
+        { toString: () => 'module0' },
+        { toString: () => 'module1' },
+        { toString: () => 'module2' },
+      ],
+      save: courseSave,
+    };
+    Module.findById.mockReturnValue(
+      query({ _id: 'module1', courseId: 'course1', lessons: ['l1', 'l2'] }),
+    );
+    Course.findById.mockReturnValue(query(course));
+
+    const result = await courseService.deleteModule('module1', 'owner1');
+
+    expect(Lesson.deleteMany).toHaveBeenCalledWith({ _id: { $in: ['l1', 'l2'] } });
+    expect(Module.deleteOne).toHaveBeenCalledWith({ _id: 'module1' });
+    expect(course.modules.map((m) => m.toString())).toEqual(['module0', 'module2']);
+    expect(result.deletedLessons).toBe(2);
+  });
+
+  test('deleteModule renumbers the surviving modules densely', async () => {
+    const course = {
+      _id: 'course1',
+      instructor: { toString: () => 'owner1' },
+      modules: [
+        { toString: () => 'module0' },
+        { toString: () => 'module1' },
+        { toString: () => 'module2' },
+      ],
+      save: jest.fn().mockResolvedValue(true),
+    };
+    Module.findById.mockReturnValue(query({ _id: 'module1', courseId: 'course1', lessons: [] }));
+    Course.findById.mockReturnValue(query(course));
+
+    await courseService.deleteModule('module1', 'owner1');
+
+    const orders = Module.updateOne.mock.calls.map(([filter, update]) => [
+      filter._id.toString(),
+      update.$set.order,
+    ]);
+    expect(orders).toEqual([
+      ['module0', 0],
+      ['module2', 1],
+    ]);
+  });
+
+  test('deleteLesson detaches from its module and renumbers the rest', async () => {
+    const moduleSave = jest.fn().mockResolvedValue(true);
+    const module = {
+      _id: 'module1',
+      courseId: 'course1',
+      lessons: [
+        { toString: () => 'lessonA' },
+        { toString: () => 'lessonB' },
+        { toString: () => 'lessonC' },
+      ],
+      save: moduleSave,
+    };
+    Lesson.findById.mockReturnValue(query({ _id: 'lessonB', moduleId: 'module1' }));
+    Module.findById.mockReturnValue(query(module));
+    Course.findById.mockReturnValue(
+      query({ _id: 'course1', instructor: { toString: () => 'owner1' } }),
+    );
+
+    await courseService.deleteLesson('lessonB', 'owner1');
+
+    expect(Lesson.deleteOne).toHaveBeenCalledWith({ _id: 'lessonB' });
+    expect(module.lessons.map((l) => l.toString())).toEqual(['lessonA', 'lessonC']);
+    const orders = Lesson.updateOne.mock.calls.map(([filter, update]) => [
+      filter._id.toString(),
+      update.$set.order,
+    ]);
+    expect(orders).toEqual([
+      ['lessonA', 0],
+      ['lessonC', 1],
+    ]);
+  });
+
+  test('deleteLesson is refused for a non-owner', async () => {
+    Lesson.findById.mockReturnValue(query({ _id: 'lessonB', moduleId: 'module1' }));
+    Module.findById.mockReturnValue(query({ _id: 'module1', courseId: 'course1', lessons: [] }));
+    Course.findById.mockReturnValue(
+      query({ _id: 'course1', instructor: { toString: () => 'owner1' } }),
+    );
+
+    await expect(courseService.deleteLesson('lessonB', 'intruder')).rejects.toMatchObject({
+      status: 403,
+    });
+    expect(Lesson.deleteOne).not.toHaveBeenCalled();
   });
 });

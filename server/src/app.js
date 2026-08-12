@@ -1,11 +1,11 @@
 const express = require('express');
 const cors = require('cors');
 const helmet = require('helmet');
-const morgan = require('morgan');
 const rateLimit = require('express-rate-limit');
 
 const { env } = require('./config/env');
 const { errorHandler, notFoundHandler } = require('./middleware/errorHandler');
+const { requestLogger } = require('./middleware/requestLogger');
 const healthRoutes = require('./routes/health.routes');
 const studentRoutes = require('./routes/student.routes');
 const coursesRoutes = require('./routes/courses.routes');
@@ -18,12 +18,20 @@ const createApp = () => {
   const app = express();
 
   app.disable('x-powered-by');
+
+  // Behind an ALB / Amplify / nginx, the client address arrives in
+  // X-Forwarded-For. Without this every request appears to come from the proxy,
+  // which makes the rate limiter bucket the entire user base together and logs
+  // the proxy's address instead of the caller's. Scoped to production so local
+  // dev cannot be spoofed by a forged header.
+  if (env.isProduction) app.set('trust proxy', 1);
+
   app.use(helmet());
   app.use(cors({ origin: env.clientOrigin, credentials: true }));
   app.use(express.json({ limit: '1mb' }));
 
   if (!env.isTest) {
-    app.use(morgan(env.isProduction ? 'combined' : 'dev'));
+    app.use(requestLogger);
   }
 
   app.use(

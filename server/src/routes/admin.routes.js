@@ -6,24 +6,63 @@ const { requireAuth } = require('../middleware/requireAuth');
 const { requireRole } = require('../middleware/requireRole');
 const { attachUser } = require('../middleware/attachUser');
 const { badRequest, notFound } = require('../utils/httpError');
-const { ROLES } = require('../models/User');
+const authService = require('../services/authService');
 
 const router = express.Router();
 const adminAuth = [requireAuth, requireRole('admin'), attachUser];
 
-// GET /api/admin/kpis
-router.get('/kpis', ...adminAuth, async (_req, res, next) => {
+const WEEK_MS = 7 * 24 * 60 * 60 * 1000;
+
+// Active users per week for the last `weeks` weeks, oldest first. `lastActiveAt`
+// records only the most recent visit, so a user falls in exactly one bucket —
+// these are "users last seen in week N", which is the honest reading of the
+// data we keep, not a true rolling-active count.
+const activeUsersByWeek = async (weeks) => {
+  const now = Date.now();
+  const buckets = [];
+
+  for (let i = weeks - 1; i >= 0; i -= 1) {
+    const start = new Date(now - (i + 1) * WEEK_MS);
+    const end = new Date(now - i * WEEK_MS);
+    // eslint-disable-next-line no-await-in-loop
+    const activeUsers = await User.countDocuments({
+      lastActiveAt: { $gte: start, $lt: end },
+    });
+    buckets.push({
+      weekStart: start.toISOString().slice(0, 10),
+      activeUsers,
+    });
+  }
+
+  return buckets;
+};
+
+// GET /api/admin/kpis?weeks=8
+router.get('/kpis', ...adminAuth, async (req, res, next) => {
   try {
-    const [totalUsers, totalCourses, publishedCourses] = await Promise.all([
+    const weeks = Math.min(Math.max(Number(req.query.weeks) || 8, 1), 26);
+
+    const [totalUsers, totalCourses, publishedCourses, usersByRole] = await Promise.all([
       User.countDocuments(),
       Course.countDocuments(),
       Course.countDocuments({ isPublished: true }),
+      User.aggregate([{ $group: { _id: '$role', count: { $sum: 1 } } }]),
     ]);
 
-    const weekAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
+    const weekAgo = new Date(Date.now() - WEEK_MS);
     const weeklyActiveUsers = await User.countDocuments({ lastActiveAt: { $gte: weekAgo } });
+    const activeByWeek = await activeUsersByWeek(weeks);
 
-    res.json({ data: { totalUsers, totalCourses, publishedCourses, weeklyActiveUsers } });
+    res.json({
+      data: {
+        totalUsers,
+        totalCourses,
+        publishedCourses,
+        weeklyActiveUsers,
+        usersByRole: Object.fromEntries(usersByRole.map((r) => [r._id, r.count])),
+        activeByWeek,
+      },
+    });
   } catch (err) {
     next(err);
   }
@@ -47,19 +86,21 @@ router.get('/users', ...adminAuth, async (req, res, next) => {
 });
 
 // PATCH /api/admin/users/:id/role
+// Delegates to authService, which moves the user between Cognito groups —
+// Cognito owns roles, and a Mongo-only write is overwritten by the next
+// request's claim sync. Takes effect for the target user when their token
+// next refreshes.
 router.patch('/users/:id/role', ...adminAuth, async (req, res, next) => {
   try {
-    const { role } = req.body;
-    if (!ROLES.includes(role)) throw badRequest(`Invalid role: ${role}`);
+    if (req.params.id === req.dbUser._id.toString()) {
+      throw badRequest('You cannot change your own role');
+    }
 
-    const user = await User.findByIdAndUpdate(
-      req.params.id,
-      { $set: { role } },
-      { new: true },
-    ).select('-__v');
-    if (!user) throw notFound('User not found');
-
-    res.json({ data: user });
+    const user = await authService.setUserRole(req.params.id, req.body.role);
+    res.json({
+      data: user,
+      meta: { note: 'Takes effect when the user next signs in or refreshes their token.' },
+    });
   } catch (err) {
     next(err);
   }

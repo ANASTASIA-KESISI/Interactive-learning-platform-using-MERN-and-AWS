@@ -1,0 +1,67 @@
+name: CI
+
+# Lint and test gate for every push and pull request. S6 exit criteria: CI runs
+# on every PR and must pass before deploy.
+on:
+  push:
+    branches: [main, dev]
+  pull_request:
+    branches: [main, dev]
+
+# A newer push to the same branch supersedes an in-flight run.
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  server:
+    name: Server — lint & test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      # npm workspaces: install once at the root for both packages.
+      - run: npm ci
+
+      - name: Lint
+        run: npm run lint --workspace server
+
+      # The suite mocks Mongo, DynamoDB and Cognito, so no services are needed.
+      # tests/setupEnv.js supplies the environment, including the explicit
+      # CODE_RUNNER_ADAPTER=dev opt-in.
+      - name: Test
+        run: npm test --workspace server
+
+  client:
+    name: Client — lint & build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - run: npm ci
+
+      - name: Lint
+        run: npm run lint --workspace client
+
+      # No client test step yet — React Testing Library is planned but no specs
+      # exist, so `npm test --workspace client` would fail on a missing runner.
+      # The production build is the current regression signal.
+      - name: Build
+        run: npm run build --workspace client
+        env:
+          # Build-time placeholders: Vite inlines VITE_* at build time, and the
+          # real values are injected by the hosting environment on deploy.
+          VITE_API_BASE_URL: http://localhost:4000/api
+          VITE_COGNITO_USER_POOL_ID: eu-west-1_ci
+          VITE_COGNITO_CLIENT_ID: ci-client-id
+          VITE_COGNITO_REGION: eu-west-1

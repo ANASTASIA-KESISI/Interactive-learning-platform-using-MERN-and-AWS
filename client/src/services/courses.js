@@ -31,5 +31,16 @@ export const addModule = (courseId, payload) =>
 export const addLesson = (moduleId, payload) =>
   api.post(`/instructor/modules/${moduleId}/lessons`, payload).then(unwrap);
 
+export const updateModule = (moduleId, payload) =>
+  api.patch(`/instructor/modules/${moduleId}`, payload).then(unwrap);
+
+// Removes the module and every lesson inside it. Learner progress records are
+// retained server-side as pilot research data.
+export const deleteModule = (moduleId) =>
+  api.delete(`/instructor/modules/${moduleId}`).then(unwrap);
+
+export const deleteLesson = (lessonId) =>
+  api.delete(`/instructor/lessons/${lessonId}`).then(unwrap);
+
 export const getCourseAnalytics = (courseId) =>
   api.get(`/instructor/courses/${courseId}/analytics`).then(unwrap);
