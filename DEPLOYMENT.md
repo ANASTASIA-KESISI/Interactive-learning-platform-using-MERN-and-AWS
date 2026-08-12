@@ -146,6 +146,19 @@ learncode-backend → Add permissions → Create inline policy → JSON).
 Set these through the hosting platform (EC2 user data / systemd unit /
 Amplify environment variables), **not** a `.env` file on the host.
 
+Ready-made server config lives in `deploy/`, with the non-secret values for this
+account already filled in:
+
+| File | Purpose |
+|---|---|
+| `deploy/setup-ec2.sh` | Provisions a fresh Amazon Linux 2023 box — Node, git, nginx, service account, clone, deps, unit + site install. Idempotent; re-run it to deploy updates. |
+| `deploy/learncode-api.service` | systemd unit. Non-secret config inline; `MONGODB_URI` read from root-owned `/etc/learncode/secrets.env` (chmod 600) so it stays out of `systemctl show`. |
+| `deploy/nginx-learncode.conf` | Reverse proxy 80 → loopback:4000, with the `X-Forwarded-*` headers `trust proxy` depends on and timeouts wide enough for a Lambda cold start. |
+
+Two placeholders must be replaced before the API will work end to end:
+`CLIENT_ORIGIN` in the unit file (the deployed frontend origin, known after §5)
+and `server_name` in the nginx site (the API domain).
+
 | Variable | Production value | Notes |
 |---|---|---|
 | `NODE_ENV` | `production` | Enables `trust proxy`; gates the runner guard |

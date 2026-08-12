@@ -1,0 +1,78 @@
+# systemd unit for the LearnCode API on Amazon Linux 2023.
+#
+# Install:
+#   sudo cp deploy/learncode-api.service /etc/systemd/system/
+#   sudo systemctl daemon-reload
+#   sudo systemctl enable --now learncode-api
+#
+# Configuration lives here, NOT in a .env file on the host. Since S5.5 the env
+# loader treats the real process environment as authoritative, and copying
+# server/.env from a laptop would drag NODE_ENV=development onto the server —
+# which in turn would stop the code-runner boot guard from firing.
+#
+# Secrets (MONGODB_URI) are read from /etc/learncode/secrets.env, which is
+# root-owned and chmod 600 so they never appear in `systemctl show` output or
+# in this file. Create it with:
+#   sudo mkdir -p /etc/learncode
+#   sudo tee /etc/learncode/secrets.env >/dev/null <<'EOF'
+#   MONGODB_URI=mongodb+srv://USER:PASS@host/learncode?retryWrites=true&w=majority
+#   EOF
+#   sudo chmod 600 /etc/learncode/secrets.env
+#
+# AWS credentials are deliberately absent: attach an EC2 instance role instead
+# and the SDK picks it up automatically, so no long-lived keys sit on disk.
+
+[Unit]
+Description=LearnCode API
+Documentation=https://github.com/ANASTASIA-KESISI/Interactive-learning-platform-using-MERN-and-AWS
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=learncode
+Group=learncode
+WorkingDirectory=/opt/learncode/server
+ExecStart=/usr/bin/node src/server.js
+
+Restart=always
+RestartSec=5
+
+# Structured JSON logs go to the journal, where the CloudWatch agent collects
+# them. Do not add a prefix here — it would corrupt the JSON.
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=learncode-api
+
+EnvironmentFile=/etc/learncode/secrets.env
+
+Environment=NODE_ENV=production
+Environment=PORT=4000
+Environment=AWS_REGION=eu-west-1
+
+# Cognito — public identifiers, safe to keep in the unit file
+Environment=COGNITO_USER_POOL_ID=eu-west-1_Spm4bEWSk
+Environment=COGNITO_CLIENT_ID=1u36e3aa9ruk51v7eaetlpliqn
+Environment=COGNITO_ISSUER=https://cognito-idp.eu-west-1.amazonaws.com/eu-west-1_Spm4bEWSk
+
+Environment=DYNAMO_PROGRESS_TABLE=learncode_progress
+Environment=S3_MEDIA_BUCKET=learncode-media
+
+# Untrusted student code MUST run in Lambda, never in this process.
+Environment=CODE_RUNNER_ADAPTER=lambda
+Environment=LAMBDA_RUNNER_JS_FUNCTION=learncode-runner-js
+
+# CORS allowlist. Exact scheme + host, no trailing slash. Update this to the
+# real Amplify domain once the frontend is deployed, then:
+#   sudo systemctl daemon-reload && sudo systemctl restart learncode-api
+Environment=CLIENT_ORIGIN=https://REPLACE-WITH-AMPLIFY-DOMAIN
+
+# Hardening — the API needs no write access outside its own tree.
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/opt/learncode
+
+[Install]
+WantedBy=multi-user.target

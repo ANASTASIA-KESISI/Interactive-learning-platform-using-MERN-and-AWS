@@ -1,0 +1,92 @@
+#!/usr/bin/env bash
+# Provisions a fresh Amazon Linux 2023 instance to run the LearnCode API.
+#
+# Run as ec2-user AFTER the instance has an IAM role attached:
+#   curl -o setup-ec2.sh https://raw.githubusercontent.com/<owner>/<repo>/dev/deploy/setup-ec2.sh
+#   bash setup-ec2.sh <git-clone-url>
+#
+# Idempotent — safe to re-run. It stops short of starting the service, because
+# the secrets file and CLIENT_ORIGIN must be filled in first; it prints the
+# remaining steps at the end.
+
+set -euo pipefail
+
+REPO_URL="${1:-}"
+APP_DIR=/opt/learncode
+SERVICE_USER=learncode
+
+if [[ -z "$REPO_URL" ]]; then
+  echo "usage: bash setup-ec2.sh <git-clone-url>" >&2
+  exit 1
+fi
+
+echo "==> Updating base packages"
+sudo dnf update -y
+
+echo "==> Installing Node.js 20, git, nginx"
+sudo dnf install -y nodejs20 nodejs20-npm git nginx
+# AL2023 installs the binary as node-20; expose it as `node` for the unit file.
+if [[ ! -e /usr/bin/node ]]; then
+  sudo alternatives --install /usr/bin/node node /usr/bin/node-20 90 || true
+fi
+node --version
+
+echo "==> Creating service account ${SERVICE_USER}"
+if ! id "$SERVICE_USER" &>/dev/null; then
+  sudo useradd --system --home-dir "$APP_DIR" --shell /sbin/nologin "$SERVICE_USER"
+fi
+
+echo "==> Fetching application to ${APP_DIR}"
+if [[ -d "$APP_DIR/.git" ]]; then
+  sudo git -C "$APP_DIR" fetch --all
+  sudo git -C "$APP_DIR" reset --hard origin/dev
+else
+  sudo mkdir -p "$APP_DIR"
+  sudo git clone "$REPO_URL" "$APP_DIR"
+fi
+
+echo "==> Installing production dependencies"
+# --omit=dev skips jest/eslint/nodemon; the workspace root drives both packages.
+sudo npm ci --omit=dev --prefix "$APP_DIR" --workspace server
+
+sudo chown -R "$SERVICE_USER":"$SERVICE_USER" "$APP_DIR"
+
+echo "==> Installing systemd unit"
+sudo cp "$APP_DIR/deploy/learncode-api.service" /etc/systemd/system/
+sudo systemctl daemon-reload
+
+echo "==> Installing nginx site"
+sudo cp "$APP_DIR/deploy/nginx-learncode.conf" /etc/nginx/conf.d/learncode.conf
+sudo systemctl enable --now nginx
+
+cat <<'NEXT'
+
+==> Provisioning complete. Remaining manual steps:
+
+  1. Create the secrets file (MONGODB_URI is not stored in the repo):
+
+       sudo mkdir -p /etc/learncode
+       sudo tee /etc/learncode/secrets.env >/dev/null <<'EOF'
+       MONGODB_URI=mongodb+srv://USER:PASS@host/learncode?retryWrites=true&w=majority
+       EOF
+       sudo chmod 600 /etc/learncode/secrets.env
+
+  2. Set CLIENT_ORIGIN in /etc/systemd/system/learncode-api.service to the real
+     frontend URL, and server_name in /etc/nginx/conf.d/learncode.conf to the
+     API domain. Then:
+
+       sudo systemctl daemon-reload
+       sudo nginx -t && sudo systemctl reload nginx
+
+  3. Allow this instance's Elastic IP in MongoDB Atlas -> Network Access.
+
+  4. Start the API and verify:
+
+       sudo systemctl enable --now learncode-api
+       curl -s localhost:4000/health
+       journalctl -u learncode-api -n 30 --no-pager
+
+     A boot failure mentioning CODE_RUNNER_ADAPTER means the unit file did not
+     apply — that guard exists to stop untrusted code running in this process.
+
+NEXT
