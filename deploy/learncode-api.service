@@ -61,6 +61,10 @@ Environment=S3_MEDIA_BUCKET=learncode-media
 # Untrusted student code MUST run in Lambda, never in this process.
 Environment=CODE_RUNNER_ADAPTER=lambda
 Environment=LAMBDA_RUNNER_JS_FUNCTION=learncode-runner-js
+# Python is registered only when this is set, so an environment without the
+# function deployed rejects Python submissions at dispatch rather than failing
+# inside AWS. Comment it out to disable Python on a given host.
+Environment=LAMBDA_RUNNER_PY_FUNCTION=learncode-runner-py
 
 # CORS allowlist. Exact scheme + host, no trailing slash. Update this to the
 # real Amplify domain once the frontend is deployed, then:

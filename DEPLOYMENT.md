@@ -105,6 +105,57 @@ likely a stale zip.
 
 ---
 
+### 2b. Deploy the Python runner (optional — not used by the pilot)
+
+Python is supported by the platform but deliberately absent from pilot content
+(CHALLENGES.md Challenge 14). Deploy it only if you want the capability
+available, e.g. to demonstrate multi-language support at a defence.
+
+Same Console flow as §2 Option B, with three differences:
+
+1. Function name **`learncode-runner-py`**, runtime **Python 3.13**
+2. Upload `learncode-runner-py.zip`, rebuilt with:
+   ```powershell
+   Compress-Archive -Path server/runners/python/index.py `
+     -DestinationPath learncode-runner-py.zip -Force
+   ```
+3. Timeout **10s**, memory **256MB**, handler **`index.handler`** (as for JS)
+
+Then set `LAMBDA_RUNNER_PY_FUNCTION=learncode-runner-py` in the systemd unit
+and restart. Without that variable, Python submissions are refused at dispatch
+rather than reaching AWS — which is the intended behaviour on hosts where the
+function does not exist.
+
+**Widen the IAM invoke policy** (§3) to cover the new ARN, or every Python
+submission returns `AccessDeniedException`.
+
+Console test events:
+
+```json
+{ "code": "print('Hello, World!')" }
+```
+→ `{"stdout": "Hello, World!", "stderr": "", "exitCode": 0}`
+
+```json
+{ "code": "raise ValueError('boom')" }
+```
+→ `exitCode: 1`, `stderr` containing `ValueError: boom`
+
+```json
+{ "code": "import sys; print('bye'); sys.exit(1)" }
+```
+→ `exitCode: 1` — confirms `SystemExit` is caught rather than escaping
+
+```json
+{ "code": "while True: pass" }
+```
+→ `exitCode: 1`, `stderr` reporting the 5s timeout
+
+```json
+{ "code": "import os; print(os.environ.get('AWS_SECRET_ACCESS_KEY'))" }
+```
+→ `stdout` of `None` — the Challenge 13 credential scrub
+
 ## 3. IAM permissions the backend needs
 
 `learncode-backend` currently holds DynamoDB and S3 access. Two additions are
@@ -116,7 +167,10 @@ required for S6:
 {
   "Effect": "Allow",
   "Action": "lambda:InvokeFunction",
-  "Resource": "arn:aws:lambda:eu-west-1:901864772557:function:learncode-runner-js"
+  "Resource": [
+    "arn:aws:lambda:eu-west-1:901864772557:function:learncode-runner-js",
+    "arn:aws:lambda:eu-west-1:901864772557:function:learncode-runner-py"
+  ]
 }
 ```
 

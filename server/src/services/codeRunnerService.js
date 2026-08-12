@@ -27,15 +27,23 @@ if (env.isProduction && adapterName !== 'lambda') {
   );
 }
 
-const adapter =
-  adapterName === 'lambda'
-    ? require('./codeRunner/lambdaAdapter')
-    : require('./codeRunner/devAdapter');
+const lambdaAdapter = require('./codeRunner/lambdaAdapter');
+const devAdapter = adapterName === 'dev' ? require('./codeRunner/devAdapter') : null;
+
+// The dev adapter is Node `vm` and can only execute JavaScript, so in dev mode
+// any other language falls through to the deployed Lambda. That keeps laptop
+// iteration on JS instant while avoiding the alternative — shelling out to a
+// system interpreter, which would run untrusted code on the developer's machine
+// with no isolation at all.
+const adapterFor = (language) => {
+  if (adapterName === 'lambda') return lambdaAdapter;
+  return language === 'javascript' ? devAdapter : lambdaAdapter;
+};
 
 const normalise = (str) => (str || '').trim().replace(/\r\n/g, '\n');
 
 const run = async (code, expectedOutput, language = 'javascript') => {
-  const result = await adapter.run({ code, language });
+  const result = await adapterFor(language).run({ code, language });
   const passed =
     result.exitCode === 0 &&
     normalise(result.stdout) === normalise(expectedOutput);

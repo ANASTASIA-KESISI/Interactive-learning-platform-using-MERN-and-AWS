@@ -1,8 +1,15 @@
 const { LambdaClient, InvokeCommand } = require('@aws-sdk/client-lambda');
 const { env } = require('../../config/env');
 
+// One function per language (CHALLENGES.md Challenge 4). Python is registered
+// only when its function name is configured, so an environment without the
+// Lambda deployed rejects a Python submission at dispatch with a clear message
+// rather than failing inside AWS with ResourceNotFoundException.
 const FUNCTION_NAMES = {
   javascript: process.env.LAMBDA_RUNNER_JS_FUNCTION || 'learncode-runner-js',
+  ...(process.env.LAMBDA_RUNNER_PY_FUNCTION
+    ? { python: process.env.LAMBDA_RUNNER_PY_FUNCTION }
+    : {}),
 };
 
 let client;

@@ -1,9 +1,13 @@
 const mongoose = require('mongoose');
 
 const LESSON_TYPES = Object.freeze(['tutorial', 'exercise', 'quiz']);
-// Pilot ships JavaScript only. Adding a language is: extend this enum, deploy
-// a new runner-<lang> Lambda, register it in the dispatcher.
-const LESSON_LANGUAGES = Object.freeze(['javascript']);
+// Adding a language is: extend this enum, deploy a new runner-<lang> Lambda,
+// register it in the dispatcher, widen the IAM invoke policy.
+//
+// Python is supported by the platform but is deliberately NOT part of the pilot
+// content: mixing languages across a 15–30 student cohort would confound the
+// engagement metrics H1 and H2 are measured on. See CHALLENGES.md Challenge 14.
+const LESSON_LANGUAGES = Object.freeze(['javascript', 'python']);
 
 // Each hint string is revealed one at a time on the client — the index in
 // this array IS the hint level (hint[0] is the least revealing, hint[n-1]

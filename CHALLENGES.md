@@ -546,6 +546,69 @@ review, which had passed this file twice — that surfaced it.
 
 ---
 
+### Challenge 14 — Python support, and why it stays out of the pilot
+
+**Supersedes the scope half of Challenge 2.** That entry decided JavaScript-only
+for the pilot and recorded the cookbook for adding a language. This entry
+executes the cookbook and separates two things Challenge 2 conflated: what the
+*platform* supports, and what the *pilot* teaches.
+
+**Problem.** With `learncode-runner-js` deployed and verified end to end
+(2026-08-12), the per-language Lambda topology stopped being a claim and became
+something testable. The question was whether to demonstrate it.
+
+**Decision — platform: supported.** `python` is now in `Lesson.LESSON_LANGUAGES`
+and the instructor editor, with `server/runners/python/` and a
+`learncode-runner-py` function on the Python 3.13 runtime.
+
+**Decision — pilot content: JavaScript only, unchanged.**
+
+**Rationale for the split.** The constraint is methodological, not technical.
+The pilot has 15–30 participants and §3.8 already concedes limited statistical
+power. Splitting that cohort across two languages introduces a second variable
+into a study designed to isolate the effect of scaffolding (H1) and gamification
+(H2): hint usage, completion rate and time-on-task would then vary partly by
+language, and neither half of a split cohort would be large enough to say much.
+Keeping the pilot single-language while shipping multi-language capability gives
+the Chapter 7 future-work claim something demonstrable behind it — the
+architecture generalises, and here is a second runtime proving it — without
+contaminating the data the thesis rests on.
+
+**Implementation notes worth keeping:**
+
+- **The credential scrub was ported, not assumed.** `exec` in Python is no more
+  a sandbox than Node's `vm`; student code can reach `os.environ` and would
+  have found the execution role's STS credentials exactly as Challenge 13
+  found them on the JS runner. The Python handler scrubs the same four
+  variables per invocation.
+- **`BaseException`, not `Exception`.** Student code calling `sys.exit()` or
+  `exit()` raises `SystemExit`, which derives from `BaseException`. Catching
+  only `Exception` would let it escape and fail the whole invocation instead of
+  being reported as a failed submission.
+- **Timeout via `signal.alarm`**, mirroring the JS runner's 5s script guard,
+  which sits inside the 10s function timeout.
+- **Output normalisation.** `print()` appends a newline; the handler strips the
+  trailing one so stdout matches the JS runner's line-joining, since the
+  orchestrator compares both against the same `expectedOutput` field.
+- **Dispatch is gated on configuration.** `python` is registered in
+  `lambdaAdapter.FUNCTION_NAMES` only when `LAMBDA_RUNNER_PY_FUNCTION` is set,
+  so a host without the function deployed refuses Python at dispatch with a
+  clear message rather than surfacing an AWS `ResourceNotFoundException`.
+- **Dev mode routes non-JavaScript to Lambda.** The in-process adapter is Node
+  `vm` and cannot run Python. The alternative — shelling out to a system
+  `python3` — would execute untrusted code on a developer's machine with no
+  isolation whatsoever, which is worse than anything this architecture has
+  accepted so far.
+- **The IAM invoke policy must be widened.** It scopes
+  `lambda:InvokeFunction` to the JS function ARN; Python fails with
+  `AccessDeniedException` until the new ARN is added.
+
+**Validation is unchanged and language-agnostic** — a whitespace-normalised
+stdout comparison. Adding a language needed no validator work, which is the
+clearest evidence the S3 interface boundary was drawn in the right place.
+
+---
+
 ## How to add a new entry
 
 When making a non-trivial decision, add a `### Challenge N — <topic>` section

@@ -7,7 +7,9 @@ import { getLessonForEdit, updateLesson } from '../../services/lessons.js';
 import { Spinner, ErrorBanner } from '../../components/Spinner.jsx';
 
 const LESSON_TYPES = ['tutorial', 'exercise', 'quiz'];
-const LESSON_LANGUAGES = ['javascript'];
+// Must stay in step with LESSON_LANGUAGES in server/src/models/Lesson.js — the
+// server rejects anything outside its own enum.
+const LESSON_LANGUAGES = ['javascript', 'python'];
 
 export const LessonEditorPage = () => {
   const { id } = useParams();

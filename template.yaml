@@ -22,7 +22,21 @@ Resources:
       Handler: index.handler
       Description: Sandboxed JavaScript execution for student code submissions
 
+  RunnerPy:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: learncode-runner-py
+      CodeUri: server/runners/python/
+      Handler: index.handler
+      # Per-language runtimes are the point of the per-function topology
+      # (CHALLENGES.md Challenge 4) — this one overrides the Node default.
+      Runtime: python3.13
+      Description: Sandboxed Python execution for student code submissions
+
 Outputs:
   RunnerJsArn:
     Description: ARN of the JavaScript runner Lambda
     Value: !GetAtt RunnerJs.Arn
+  RunnerPyArn:
+    Description: ARN of the Python runner Lambda
+    Value: !GetAtt RunnerPy.Arn
