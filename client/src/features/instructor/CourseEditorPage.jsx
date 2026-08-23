@@ -115,7 +115,9 @@ export const CourseEditorPage = () => {
           </div>
           <div>
             <label htmlFor="difficulty" className="label">Difficulty</label>
-            <select id="difficulty" value={meta.difficulty} onChange={(e) => setMeta((m) => ({ ...m, difficulty: e.target.value }))} className="field">
+            {/* `capitalize` is display-only: the option values stay lowercase to
+                match the Course.difficulty enum on the server. */}
+            <select id="difficulty" value={meta.difficulty} onChange={(e) => setMeta((m) => ({ ...m, difficulty: e.target.value }))} className="field capitalize">
               {DIFFICULTIES.map((d) => <option key={d} value={d}>{d}</option>)}
             </select>
           </div>
@@ -363,10 +365,12 @@ const ModuleCard = ({ module, index, onChange, setError }) => {
         </div>
         <div>
           <label className="label">Type</label>
+          {/* `capitalize` is display-only: the option values stay lowercase to
+              match the Lesson.type enum on the server. */}
           <select
             value={lessonForm.type}
             onChange={(e) => setLessonForm((f) => ({ ...f, type: e.target.value }))}
-            className="field"
+            className="field capitalize"
           >
             {LESSON_TYPES.map((t) => <option key={t} value={t}>{t}</option>)}
           </select>

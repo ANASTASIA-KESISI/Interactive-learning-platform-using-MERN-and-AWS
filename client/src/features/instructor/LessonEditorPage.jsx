@@ -107,7 +107,9 @@ export const LessonEditorPage = () => {
           </div>
           <div>
             <label htmlFor="type" className="label">Type</label>
-            <select id="type" value={form.type} onChange={update('type')} className="field">
+            {/* `capitalize` is display-only: the option values stay lowercase to
+                match the Lesson.type enum on the server. */}
+            <select id="type" value={form.type} onChange={update('type')} className="field capitalize">
               {LESSON_TYPES.map((t) => <option key={t} value={t}>{t}</option>)}
             </select>
           </div>

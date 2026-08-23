@@ -64,7 +64,9 @@ export const NewCoursePage = () => {
           </div>
           <div>
             <label htmlFor="difficulty" className="label">Difficulty</label>
-            <select id="difficulty" value={form.difficulty} onChange={update('difficulty')} className="field">
+            {/* `capitalize` is display-only: the option values stay lowercase to
+                match the Course.difficulty enum on the server. */}
+            <select id="difficulty" value={form.difficulty} onChange={update('difficulty')} className="field capitalize">
               {DIFFICULTIES.map((d) => (
                 <option key={d} value={d}>{d}</option>
               ))}
