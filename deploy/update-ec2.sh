@@ -53,18 +53,31 @@ systemctl daemon-reload
 echo "==> Restarting API"
 systemctl restart learncode-api
 
-echo "==> Waiting for /health"
-for _ in $(seq 1 12); do
+# src/server.js awaits the Mongo connection BEFORE app.listen(), so port 4000
+# stays shut until Atlas answers — on a cold t3.micro that has taken over a
+# minute. Waiting only 60s here once failed a deploy that had in fact worked.
+echo "==> Waiting for /health (up to 180s)"
+for i in $(seq 1 36); do
   if curl -sf localhost:4000/health >/dev/null; then
-    echo "==> API healthy"
+    echo "==> API healthy after ~$(( (i - 1) * 5 ))s"
     nginx -t
     systemctl reload nginx
     echo "==> Deploy complete"
     exit 0
   fi
+
+  # A unit systemd has given up on will never become healthy; say so now
+  # rather than burning the remaining wait.
+  state=$(systemctl is-active learncode-api || true)
+  if [[ "$state" == "failed" || "$state" == "inactive" ]]; then
+    echo "ERROR: learncode-api is ${state}; recent logs follow" >&2
+    journalctl -u learncode-api -n 50 --no-pager >&2
+    exit 1
+  fi
+
   sleep 5
 done
 
-echo "ERROR: API did not become healthy within 60s; recent logs follow" >&2
+echo "ERROR: API did not answer /health within 180s; recent logs follow" >&2
 journalctl -u learncode-api -n 50 --no-pager >&2
 exit 1
