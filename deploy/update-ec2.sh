@@ -25,6 +25,11 @@ if [[ $EUID -ne 0 ]]; then
   exec sudo bash "$0" "$@"
 fi
 
+# SSM Run Command supplies no HOME. Without it git refuses to read its global
+# config ("fatal: $HOME not set") and npm cannot place its cache, so both the
+# stamp below and the install fail. Harmless when HOME is already set.
+export HOME="${HOME:-/root}"
+
 echo "==> Deploying $(git -C "$APP_DIR" rev-parse --short HEAD): $(git -C "$APP_DIR" log -1 --format=%s)"
 
 echo "==> Installing production dependencies"

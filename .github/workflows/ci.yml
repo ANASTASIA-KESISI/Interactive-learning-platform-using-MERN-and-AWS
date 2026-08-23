@@ -103,7 +103,22 @@ jobs:
         run: |
           set -euo pipefail
 
-          REMOTE="git config --global --get-all safe.directory | grep -qx /opt/learncode || git config --global --add safe.directory /opt/learncode; git -C /opt/learncode fetch origin dev; git -C /opt/learncode reset --hard $GITHUB_SHA; bash /opt/learncode/deploy/update-ec2.sh"
+          # `vars.` reads repository *variables*; a value saved under Secrets
+          # instead arrives here as an empty string, and the AWS error for that
+          # names neither the variable nor where it should live.
+          if [ -z "${INSTANCE_ID:-}" ]; then
+            echo "EC2_INSTANCE_ID is empty. Set it as a repository VARIABLE" >&2
+            echo "(Settings -> Secrets and variables -> Actions -> Variables tab)," >&2
+            echo "not a secret. Value is the i-... id of the learncode-api instance." >&2
+            exit 1
+          fi
+
+          # HOME first: SSM Run Command runs as root but with a bare
+          # environment, and an unset HOME makes `git config --global` fail
+          # outright ("fatal: $HOME not set") and npm lose its cache dir. An
+          # interactive Session Manager shell does set it, so a command that
+          # works by hand can still fail here.
+          REMOTE="export HOME=/root; git config --global --get-all safe.directory | grep -qx /opt/learncode || git config --global --add safe.directory /opt/learncode; git -C /opt/learncode fetch origin dev; git -C /opt/learncode reset --hard $GITHUB_SHA; bash /opt/learncode/deploy/update-ec2.sh"
 
           COMMAND_ID=$(aws ssm send-command \
             --instance-ids "$INSTANCE_ID" \

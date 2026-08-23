@@ -437,10 +437,27 @@ Everything below was designed for the Console (no local AWS CLI needed).
 
 **D. Verify:** push any commit to `dev` and watch Actions → CI/CD. The
 `deploy-api` job prints the remote script's stdout (git SHA, npm install,
-restart, health check) and ends with the public health probe. First failure
-modes: `Not authorized to perform sts:AssumeRoleWithWebIdentity` → the trust
-policy's repo filter doesn't match; `AccessDeniedException` on send-command →
-the inline policy's instance ARN is wrong.
+restart, health check) and ends with the public health probe.
+
+Confirm the deploy actually landed by reading the live health endpoint:
+
+```
+curl -s https://d3n7zqt9fcw62k.cloudfront.net/health
+```
+
+`commit` must equal the pushed SHA, and `uptime` should be seconds rather than
+days — together they prove the right code is running *and* that the service
+really restarted.
+
+### Troubleshooting
+
+| Symptom | Cause |
+|---|---|
+| `Not authorized to perform sts:AssumeRoleWithWebIdentity` | Trust policy's repo filter does not match the repository |
+| `AccessDeniedException` on `ssm:SendCommand` | Inline policy's instance ARN is wrong |
+| `InvalidInstanceId`, or an empty `--instance-ids` | `EC2_INSTANCE_ID` saved under Secrets instead of Variables (`vars.` reads only the Variables tab). The job guards against the empty case with an explicit message. |
+| Remote stderr shows `fatal: $HOME not set` | **SSM Run Command supplies no `HOME`**, unlike an interactive Session Manager shell — so a command verified by hand can still fail here. `git config --global` aborts and npm loses its cache directory. Both the workflow and `update-ec2.sh` now export `HOME=/root`; keep it that way. |
+| Status stays `Pending` for the whole poll | SSM agent not running, or the instance lost its IAM role |
 
 ### Manual deploy fallback
 
