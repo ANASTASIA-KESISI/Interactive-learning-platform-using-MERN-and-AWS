@@ -85,9 +85,10 @@ cat <<'NEXT'
        EOF
        sudo chmod 600 /etc/learncode/secrets.env
 
-  2. Set CLIENT_ORIGIN in /etc/systemd/system/learncode-api.service to the real
-     frontend URL, and server_name in /etc/nginx/conf.d/learncode.conf to the
-     API domain. Then:
+  2. CLIENT_ORIGIN in the systemd unit and server_name in the nginx site are
+     pre-filled with this account's production values. If deploying elsewhere,
+     change them IN THE REPO (CI re-copies both files on every deploy, so
+     host-side edits do not survive). Then:
 
        sudo systemctl daemon-reload
        sudo nginx -t && sudo systemctl reload nginx

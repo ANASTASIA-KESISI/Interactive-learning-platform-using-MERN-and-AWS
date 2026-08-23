@@ -16,6 +16,9 @@ coverage/
 # Lambda deployment artifact, rebuilt from server/runners/<lang>/ on demand
 *.zip
 
+# Written on the host by deploy/update-ec2.sh; records the deployed commit.
+deploy-stamp.json
+
 .DS_Store
 Thumbs.db
 

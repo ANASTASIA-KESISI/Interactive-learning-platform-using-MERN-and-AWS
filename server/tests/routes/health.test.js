@@ -13,6 +13,14 @@ describe('GET /health', () => {
     });
     expect(typeof res.body.uptime).toBe('number');
   });
+
+  // No deploy stamp exists outside a deployed host, so the fields must be
+  // present and null rather than missing or throwing.
+  test('reports deploy provenance fields', async () => {
+    const res = await request(app).get('/health');
+    expect(res.body).toHaveProperty('commit', null);
+    expect(res.body).toHaveProperty('deployedAt', null);
+  });
 });
 
 describe('Unknown route', () => {

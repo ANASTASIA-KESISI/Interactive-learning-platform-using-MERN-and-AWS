@@ -1,7 +1,11 @@
-name: CI
+name: CI/CD
 
-# Lint and test gate for every push and pull request. S6 exit criteria: CI runs
-# on every PR and must pass before deploy.
+# Lint and test gate for every push and pull request, plus automatic deploy of
+# the API to EC2 on pushes to `dev`. S6 exit criteria: CI runs on every PR and
+# must pass before deploy — the deploy-api job enforces this via `needs`.
+#
+# The client has no deploy job on purpose: Amplify Hosting watches `dev` and
+# rebuilds the SPA on every push by itself.
 on:
   push:
     branches: [main, dev]
@@ -65,3 +69,70 @@ jobs:
           VITE_COGNITO_USER_POOL_ID: eu-west-1_ci
           VITE_COGNITO_CLIENT_ID: ci-client-id
           VITE_COGNITO_REGION: eu-west-1
+
+  deploy-api:
+    name: Deploy API to EC2
+    # Deploys the exact commit that passed the two gates above, and only for
+    # direct pushes to `dev` (the live branch) — never for PRs or `main`.
+    needs: [server, client]
+    if: github.event_name == 'push' && github.ref == 'refs/heads/dev'
+    runs-on: ubuntu-latest
+    # OIDC: the job trades a GitHub-signed identity token for short-lived AWS
+    # credentials by assuming the deploy role — no static keys in GitHub.
+    # One-time AWS + GitHub setup is documented in DEPLOYMENT.md §10.
+    permissions:
+      id-token: write
+      contents: read
+    env:
+      AWS_REGION: eu-west-1
+      INSTANCE_ID: ${{ vars.EC2_INSTANCE_ID }}
+    steps:
+      - name: Assume the deploy role via OIDC
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_DEPLOY_ROLE_ARN }}
+          aws-region: eu-west-1
+
+      # SSM Run Command reaches the instance through the same channel as
+      # Session Manager, so nothing is opened to GitHub's runner IPs and no
+      # SSH keys exist. The remote side resets the tree to $GITHUB_SHA (the
+      # tested commit) and hands over to deploy/update-ec2.sh from that tree.
+      # flock serialises concurrent deploys on the instance: cancelling this
+      # job only stops the polling below, not a remote script already running.
+      - name: Update the instance via SSM Run Command
+        run: |
+          set -euo pipefail
+
+          REMOTE="git config --global --get-all safe.directory | grep -qx /opt/learncode || git config --global --add safe.directory /opt/learncode; git -C /opt/learncode fetch origin dev; git -C /opt/learncode reset --hard $GITHUB_SHA; bash /opt/learncode/deploy/update-ec2.sh"
+
+          COMMAND_ID=$(aws ssm send-command \
+            --instance-ids "$INSTANCE_ID" \
+            --document-name AWS-RunShellScript \
+            --comment "learncode deploy ${GITHUB_SHA:0:7}" \
+            --parameters "{\"commands\":[\"flock -w 600 /var/lock/learncode-deploy.lock bash -euo pipefail -c '$REMOTE'\"],\"executionTimeout\":[\"900\"]}" \
+            --query Command.CommandId --output text)
+          echo "SSM command: $COMMAND_ID"
+
+          STATUS=Pending
+          for _ in $(seq 1 90); do
+            sleep 10
+            # Immediately after send-command the invocation may not exist yet.
+            STATUS=$(aws ssm get-command-invocation --command-id "$COMMAND_ID" \
+              --instance-id "$INSTANCE_ID" --query Status --output text 2>/dev/null || echo Pending)
+            echo "  status: $STATUS"
+            case "$STATUS" in Pending|InProgress|Delayed) ;; *) break ;; esac
+          done
+
+          echo "--- remote stdout ---"
+          aws ssm get-command-invocation --command-id "$COMMAND_ID" \
+            --instance-id "$INSTANCE_ID" --query StandardOutputContent --output text
+          echo "--- remote stderr ---"
+          aws ssm get-command-invocation --command-id "$COMMAND_ID" \
+            --instance-id "$INSTANCE_ID" --query StandardErrorContent --output text
+
+          [ "$STATUS" = "Success" ]
+
+      # End-to-end: the public path learners actually use (CloudFront → nginx
+      # → node). update-ec2.sh already verified localhost:4000 on the box.
+      - name: Verify public health endpoint
+        run: curl -sfS --max-time 15 https://d3n7zqt9fcw62k.cloudfront.net/health

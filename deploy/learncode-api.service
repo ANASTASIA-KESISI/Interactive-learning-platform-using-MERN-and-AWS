@@ -66,10 +66,11 @@ Environment=LAMBDA_RUNNER_JS_FUNCTION=learncode-runner-js
 # inside AWS. Comment it out to disable Python on a given host.
 Environment=LAMBDA_RUNNER_PY_FUNCTION=learncode-runner-py
 
-# CORS allowlist. Exact scheme + host, no trailing slash. Update this to the
-# real Amplify domain once the frontend is deployed, then:
-#   sudo systemctl daemon-reload && sudo systemctl restart learncode-api
-Environment=CLIENT_ORIGIN=https://REPLACE-WITH-AMPLIFY-DOMAIN
+# CORS allowlist. Exact scheme + host, no trailing slash. This is the real
+# deployed frontend origin — it lives here (not edited on the host) so that
+# CI re-copying this unit on every deploy cannot reset it to a placeholder.
+# If the Amplify domain ever changes, change it HERE and redeploy.
+Environment=CLIENT_ORIGIN=https://dev.d35i2f5rxki35f.amplifyapp.com
 
 # Hardening — the API needs no write access outside its own tree.
 NoNewPrivileges=true
