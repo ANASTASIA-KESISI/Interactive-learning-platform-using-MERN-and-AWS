@@ -459,6 +459,12 @@ really restarted.
 | Remote stderr shows `fatal: $HOME not set` | **SSM Run Command supplies no `HOME`**, unlike an interactive Session Manager shell — so a command verified by hand can still fail here. `git config --global` aborts and npm loses its cache directory. Both the workflow and `update-ec2.sh` now export `HOME=/root`; keep it that way. |
 | Status stays `Pending` for the whole poll | SSM agent not running, or the instance lost its IAM role |
 | `API did not answer /health within 180s`, but `/health` works moments later | `src/server.js` awaits the Mongo connection before `app.listen()`, so a slow Atlas handshake keeps port 4000 shut while the process is otherwise fine. Check the deployed commit in `/health` before assuming the deploy failed. |
+| `could not build server_names_hash` | A `server_name` longer than ~32 chars overflows nginx's default bucket; the site config sets `server_names_hash_bucket_size 128` for exactly this reason. Do not remove it. |
+
+**A red deploy does not mean the code did not ship.** `update-ec2.sh` installs
+and restarts before it verifies, so a late failure can leave the new commit
+live while the job reports failure. Always read `/health` before concluding
+anything — `commit` is the ground truth.
 
 ### Manual deploy fallback
 

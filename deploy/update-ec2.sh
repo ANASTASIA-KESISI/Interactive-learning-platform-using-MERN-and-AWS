@@ -47,20 +47,46 @@ chown -R "$SERVICE_USER":"$SERVICE_USER" "$APP_DIR"
 
 echo "==> Refreshing systemd unit and nginx site"
 cp "$APP_DIR/deploy/learncode-api.service" /etc/systemd/system/
-cp "$APP_DIR/deploy/nginx-learncode.conf" /etc/nginx/conf.d/learncode.conf
+
+# Validate the nginx site the moment it lands, and put the old one back if it
+# does not pass. An invalid file left on disk is worse than a failed deploy:
+# the running nginx keeps serving from memory and looks fine, then fails to
+# start on the next reboot, turning a bad config into a delayed outage.
+NGINX_SITE=/etc/nginx/conf.d/learncode.conf
+NGINX_BACKUP=""
+if [[ -f "$NGINX_SITE" ]]; then
+  NGINX_BACKUP=$(mktemp)
+  cp "$NGINX_SITE" "$NGINX_BACKUP"
+fi
+cp "$APP_DIR/deploy/nginx-learncode.conf" "$NGINX_SITE"
+if ! nginx -t; then
+  if [[ -n "$NGINX_BACKUP" ]]; then
+    cp "$NGINX_BACKUP" "$NGINX_SITE"
+    echo "ERROR: new nginx site failed validation; previous file restored" >&2
+  else
+    rm -f "$NGINX_SITE"
+    echo "ERROR: new nginx site failed validation; removed" >&2
+  fi
+  exit 1
+fi
+if [[ -n "$NGINX_BACKUP" ]]; then
+  rm -f "$NGINX_BACKUP"
+fi
+
 systemctl daemon-reload
 
 echo "==> Restarting API"
 systemctl restart learncode-api
 
 # src/server.js awaits the Mongo connection BEFORE app.listen(), so port 4000
-# stays shut until Atlas answers — on a cold t3.micro that has taken over a
-# minute. Waiting only 60s here once failed a deploy that had in fact worked.
+# stays shut for the whole Atlas handshake and "not listening yet" is normal
+# for the first few seconds. Observed ~5s; the headroom is for a slow Atlas
+# day, and costs nothing on a healthy deploy since this exits on first success.
 echo "==> Waiting for /health (up to 180s)"
 for i in $(seq 1 36); do
   if curl -sf localhost:4000/health >/dev/null; then
     echo "==> API healthy after ~$(( (i - 1) * 5 ))s"
-    nginx -t
+    # Already validated above, so this cannot fail the deploy after the fact.
     systemctl reload nginx
     echo "==> Deploy complete"
     exit 0
