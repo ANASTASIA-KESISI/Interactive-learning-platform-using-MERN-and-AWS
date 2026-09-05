@@ -52,3 +52,37 @@ describe('codeRunnerService', () => {
     expect(result.passed).toBe(true);
   });
 });
+
+// The Run button's path (S7 D10): same adapter, same error shaping, but no
+// verdict — nothing here may tell the learner whether they got it right.
+describe('codeRunnerService.execute (run without validating)', () => {
+  test('returns stdout with no verdict field', async () => {
+    const result = await codeRunnerService.execute('console.log("anything");');
+
+    expect(result.stdout).toBe('anything');
+    expect(result.error).toBeNull();
+    expect(typeof result.durationMs).toBe('number');
+    expect(result).not.toHaveProperty('passed');
+    expect(Object.keys(result).sort()).toEqual(['durationMs', 'error', 'stdout']);
+  });
+
+  test('shapes a runtime error the same way run does', async () => {
+    const result = await codeRunnerService.execute('throw new Error("boom");');
+
+    expect(result.error).toMatch(/boom/);
+    expect(result).not.toHaveProperty('passed');
+  });
+
+  test('is sandboxed exactly as run is — no require', async () => {
+    const result = await codeRunnerService.execute('const fs = require("fs"); console.log("ok");');
+
+    expect(result.error).not.toBeNull();
+  });
+
+  test('output that would have failed validation is still returned verbatim', async () => {
+    const result = await codeRunnerService.execute('console.log("wrong");');
+
+    expect(result.stdout).toBe('wrong');
+    expect(result.error).toBeNull();
+  });
+});

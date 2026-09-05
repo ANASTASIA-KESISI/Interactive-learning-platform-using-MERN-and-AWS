@@ -17,3 +17,15 @@ export const revealHint = (lessonId, hintIndex) =>
 
 export const submitCode = (lessonId, code) =>
   api.post(`/lessons/${lessonId}/submit`, { code }).then(unwrap);
+
+// D10 — "Run" executes without validating: no verdict, no XP, no attempt
+// burned. The server bumps a `runs` counter so the experimentation is still
+// visible in the pilot's engagement data.
+export const runCode = (lessonId, code) =>
+  api.post(`/lessons/${lessonId}/run`, { code }).then(unwrap);
+
+// Grades a quiz answer sheet server-side. `answers[i]` is the option index the
+// learner picked for question i, or null if they skipped it. The correct
+// answers only ever travel back in the response — never with the lesson.
+export const submitQuiz = (lessonId, answers) =>
+  api.post(`/lessons/${lessonId}/quiz`, { answers }).then(unwrap);

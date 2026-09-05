@@ -42,18 +42,30 @@ const adapterFor = (language) => {
 
 const normalise = (str) => (str || '').trim().replace(/\r\n/g, '\n');
 
-const run = async (code, expectedOutput, language = 'javascript') => {
+// Execute-only path, behind the editor's Run button (S7 D10). Same adapter,
+// same error shaping, but no comparison against `expectedOutput` and no
+// `passed` field — the answer must not be inferable from an endpoint that
+// never needed it (S5.5 B1). `run` is layered on top so there is exactly one
+// place where an adapter is chosen and its result is shaped.
+const execute = async (code, language = 'javascript') => {
   const result = await adapterFor(language).run({ code, language });
-  const passed =
-    result.exitCode === 0 &&
-    normalise(result.stdout) === normalise(expectedOutput);
 
   return {
-    passed,
     stdout: result.stdout,
     error: result.exitCode !== 0 ? result.stderr || 'Execution error' : null,
     durationMs: result.durationMs,
   };
 };
 
-module.exports = { run, _adapter: adapterName };
+const run = async (code, expectedOutput, language = 'javascript') => {
+  const { stdout, error, durationMs } = await execute(code, language);
+
+  return {
+    passed: error === null && normalise(stdout) === normalise(expectedOutput),
+    stdout,
+    error,
+    durationMs,
+  };
+};
+
+module.exports = { run, execute, _adapter: adapterName };
