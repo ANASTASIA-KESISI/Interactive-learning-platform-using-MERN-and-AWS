@@ -36,6 +36,7 @@ const path = require('path');
 const mongoose = require('mongoose');
 
 const { env } = require('../src/config/env');
+const { maskMongoUri } = require('../src/utils/maskUri');
 const { Lesson } = require('../src/models/Lesson');
 const progressTable = require('../src/dynamo/progressTable');
 
@@ -59,7 +60,7 @@ const buildTokenMap = (records) => {
 
 const run = async () => {
   await mongoose.connect(env.mongoUri);
-  console.log(`Connected to ${env.mongoUri}`);
+  console.log(`Connected to ${maskMongoUri(env.mongoUri)}`);
 
   const all = await progressTable.scanAll();
   const records = lessonFilter ? all.filter((r) => r.lessonId === lessonFilter) : all;

@@ -79,3 +79,4 @@ describe('adapter selection by language', () => {
     expect((await svc.run('print(...)', 'Hello, World!', 'python')).passed).toBe(false);
   });
 });
+

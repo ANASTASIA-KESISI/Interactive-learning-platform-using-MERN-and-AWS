@@ -9,6 +9,7 @@
 
 const mongoose = require('mongoose');
 const { env } = require('../src/config/env');
+const { maskMongoUri } = require('../src/utils/maskUri');
 const { Badge } = require('../src/models/Badge');
 
 // xp_reached badges intentionally have xpValue=0 to keep cascade behaviour
@@ -54,7 +55,7 @@ const STARTER_BADGES = [
 
 const seed = async () => {
   await mongoose.connect(env.mongoUri);
-  console.log(`Connected to ${env.mongoUri}`);
+  console.log(`Connected to ${maskMongoUri(env.mongoUri)}`);
 
   for (const b of STARTER_BADGES) {
     const result = await Badge.updateOne(

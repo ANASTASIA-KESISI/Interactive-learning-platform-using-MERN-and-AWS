@@ -1,5 +1,6 @@
 const { LambdaClient, InvokeCommand } = require('@aws-sdk/client-lambda');
 const { env } = require('../../config/env');
+const { serviceUnavailable } = require('../../utils/httpError');
 
 // One function per language (CHALLENGES.md Challenge 4). Python is registered
 // only when its function name is configured, so an environment without the
@@ -21,7 +22,16 @@ const getClient = () => {
 const run = async ({ code, language }) => {
   const functionName = FUNCTION_NAMES[language];
   if (!functionName) {
-    throw new Error(`No Lambda runner configured for language "${language}"`);
+    // A plain Error here became a bare 500 "Internal server error", which told
+    // a learner staring at a Python exercise nothing at all and told the
+    // operator nothing either. The language is unrunnable in this environment
+    // until its Lambda is deployed and named — say exactly that.
+    throw serviceUnavailable(
+      `${language} is not runnable in this environment yet. Deploy the ` +
+        `runner-${language === 'javascript' ? 'js' : 'py'} Lambda and set ` +
+        `LAMBDA_RUNNER_${language === 'javascript' ? 'JS' : 'PY'}_FUNCTION ` +
+        '(see DEPLOYMENT.md §2). JavaScript is the only language wired for the pilot.',
+    );
   }
 
   const start = Date.now();

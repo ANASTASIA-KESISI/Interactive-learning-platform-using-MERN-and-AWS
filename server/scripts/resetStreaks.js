@@ -22,13 +22,14 @@
 
 const mongoose = require('mongoose');
 const { env } = require('../src/config/env');
+const { maskMongoUri } = require('../src/utils/maskUri');
 const { User } = require('../src/models/User');
 
 const dryRun = process.argv.includes('--dry-run');
 
 const run = async () => {
   await mongoose.connect(env.mongoUri);
-  console.log(`Connected to ${env.mongoUri}`);
+  console.log(`Connected to ${maskMongoUri(env.mongoUri)}`);
 
   const affected = await User.countDocuments({
     $or: [{ streak: { $gt: 0 } }, { lastCompletionAt: { $ne: null } }],

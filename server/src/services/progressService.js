@@ -47,7 +47,8 @@ const recordLessonStart = async (userId, lessonId) => {
 // analysis behind H1 needs to compare a learner's attempt before a hint reveal
 // with the one after.
 const recordSubmission = async (userId, lessonId, runResult, code = '') => {
-  const existing = (await progressTable.getProgress(userId, lessonId)) || {
+  const stored = await progressTable.getProgress(userId, lessonId);
+  const existing = stored || {
     userId,
     lessonId,
     status: 'in_progress',
@@ -78,6 +79,20 @@ const recordSubmission = async (userId, lessonId, runResult, code = '') => {
     attempts: newAttempts,
     codeSubmissions: newSubmissions,
   };
+
+  // A first submission that FAILS used to create the item with only `attempts`
+  // and `codeSubmissions`, because the seeded defaults above live in memory and
+  // never reach the table — the row was written with no `status` at all. Those
+  // rows then read back as `status: undefined`, which is neither
+  // `in_progress` nor `completed`: the dashboard counted them in its completion
+  // denominator while no screen could explain what they were. Persist the seed
+  // on creation so a failed first attempt is a real in-progress record.
+  if (!stored) {
+    updates.status = existing.status;
+    updates.score = existing.score;
+    updates.hintsUsed = existing.hintsUsed;
+    updates.startedAt = existing.startedAt;
+  }
 
   if (runResult.passed && !wasCompleted) {
     updates.status = 'completed';
@@ -162,10 +177,55 @@ const getCourseAnalytics = async (lessonIds) => {
   });
 };
 
+// ── S7 engagement signals ─────────────────────────────────────────────────────
+// Three lightweight counters, each recording an interaction the pilot
+// evaluation needs to see (a run without a submit, a note saved, a question
+// asked to the instructor) without disturbing the metrics that already exist:
+// none of them touch `attempts`, `status` on an existing item, or `score`.
+//
+// A learner can run code or take a note before ever submitting, so the item may
+// not exist yet. DynamoDB's UpdateCommand creates one from the key alone, which
+// would leave a record with no `status` — `getCourseAnalytics` counts every
+// record as a learner, so that record would land in the pass-rate denominator
+// as an unreadable blank. Seeding `status: 'in_progress'` on creation keeps a
+// counter-created item indistinguishable from one `recordLessonStart` made.
+
+const bumpCounter = async (userId, lessonId, field) => {
+  const existing = await progressTable.getProgress(userId, lessonId);
+  const updates = { [field]: ((existing && existing[field]) || 0) + 1 };
+  if (!existing) updates.status = 'in_progress';
+  await progressTable.updateProgress(userId, lessonId, updates);
+  return { [field]: updates[field] };
+};
+
+// Unvalidated execution from the editor's Run button. Deliberately separate
+// from `attempts`, which only a submit increments: experimenting in the editor
+// must not dilute the pass-rate denominator, but the experimentation itself is
+// an engagement signal worth keeping.
+const recordRun = (userId, lessonId) => bumpCounter(userId, lessonId, 'runs');
+
+// A question sent to the course instructor from this lesson. Feeds the "did the
+// scaffolding leave this learner stuck" reading of H1.
+const recordQuestionAsked = (userId, lessonId) =>
+  bumpCounter(userId, lessonId, 'questionsAsked');
+
+// Note-taking is a self-regulated-learning behaviour (H2). Only the timestamp
+// lives here; the note body is Mongo's (content vs events).
+const recordNoteActivity = async (userId, lessonId, now = new Date()) => {
+  const existing = await progressTable.getProgress(userId, lessonId);
+  const updates = { noteUpdatedAt: now.toISOString() };
+  if (!existing) updates.status = 'in_progress';
+  await progressTable.updateProgress(userId, lessonId, updates);
+  return { noteUpdatedAt: updates.noteUpdatedAt };
+};
+
 module.exports = {
   recordLessonStart,
   recordSubmission,
   recordHintReveal,
+  recordRun,
+  recordQuestionAsked,
+  recordNoteActivity,
   getLessonProgress,
   getStudentProgress,
   getCourseAnalytics,

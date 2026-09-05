@@ -272,3 +272,61 @@ describe('progressService.getCourseAnalytics', () => {
     expect(result).toEqual([]);
   });
 });
+
+// Regression: a first submission that FAILED used to create the DynamoDB item
+// with only `attempts` and `codeSubmissions`. The seeded defaults live in a
+// local object that never reaches the table, so the row was written with no
+// `status` at all and read back as `status: undefined` — counted in the
+// dashboard's completion denominator while matching neither 'in_progress' nor
+// 'completed'. Found in live data during local testing on 2026-09-05.
+describe('progressService.recordSubmission item seeding', () => {
+  beforeEach(() => jest.clearAllMocks());
+
+  test('a failed FIRST submission persists status in_progress', async () => {
+    progressTable.getProgress.mockResolvedValue(null);
+
+    await progressService.recordSubmission('u1', 'l1', { passed: false, stdout: 'nope' }, 'x');
+
+    const [, , updates] = progressTable.updateProgress.mock.calls[0];
+    expect(updates.status).toBe('in_progress');
+    expect(updates.score).toBe(0);
+    expect(updates.hintsUsed).toBe(0);
+    expect(updates.startedAt).toEqual(expect.any(String));
+    expect(updates.attempts).toBe(1);
+  });
+
+  test('a passing FIRST submission still lands as completed', async () => {
+    progressTable.getProgress.mockResolvedValue(null);
+
+    const result = await progressService.recordSubmission(
+      'u1',
+      'l1',
+      { passed: true, stdout: 'ok' },
+      'x',
+    );
+
+    const [, , updates] = progressTable.updateProgress.mock.calls[0];
+    expect(updates.status).toBe('completed');
+    expect(updates.score).toBe(100);
+    expect(updates.completedAt).toEqual(expect.any(String));
+    expect(result.firstCompletion).toBe(true);
+  });
+
+  test('an existing item is not re-seeded, so its history is preserved', async () => {
+    progressTable.getProgress.mockResolvedValue({
+      status: 'in_progress',
+      attempts: 4,
+      score: 0,
+      hintsUsed: 2,
+      startedAt: '2026-01-01T00:00:00.000Z',
+      codeSubmissions: [],
+    });
+
+    await progressService.recordSubmission('u1', 'l1', { passed: false, stdout: '' }, 'x');
+
+    const [, , updates] = progressTable.updateProgress.mock.calls[0];
+    expect(updates).not.toHaveProperty('status');
+    expect(updates).not.toHaveProperty('startedAt');
+    expect(updates.attempts).toBe(5);
+  });
+});
