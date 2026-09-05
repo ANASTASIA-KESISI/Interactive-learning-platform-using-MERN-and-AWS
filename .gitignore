@@ -37,3 +37,9 @@ logs/
 # Personal data under GDPR: never commit either file.
 exports/
 *.key.json
+
+# Working material for the S7 sprint, deliberately not part of the repo:
+# `demo_assets/` are third-party UI screenshots used only as layout references
+# while building, and `S7_PLAN.md` is a scratch planning document.
+demo_assets/
+S7_PLAN.md

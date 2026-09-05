@@ -152,18 +152,28 @@ The response is aggregated so the client gets everything it needs to update the 
 
 **MongoDB (content + user state):**
 
-- `users` { `_id`, `cognitoId`, `email`, `firstName`, `lastName`, `role` ∈ {student,instructor,admin}, `avatar`, `enrolledCourses[]`, `xpPoints`, `badges[]`, `streak`, `createdAt` }
-- `courses` { `_id`, `title`, `description`, `instructor`, `category`, `difficulty`, `modules[]`, `enrollmentCount`, `isPublished`, `createdAt` }
+- `users` { `_id`, `cognitoId`, `email`, `firstName`, `lastName`, `role` ∈ {student,instructor,admin}, `avatar`, `bio`, `universityId`, `departmentId`, `enrolledCourses[]`, `xpPoints`, `badges[]`, `streak`, `lessonsCompleted`, `lastActiveAt`, `lastCompletionAt`, `createdAt` }
+- `courses` { `_id`, `title`, `description`, `about` (Markdown), `icon`, `instructor`, `departmentId`, `semester`, `category`, `difficulty`, `modules[]`, `enrollmentCount`, `isPublished`, `createdAt` }
 - `modules` { `_id`, `courseId`, `title`, `order`, `lessons[]`, `quizId` }
-- `lessons` { `_id`, `moduleId`, `title`, `type` ∈ {tutorial,exercise,quiz}, `content` (Markdown), `codeTemplate`, `expectedOutput`, **`hints[]`**, `order`, `xpReward` }
+- `lessons` { `_id`, `moduleId`, `title`, `type` ∈ {tutorial,exercise,quiz}, `language`, `content` (Markdown), `task` (Markdown — the Challenge-tab brief), `codeTemplate`, `expectedOutput`, **`hints[]`**, `questions[]` {prompt, options[], `correctIndex`, explanation}, `passMark`, `order`, `xpReward` }
+  - A **quiz is a lesson**, not a separate collection: it is ordered among its siblings, carries its own XP and hints, and produces one progress record like any other lesson. `modules.quizId` (which referenced a `Quiz` model that was never written) is gone. `correctIndex` and `explanation` are answers and never reach the browser before grading — the same rule as `expectedOutput`.
 - `badges` { `_id`, `name`, `description`, `icon`, `criteria` {type, threshold}, `xpValue` }
+- `universities` { `_id`, `name`, `code` } *(S7)*
+- `departments` { `_id`, `universityId`, `name`, `code`, `semesterCount` } *(S7)*
+- `notes` { `_id`, `userId`, `scope` ∈ {lesson,module}, `targetId`, `courseId`, `moduleId`, `lessonId?`, `body` (plain text, ≤20 000 chars), `updatedAt` } — unique on (`userId`, `scope`, `targetId`) *(S7)*
+- `messages` { `_id`, `courseId`, `studentId`, `instructorId`, `senderId`, `senderRole`, `lessonId?`, `body` (plain text, ≤4 000 chars), `readAt?`, `createdAt` } — one thread per (student, course) *(S7)*
+
+**Institutional structure (S7):** a student belongs to one department of one university; a course belongs to one department and one semester. Semesters are plain integers bounded by `departments.semesterCount` (default 8) rather than documents — the Courses screen groups by them, and nothing else needs a semester to have an identity.
+
+**Level and rank are derived, never stored.** `gamificationService.levelFromXp` computes them from `xpPoints` on read (`xpForLevel(n) = 50·(n−1)·n`, so level 2 at 100 XP, 3 at 300, 4 at 600, 5 at 1000; ranks Bronze I–III, Silver I–III, Gold I–III, Platinum at 10+). Storing them would create a second source of truth that drifts the moment XP is adjusted.
 
 **DynamoDB (events + analytics):**
 
 - `progress` table
   - PK: `userId` (String)
   - SK: `lessonId` (String)
-  - attrs: `status` (not_started|in_progress|completed), `attempts`, `score`, `timeSpent` (s), `completedAt` (ISO), `hintsUsed`, `codeSubmissions[]`
+  - attrs: `status` (not_started|in_progress|completed), `attempts`, `score`, `timeSpent` (s), `completedAt` (ISO), `hintsUsed`, `codeSubmissions[]`, and the S7 engagement signals `runs`, `questionsAsked`, `noteUpdatedAt` (ISO)
+  - The three S7 attributes are all optional and every reader tolerates their absence, so pre-S7 items stay valid. They are deliberately kept out of `attempts`: only a submit is an attempt, so a learner experimenting with **Run** cannot dilute the pass-rate denominator the pilot reports. A counter that creates the item seeds `status: 'in_progress'`, so a run-first or note-first record is indistinguishable from one `recordLessonStart` made.
   - `codeSubmissions[]` entries are `{ code, stdout, error, passed, hintsUsedAtSubmit, submittedAt }`, size-bounded (code ≤4KB, stdout ≤2KB, error ≤1KB) and windowed to the most recent 20 — `attempts` remains the true lifetime count. `hintsUsedAtSubmit` snapshots the hint count at that attempt so consecutive entries answer "did revealing a hint change what the learner wrote next" (H1). Submitted code is **pseudonymous at rest, anonymous on export**: the partition key is an opaque ObjectId and no read surface pairs code with a name; `server/scripts/exportSubmissions.js` emits `learner-NN` tokens and writes no re-identification mapping unless `--with-key` is passed. See CHALLENGES.md Challenge 9.
 
 The composite key lets us answer both "show me one learner's full history" (query by PK) and "did this learner complete this lesson" (get by PK+SK) with single-digit-ms latency.
@@ -174,29 +184,50 @@ The composite key lets us answer both "show me one learner's full history" (quer
 
 Endpoints are designed around **user roles and screens**, not around internal resources (user-centric REST, Chapter 2.6.3).
 
+**Identity (all roles)** *(S7)*
+- `GET /api/me` — the profile every screen reads: identity, university/department, XP, streak, derived level/rank, badge count, unread messages
+- `PATCH /api/me` — name, bio, avatar, university, department
+- `GET /api/universities` — **public** (the signup form needs it before a token exists), rate-limited
+- `POST /api/auth/claim-instructor` — exchanges the institutional invite code for the `instructor` Cognito group; 5 attempts / 15 min / IP, constant-time comparison
+
 **Student**
-- `GET /api/student/dashboard` — aggregated view (XP, streak, courses-in-progress, recent activity)
-- `GET /api/courses` / `GET /api/courses/:id`
+- `GET /api/student/dashboard` — aggregated view (XP, streak, derived level/rank, active course + next lesson, courses-in-progress, recent activity)
+- `GET /api/student/activity` — 365 zero-filled UTC day buckets of completions, for the profile heatmap *(S7)*
+- `GET /api/courses` / `GET /api/courses/:id` — list filterable by `departmentId` and `semester` *(S7)*
+- `GET /api/courses/:id/leaderboard?window=7d|30d|all` — top 5 by completions plus the viewer's own row *(S7)*
 - `POST /api/courses/:id/enroll`
-- `GET /api/lessons/:id` — lesson content + hints metadata (not hint text until revealed)
+- `GET /api/lessons/:id` — lesson content + hints metadata (not hint text until revealed) + `task`, module title, prev/next lesson, instructor
 - `POST /api/lessons/:id/hint` — reveal next hint (logged)
-- `POST /api/lessons/:id/submit` — execute + validate + record progress + apply gamification (response bundles all of it)
+- `POST /api/lessons/:id/run` — execute only: no validation, no gamification, increments `runs`. Never reveals `expectedOutput` or whether the answer is right *(S7)*
+- `POST /api/lessons/:id/submit` — execute + validate + record progress + apply gamification; response bundles all of it plus the gamification summary, `moduleCompleted` and `nextLessonId` that drive the completion overlay
+- `POST /api/lessons/:id/quiz` — grade an answer sheet for a `type: 'quiz'` lesson *(S7)*. A sibling of `/submit`, not a branch inside it: the two share every downstream effect (progress, gamification, module completion, celebration payload) but nothing of their input or grading. Response is the same shape with `quiz` in place of `execution`
 - `GET /api/student/progress`
+
+**Notes** *(S7, all roles — only a student's note stamps a progress event)*
+- `GET /api/notes` — the learner's own notes with course/module/lesson context
+- `GET|PUT /api/notes/lesson/:lessonId` / `GET|PUT /api/notes/module/:moduleId` — upsert; an empty body deletes
+- `DELETE /api/notes/:id`
+
+**Messages** *(S7)*
+- `GET /api/messages/threads` — a student's threads, or an instructor's inbox across owned courses
+- `GET /api/messages/courses/:courseId` — the thread; reading marks the other party's messages read (an admin observes without marking)
+- `POST /api/messages/courses/:courseId` — send; a `lessonId` makes it a tracked scaffolding event
 
 **Instructor**
 - `POST /api/instructor/courses`
 - `POST /api/instructor/courses/:id/modules`
 - `POST /api/instructor/modules/:id/lessons`
-- `PATCH /api/instructor/lessons/:id` — edit scaffolding (hints, expectedOutput)
+- `PATCH /api/instructor/lessons/:id` — edit scaffolding (hints, expectedOutput, `task`)
 - `GET /api/instructor/courses/:id/analytics`
 
 **Admin**
 - `GET /api/admin/kpis`
 - `GET /api/admin/users` / `PATCH /api/admin/users/:id/role`
 - `GET /api/admin/courses` / `PATCH /api/admin/courses/:id/publish`
+- `POST|PATCH|DELETE /api/admin/universities[/:id]` and `.../departments` — a delete is refused while anything still references the row *(S7)*
 - `GET /api/admin/activity-log`
 
-All protected endpoints pass through `requireAuth → requireRole([...])`.
+All protected endpoints pass through `requireAuth → requireRole([...])`. `GET /api/universities` is the single deliberate exception: it carries no user data and the signup form must populate before authentication is possible.
 
 ---
 
@@ -211,6 +242,8 @@ All protected endpoints pass through `requireAuth → requireRole([...])`.
 | **S5 — Gamification** | XP accrual, badge award engine, streak tracking, progress bars, notifications | Completing a lesson updates XP, may award a badge, and updates the streak |
 | **S5.5 — Hardening refactor** *(added + shipped 2026-08-12)* | Fixes from the pre-deployment code review (see `REFACTOR.md`): streak tracking off a dedicated completion timestamp, idempotent hint counting, stop leaking `expectedOutput`/hints to the client, runner-adapter boot guard, mass-assignment allowlists, DynamoDB submission size caps | ✅ Met. Streaks increment through the real submit flow; hint counts survive refresh; answers absent from student payloads; prod boot refuses the dev runner adapter; 68 server tests pass |
 | **S6 — Admin + Deploy** | Admin panel (role management via Cognito groups), deferred module/lesson CRUD, AWS deployment (EC2/Amplify), `sam deploy` of `runner-js`, GitHub Actions CI/CD, CloudWatch wiring (structured JSON logs) | Code complete 2026-08-12: admin panel, Cognito-backed roles, module/lesson CRUD, JSON request logs, CI on every push/PR, `DEPLOYMENT.md` runbook. **Deployment itself is outstanding** — it needs AWS Console/SAM access, see `DEPLOYMENT.md` §8 |
+
+| **S7 — Institutional structure & learner UX** *(added 2026-09-05)* | University/department/semester model and department-scoped course browsing; invite-code instructor signup; student↔instructor messaging; per-lesson and per-module notes; the three-pane exercise workspace with a non-grading Run; confetti/badge completion overlay; restructured course, home and profile screens; Home · Courses · Notes · Profile navigation | Code complete: 19 server suites / 273 tests, both lints and the client production build green. **Not yet exercised against a live database** — see the S7 rows in `DEPLOYMENT.md` §8 |
 
 Order matters: S1 → S2 → S3 is a strict dependency chain. S4 can start in parallel with late S3. S5 depends on S4 (gamification reads progress events). **S5.5 was inserted after the 2026-08-12 review and must complete before S6's deploy** — its findings silently corrupt the pilot data (streaks, hint usage, pass rates) that the thesis evaluation depends on. S6 runs throughout but hardens at the end.
 
@@ -251,7 +284,7 @@ These are decisions left to make at implementation time:
 2. ~~**Which languages does the code editor support?**~~ — **Resolved (S3 kickoff, 2026-04-26).** **JavaScript only for the pilot**, per thesis Chapter 4 default. Python and other languages are future work — adding one is a new Lambda + a `language` enum value, no architectural change. `lessons.language` (default `"javascript"`) is the schema field that drives runner selection.
 3. **Real-time feedback transport** — polling after submit, or WebSockets? Polling is simpler and likely sufficient for the pilot.
 4. ~~**Hint reveal cost**~~ — **Resolved (S5 kickoff, 2026-05-10).** Tiered discount: 0 hints → 100% XP, 1 hint → 50%, 2+ hints → 20%. Implemented in `gamificationService.applyHintDiscount`. Encourages self-attempt without zeroing the reward.
-5. **Instructor course approval flow** — do instructors publish directly, or does admin approve? Depends on institutional policy.
+5. ~~**Instructor course approval flow**~~ — **Resolved (S7, 2026-09-05).** Instructors **self-publish**; the gate is on becoming an instructor at all, not on each course. A signup at `/signup/instructor` grants the `instructor` Cognito group only in exchange for an institutional invite code (`INSTRUCTOR_INVITE_CODE`), so authoring rights follow staff status rather than per-course review. Admins retain publish/unpublish over any course, which is the escape hatch. This also removes the contradiction noted at S6, where instructor self-publish and admin publish/unpublish both shipped with no stated policy. See CHALLENGES.md Challenge 15.
 
 Resolve these before the relevant sprint starts, not during it.
 

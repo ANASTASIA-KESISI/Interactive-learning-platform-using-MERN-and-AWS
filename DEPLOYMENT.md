@@ -230,6 +230,8 @@ deploy, so host-side edits are overwritten. Change them in the repo instead.
 | `S3_MEDIA_BUCKET` | `learncode-media` | |
 | **`CODE_RUNNER_ADAPTER`** | **`lambda`** | See below |
 | `LAMBDA_RUNNER_JS_FUNCTION` | `learncode-runner-js` | |
+| `LAMBDA_RUNNER_PY_FUNCTION` | `learncode-runner-py` | **Required for Python lessons.** Unlike the JS one this has no built-in default: the adapter registers Python only when it is named, so an environment without the runner deployed rejects a Python submission at dispatch with a 503 naming this variable, rather than failing inside AWS. Both functions are deployed in `eu-west-1`; leaving this unset makes every Python lesson unrunnable even though the Lambda exists. |
+| `INSTRUCTOR_INVITE_CODE` | long random secret (keep in `secrets.env`, beside `MONGODB_URI`) | Lets a signed-in student claim the `instructor` role via `POST /api/auth/claim-instructor`. Unset/empty disables the endpoint (503) and instructor signup silently creates an ordinary student account. Generate with `node -e "console.log(require('crypto').randomBytes(24).toString('base64url'))"`. Rotate by editing `secrets.env` and restarting the service — already-promoted accounts keep their role, which lives in Cognito. |
 
 **On `CODE_RUNNER_ADAPTER`:** the in-process dev runner executes untrusted
 student code inside the API process and is not a sandbox. Since S5.5 it must be
@@ -313,11 +315,27 @@ Run in order once the platform is live:
 - [ ] Both IAM policies attached (§3); confirm by changing a user's role in the
       admin panel and re-signing-in as that user
 - [ ] `node scripts/seedBadges.js` — idempotent, safe to re-run
+- [ ] `node scripts/seedUniversities.js` — **required once before signups open.**
+      Idempotent (upserts by `code`). Without it the signup form has no
+      university or department to offer and the Courses screen cannot group by
+      semester
+- [ ] `INSTRUCTOR_INVITE_CODE` set in the platform environment (§4). Leaving it
+      unset is safe — `POST /api/auth/claim-instructor` returns 503 and instructor
+      signup degrades to a student account — but no one can self-serve the
+      instructor role until it is set
 - [ ] `node scripts/resetStreaks.js` — **required once.** Pre-S5.5 streak values
       are meaningless; run `--dry-run` first to see the count
-- [ ] End-to-end smoke test as a real student: sign up → enrol → open an
-      exercise → fail a submission → reveal a hint → pass → confirm XP, badge
-      and the completion screen
+- [ ] End-to-end smoke test as a real student: sign up with a university and
+      department → enrol → open an exercise → **Run** without submitting → fail a
+      submission → reveal a hint → pass → confirm XP, badge, and the confetti
+      completion overlay
+- [ ] S7 surfaces, as the same student: save a lesson note and find it on
+      `/notes`; send a question from the lesson and confirm it reaches the
+      instructor inbox and the reply comes back; check the course leaderboard and
+      the profile activity heatmap render
+- [ ] S7 instructor path: sign up at `/signup/instructor` with the invite code,
+      sign in, and confirm the account really holds the `instructor` Cognito
+      group (the role only lands in a freshly issued token)
 - [ ] Confirm in DevTools that the lesson response contains **no**
       `expectedOutput` and no unrevealed hint text (S5.5 B1)
 - [ ] Confirm a draft course 404s for a student account (S5.5 B4)

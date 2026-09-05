@@ -77,13 +77,21 @@ cat <<'NEXT'
 
 ==> Provisioning complete. Remaining manual steps:
 
-  1. Create the secrets file (MONGODB_URI is not stored in the repo):
+  1. Create the secrets file (neither value is stored in the repo):
 
        sudo mkdir -p /etc/learncode
        sudo tee /etc/learncode/secrets.env >/dev/null <<'EOF'
        MONGODB_URI=mongodb+srv://USER:PASS@host/learncode?retryWrites=true&w=majority
+       INSTRUCTOR_INVITE_CODE=REPLACE_WITH_A_LONG_RANDOM_VALUE
        EOF
        sudo chmod 600 /etc/learncode/secrets.env
+
+     INSTRUCTOR_INVITE_CODE is the code teaching staff enter at /signup/instructor
+     to claim the instructor role. Omitting it is safe but fails quietly: the
+     endpoint answers 503 and instructor signup creates an ordinary student
+     account instead. Generate a value with:
+
+       node -e "console.log(require('crypto').randomBytes(24).toString('base64url'))"
 
   2. CLIENT_ORIGIN in the systemd unit and server_name in the nginx site are
      pre-filled with this account's production values. If deploying elsewhere,

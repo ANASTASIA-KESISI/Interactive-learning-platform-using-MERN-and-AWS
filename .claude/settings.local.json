@@ -3,7 +3,16 @@
     "allow": [
       "Bash(git -C /c/Interactive-learning-platform-using-MERN-and-AWS log --oneline -20)",
       "Bash(git -C /c/Interactive-learning-platform-using-MERN-and-AWS status)",
-      "Bash(git -C /c/Interactive-learning-platform-using-MERN-and-AWS check-ignore client/.env server/.env)"
+      "Bash(git -C /c/Interactive-learning-platform-using-MERN-and-AWS check-ignore client/.env server/.env)",
+      "Bash(npm test *)",
+      "Bash(npm run *)",
+      "Bash(NODE_ENV=production node -e ' *)",
+      "Bash(node -e ' *)",
+      "Bash(python -c \"import sys, platform; print\\('python', sys.version.split\\(\\)[0], '|', platform.system\\(\\)\\)\")",
+      "Bash(python -c \"import signal; print\\('SIGALRM available:', hasattr\\(signal, 'SIGALRM'\\)\\)\")",
+      "Bash(rm -f learncode-runner-py.zip)",
+      "Bash(powershell -NoProfile -Command \"Compress-Archive -Path 'server/runners/python/index.py' -DestinationPath 'C:\\\\Interactive-learning-platform-using-MERN-and-AWS\\\\learncode-runner-py.zip' -Force\")",
+      "Bash(unzip -l learncode-runner-py.zip)"
     ]
   }
 }
