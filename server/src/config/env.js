@@ -28,6 +28,9 @@ const env = {
   port: Number(optional('PORT', '4000')),
   mongoUri: optional('MONGODB_URI', 'mongodb://localhost:27017/learncode'),
   clientOrigin: optional('CLIENT_ORIGIN', 'http://localhost:5173'),
+  // Institution-held secret that lets a self-registered account claim the
+  // `instructor` role (S7 D2). Empty disables the claim endpoint (503).
+  instructorInviteCode: optional('INSTRUCTOR_INVITE_CODE', ''),
   aws: {
     region: optional('AWS_REGION', 'eu-west-1'),
     cognito: {

@@ -609,6 +609,88 @@ clearest evidence the S3 interface boundary was drawn in the right place.
 
 ---
 
+## S7 — Institutional Structure Sprint
+
+Decisions made at sprint kickoff (2026-09-05).
+
+### Challenge 15 — Self-service instructor accounts
+
+**Problem.** Until S7 the only way to become an instructor was for an existing
+admin to change the role from the admin panel, which (Challenge 10) moves the
+user between Cognito groups. That is fine for a demo and useless for a pilot
+that starts with teaching staff who have no account yet and no admin to ask.
+Opening `/signup/instructor` to anyone is not an option either: the role is an
+authoring privilege, so a self-service path needs *some* authorisation signal
+between "filled in a form" and "can publish course content to learners".
+
+**Options considered:**
+
+| Option | Pros | Cons |
+|---|---|---|
+| **Admin approval queue** — anyone can request the role, an admin approves it | No shared secret; every promotion is attributable to a named approver; an audit trail falls out of it | Needs a request model, an admin screen, a notification path, and an admin who is actually watching. The pilot has one admin and a two-to-four week window — a staff member blocked on approval for a day loses a meaningful fraction of it |
+| **Cognito pre-sign-up Lambda trigger keyed on the email domain** — a staff address is the credential | Nothing for the user to hold or lose; the check is where identity already lives; impossible to forward to a student | A new AWS resource (function, role, trigger wiring) that only exists to answer one boolean; domain ≠ staff at most universities, where students share the institutional domain; a domain change is a console deploy, not a config edit |
+| **Shared institutional invite code** — the department hands staff a code, redeemed once after signup | No console work, no new AWS resource, no new data model; the department already controls who it tells; a wrong code fails closed into an ordinary student account | The code is a shared secret rather than a per-person credential; rotation is manual; anyone holding it can author until it changes |
+
+**Decision.** A shared invite code, held in the server environment as
+`INSTRUCTOR_INVITE_CODE` and redeemed through
+`POST /api/auth/claim-instructor {code}`, which on a match calls the same
+`authService.setUserRole(id, 'instructor')` path the admin panel uses.
+
+**Rationale.** All three options buy the same thing — evidence that the person
+signing up is staff — and the invite code buys it for the least new surface.
+The approval queue is the right answer for a production deployment with a
+staffed admin role, but in a two-to-four week pilot the approval latency is
+paid out of the study window and the queue itself is a screen, a model and a
+notification path built to serve perhaps five people. The domain trigger is
+elegant where students and staff sit on different domains; at the University of
+Macedonia they do not, so it would authorise the entire student body. The code
+needs one env var and one endpoint, and the failure mode is the safe one: a
+wrong code leaves an ordinary student account and says so.
+
+**Where the code is redeemed, and why not earlier.** Cognito signup happens
+before any Mongo user exists, so there is no authenticated identity to promote
+at the moment the form is submitted. The client parks the code in
+`sessionStorage` (`learncode.pendingInstructorCode`, alongside
+`learncode.pendingProfile` for the university/department choice) and redeems it
+on the first successful sign-in, then calls `refreshSession()` so the reissued
+ID token carries the new `cognito:groups` claim — without that the account is
+an instructor server-side while the UI still shows a student shell. The key is
+removed whether the claim succeeded or failed, so a mistyped code is not
+retried silently on every later login.
+
+**Consequences.**
+
+- **It is a shared secret, and it lives in the server environment.** Anyone
+  holding it can create an authoring account until it is changed. Treat it like
+  a deployment credential: it belongs in the EC2 unit file / secrets store next
+  to the database URI, never in the repository or the client bundle.
+- **Rotation is manual.** Changing the env var and restarting the API
+  invalidates every outstanding copy at once; there is no per-person revocation,
+  because there is no per-person code. Accounts already promoted keep the role —
+  rotation closes the door, it does not undo past grants, and an admin removing
+  the role is still the way to undo one.
+- **A leak grants authoring rights, not administrative ones.** The blast radius
+  is course content by an identifiable account, which an admin can demote and
+  whose courses an admin can unpublish; it is not access to other learners' data.
+- **The endpoint is hardened accordingly**: `student`-only, rate-limited to 5
+  attempts per 15 minutes per IP so the code cannot be brute-forced at pilot
+  scale, and compared in constant time so response latency does not leak a
+  prefix. It answers `503` when the env var is unset, which makes "the feature
+  is not configured" distinguishable from "your code is wrong" for an operator
+  reading logs, without telling an attacker anything they could not learn by
+  trying.
+
+**Sidebar — this settles `SOLUTION_SKETCH.md` §10 Q5 for the pilot.** That
+question asked whether instructor-authored courses need an approval step before
+learners can see them. They do not: instructors self-publish. The gate moved one
+step earlier in the funnel — becoming an instructor is what requires
+authorisation, and only staff holding the department's code get there. A
+production deployment with open registration would want both gates; a pilot
+whose instructors are the researcher and named teaching staff needs only this
+one.
+
+---
+
 ## How to add a new entry
 
 When making a non-trivial decision, add a `### Challenge N — <topic>` section

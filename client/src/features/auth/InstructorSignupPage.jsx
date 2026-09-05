@@ -4,11 +4,17 @@ import { Link, useNavigate } from 'react-router-dom';
 import { signUp, confirmSignUp, resendConfirmationCode } from '../../services/cognito.js';
 import {
   InstitutionFields,
+  savePendingInstructorCode,
   savePendingProfile,
   useUniversities,
 } from '../onboarding/DepartmentPrompt.jsx';
 
-export const SignupPage = () => {
+// Self-service instructor signup (S7 D2). Cognito has no notion of "instructor"
+// at signup time — the account is created exactly like a student's, and the
+// invite code is redeemed against POST /api/auth/claim-instructor on the first
+// sign-in, which is the earliest moment a bearer token exists. See CHALLENGES
+// Challenge 15 for why an invite code and not an approval queue.
+export const InstructorSignupPage = () => {
   const navigate = useNavigate();
   const [step, setStep] = useState('details');
   const [form, setForm] = useState({
@@ -16,6 +22,7 @@ export const SignupPage = () => {
     lastName: '',
     email: '',
     password: '',
+    inviteCode: '',
     code: '',
   });
   const [universityId, setUniversityId] = useState('');
@@ -37,9 +44,8 @@ export const SignupPage = () => {
     setError(null);
     setSubmitting(true);
     try {
-      // Parked for LoginPage: there is no Mongo user to PATCH until the first
-      // authenticated request, which is the sign-in right after confirmation.
       savePendingProfile({ universityId, departmentId });
+      savePendingInstructorCode(form.inviteCode.trim());
       await signUp(form.email, form.password, form.firstName, form.lastName);
       setStep('confirm');
     } catch (err) {
@@ -55,7 +61,13 @@ export const SignupPage = () => {
     setSubmitting(true);
     try {
       await confirmSignUp(form.email, form.code);
-      navigate('/login', { replace: true });
+      navigate('/login', {
+        replace: true,
+        state: {
+          notice:
+            'Account confirmed. Sign in now — your instructor role is applied at first sign-in.',
+        },
+      });
     } catch (err) {
       setError(err.message || 'Confirmation failed');
     } finally {
@@ -75,9 +87,16 @@ export const SignupPage = () => {
   return (
     <div className="flex min-h-screen items-center justify-center px-4 py-10">
       <div className="w-full max-w-sm rounded-lg border border-slate-200 bg-white p-8 shadow-sm">
-        <h1 className="mb-6 text-2xl font-semibold text-slate-900">
-          {step === 'details' ? 'Create your account' : 'Confirm your email'}
-        </h1>
+        <header className="mb-6">
+          <h1 className="text-2xl font-semibold text-slate-900">
+            {step === 'details' ? 'Create an instructor account' : 'Confirm your email'}
+          </h1>
+          {step === 'details' && (
+            <p className="mt-1 text-sm text-slate-600">
+              Teaching staff only — you will need the invite code your department issued.
+            </p>
+          )}
+        </header>
 
         {step === 'details' ? (
           <form onSubmit={handleSignup} className="space-y-4">
@@ -92,17 +111,14 @@ export const SignupPage = () => {
               </div>
             </div>
 
-            {/* A failed /api/universities call must not dead-end signup: the
-                account is still creatable and Home prompts for the department
-                afterwards (S7 D4). */}
             {universitiesError ? (
               <p role="status" className="rounded-md bg-amber-50 px-3 py-2 text-sm text-amber-800">
                 We could not load the university list ({universitiesError}). You can create your
-                account now and choose your department from your dashboard.
+                account now and set your department from your profile afterwards.
               </p>
             ) : (
               <InstitutionFields
-                idPrefix="signup"
+                idPrefix="instructor-signup"
                 universities={universities}
                 universityId={universityId}
                 departmentId={departmentId}
@@ -124,12 +140,30 @@ export const SignupPage = () => {
               <p className="mt-1 text-xs text-slate-500">At least 8 characters.</p>
             </div>
 
+            <div>
+              <label htmlFor="inviteCode" className="label">Instructor invite code</label>
+              <input
+                id="inviteCode"
+                type="password"
+                autoComplete="off"
+                value={form.inviteCode}
+                onChange={update('inviteCode')}
+                required
+                className="field"
+                aria-describedby="inviteCode-hint"
+              />
+              <p id="inviteCode-hint" className="mt-1 text-xs text-slate-500">
+                Issued by your department. Without a valid code the account is created as a student
+                and an administrator can grant the instructor role later.
+              </p>
+            </div>
+
             {error && (
               <p role="alert" className="rounded-md bg-red-50 px-3 py-2 text-sm text-red-700">{error}</p>
             )}
 
             <button type="submit" className="btn-primary w-full" disabled={submitting}>
-              {submitting ? 'Creating account…' : 'Create account'}
+              {submitting ? 'Creating account…' : 'Create instructor account'}
             </button>
           </form>
         ) : (
@@ -165,9 +199,9 @@ export const SignupPage = () => {
         </p>
 
         <p className="mt-2 text-center text-sm text-slate-600">
-          Teaching a course?{' '}
-          <Link to="/signup/instructor" className="font-medium text-brand-600 hover:text-brand-700">
-            Sign up as an instructor
+          Here to learn instead?{' '}
+          <Link to="/signup" className="font-medium text-brand-600 hover:text-brand-700">
+            Create a student account
           </Link>
         </p>
       </div>
