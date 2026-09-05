@@ -11,6 +11,12 @@ export const getCourse = (courseId) =>
 export const enrollInCourse = (courseId) =>
   api.post(`/courses/${courseId}/enroll`).then(unwrap);
 
+// Lessons completed per learner in this course (S7 D9). 403 for a viewer who is
+// neither enrolled, the owning instructor, nor an admin — the course page hides
+// the rail rather than surfacing that as an error.
+export const getCourseLeaderboard = (courseId, window = '7d') =>
+  api.get(`/courses/${courseId}/leaderboard`, { params: { window } }).then(unwrap);
+
 // ── Instructor ────────────────────────────────────────────────────────────────
 
 export const listMyCourses = () =>

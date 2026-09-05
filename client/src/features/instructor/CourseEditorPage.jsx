@@ -12,6 +12,10 @@ import {
   deleteLesson,
 } from '../../services/courses.js';
 import { Spinner, ErrorBanner } from '../../components/Spinner.jsx';
+import { titleCase } from '../../lib/labels.js';
+// The institutional pair is authored identically on both course forms; the
+// fields live with the creation page rather than being duplicated here.
+import { DepartmentSemesterFields, useDepartments } from './NewCoursePage.jsx';
 
 const LESSON_TYPES = ['tutorial', 'exercise', 'quiz'];
 const DIFFICULTIES = ['beginner', 'intermediate', 'advanced'];
@@ -32,7 +36,17 @@ export const CourseEditorPage = () => {
     reload();
   }, [reload]);
 
-  const [meta, setMeta] = useState({ title: '', description: '', category: '', difficulty: 'beginner' });
+  const universities = useDepartments();
+  const [meta, setMeta] = useState({
+    title: '',
+    description: '',
+    category: '',
+    difficulty: 'beginner',
+    departmentId: '',
+    semester: '',
+    icon: '',
+    about: '',
+  });
   useEffect(() => {
     if (course) {
       setMeta({
@@ -40,6 +54,11 @@ export const CourseEditorPage = () => {
         description: course.description,
         category: course.category || '',
         difficulty: course.difficulty,
+        // `getCourseDetail` flattens the populated department back to its id.
+        departmentId: course.departmentId ? String(course.departmentId) : '',
+        semester: course.semester ? String(course.semester) : '',
+        icon: course.icon || '',
+        about: course.about || '',
       });
     }
   }, [course]);
@@ -49,7 +68,17 @@ export const CourseEditorPage = () => {
     setSaving(true);
     setError(null);
     try {
-      await updateCourse(id, meta);
+      // Only the fields the server allowlists (courseService.COURSE_WRITABLE).
+      await updateCourse(id, {
+        title: meta.title,
+        description: meta.description,
+        category: meta.category,
+        difficulty: meta.difficulty,
+        departmentId: meta.departmentId || null,
+        semester: meta.semester || null,
+        icon: meta.icon,
+        about: meta.about,
+      });
       await reload();
     } catch (err) {
       setError(err.response?.data?.error?.message || err.message);
@@ -100,9 +129,22 @@ export const CourseEditorPage = () => {
       <form onSubmit={handleSaveMeta} className="space-y-4 rounded-lg border border-slate-200 bg-white p-6 shadow-sm">
         <h2 className="text-xl font-semibold text-slate-900">Details</h2>
 
-        <div>
-          <label htmlFor="title" className="label">Title</label>
-          <input id="title" value={meta.title} onChange={(e) => setMeta((m) => ({ ...m, title: e.target.value }))} required className="field" />
+        <div className="grid gap-4 sm:grid-cols-[6rem_1fr]">
+          <div>
+            <label htmlFor="icon" className="label">Icon</label>
+            <input
+              id="icon"
+              value={meta.icon}
+              onChange={(e) => setMeta((m) => ({ ...m, icon: e.target.value }))}
+              maxLength={8}
+              placeholder="📘"
+              className="field text-center text-xl"
+            />
+          </div>
+          <div>
+            <label htmlFor="title" className="label">Title</label>
+            <input id="title" value={meta.title} onChange={(e) => setMeta((m) => ({ ...m, title: e.target.value }))} required className="field" />
+          </div>
         </div>
         <div>
           <label htmlFor="description" className="label">Description</label>
@@ -115,12 +157,32 @@ export const CourseEditorPage = () => {
           </div>
           <div>
             <label htmlFor="difficulty" className="label">Difficulty</label>
-            {/* `capitalize` is display-only: the option values stay lowercase to
-                match the Course.difficulty enum on the server. */}
-            <select id="difficulty" value={meta.difficulty} onChange={(e) => setMeta((m) => ({ ...m, difficulty: e.target.value }))} className="field capitalize">
-              {DIFFICULTIES.map((d) => <option key={d} value={d}>{d}</option>)}
+            <select id="difficulty" value={meta.difficulty} onChange={(e) => setMeta((m) => ({ ...m, difficulty: e.target.value }))} className="field">
+              {DIFFICULTIES.map((d) => <option key={d} value={d}>{titleCase(d)}</option>)}
             </select>
           </div>
+        </div>
+
+        <DepartmentSemesterFields
+          universities={universities}
+          departmentId={meta.departmentId}
+          semester={meta.semester}
+          onChange={(patch) => setMeta((m) => ({ ...m, ...patch }))}
+        />
+
+        <div>
+          <label htmlFor="about" className="label">About this course (Markdown)</label>
+          <textarea
+            id="about"
+            value={meta.about}
+            onChange={(e) => setMeta((m) => ({ ...m, about: e.target.value }))}
+            rows={8}
+            className="field font-mono text-sm"
+            placeholder="What the course covers, what a learner will be able to do, prerequisites."
+          />
+          <p className="mt-1 text-xs text-slate-500">
+            Rendered on the course page under “About this course”. Supports GFM.
+          </p>
         </div>
 
         <div className="flex justify-end">
@@ -297,13 +359,28 @@ const ModuleCard = ({ module, index, onChange, setError }) => {
           </form>
         ) : (
           <>
-            <h3 className="font-semibold text-slate-900">
-              {index + 1}. {module.title}
-            </h3>
-            <div className="flex shrink-0 items-center gap-1">
+            <div className="flex min-w-0 items-center gap-3">
+              {/* The numbered square makes the module the unit of the page:
+                  previously a module and a lesson were both a line of text, so
+                  the structure of a course was invisible while editing it. */}
+              <span
+                aria-hidden="true"
+                className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-brand-50 text-lg font-semibold text-brand-700 ring-1 ring-brand-100"
+              >
+                {index + 1}
+              </span>
+              <div className="min-w-0">
+                <h3 className="truncate text-base font-semibold text-slate-900">{module.title}</h3>
+                <p className="text-xs text-slate-500">
+                  {module.lessons?.length || 0} lesson
+                  {(module.lessons?.length || 0) === 1 ? '' : 's'}
+                </p>
+              </div>
+            </div>
+            <div className="flex shrink-0 items-center gap-2">
               <button
                 type="button"
-                className="btn-ghost text-sm"
+                className="rounded-md border border-slate-300 px-3 py-1.5 text-sm font-medium text-slate-700 transition-colors hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-brand-500 disabled:opacity-50"
                 onClick={() => setRenaming(true)}
                 disabled={busy}
               >
@@ -311,7 +388,7 @@ const ModuleCard = ({ module, index, onChange, setError }) => {
               </button>
               <button
                 type="button"
-                className="btn-ghost text-sm text-red-600"
+                className="rounded-md border border-red-200 px-3 py-1.5 text-sm font-medium text-red-700 transition-colors hover:bg-red-50 focus:outline-none focus:ring-2 focus:ring-red-500 disabled:opacity-50"
                 onClick={handleDeleteModule}
                 disabled={busy}
               >
@@ -323,25 +400,36 @@ const ModuleCard = ({ module, index, onChange, setError }) => {
       </div>
 
       {module.lessons && module.lessons.length > 0 ? (
-        <ul className="mt-3 divide-y divide-slate-100">
-          {module.lessons.map((lesson) => (
-            <li key={lesson._id} className="flex items-center justify-between py-2">
-              <div>
-                <span className="font-medium text-slate-800">{lesson.title}</span>
-                <span className="ml-2 rounded bg-slate-100 px-2 py-0.5 text-xs text-slate-600">
-                  {lesson.type}
+        <ul className="mt-4 space-y-2">
+          {module.lessons.map((lesson, lessonIndex) => (
+            <li
+              key={lesson._id}
+              className="flex items-center justify-between gap-3 rounded-lg border border-slate-200 bg-slate-50/60 px-3 py-2.5 transition-colors hover:bg-slate-50"
+            >
+              <div className="flex min-w-0 items-center gap-3">
+                <span className="w-8 shrink-0 font-mono text-xs text-slate-400">
+                  {index + 1}.{lessonIndex + 1}
                 </span>
-                <span className="ml-2 text-xs text-slate-500">{lesson.xpReward} XP</span>
+                <div className="min-w-0">
+                  <span className="block truncate font-medium text-slate-800">{lesson.title}</span>
+                  <span className="text-xs text-slate-500">
+                    {titleCase(lesson.type)} · {lesson.xpReward} XP
+                  </span>
+                </div>
               </div>
-              <div className="flex items-center gap-3">
-                <Link to={`/instructor/lessons/${lesson._id}`} className="text-sm text-brand-600 hover:text-brand-700">
-                  Edit →
+              <div className="flex shrink-0 items-center gap-2">
+                <Link
+                  to={`/instructor/lessons/${lesson._id}`}
+                  className="rounded-md border border-slate-300 bg-white px-3 py-1.5 text-sm font-medium text-slate-700 transition-colors hover:bg-slate-50"
+                >
+                  Edit
                 </Link>
                 <button
                   type="button"
-                  className="text-sm text-red-600 hover:text-red-700 disabled:opacity-50"
+                  className="rounded-md border border-transparent px-2 py-1.5 text-sm font-medium text-red-700 transition-colors hover:bg-red-50 disabled:opacity-50"
                   onClick={() => handleDeleteLesson(lesson)}
                   disabled={busy}
+                  aria-label={`Delete lesson ${lesson.title}`}
                 >
                   Delete
                 </button>
@@ -350,7 +438,9 @@ const ModuleCard = ({ module, index, onChange, setError }) => {
           ))}
         </ul>
       ) : (
-        <p className="mt-3 text-sm text-slate-500">No lessons yet.</p>
+        <p className="mt-4 rounded-lg border border-dashed border-slate-300 px-3 py-4 text-center text-sm text-slate-500">
+          No lessons in this module yet.
+        </p>
       )}
 
       <form onSubmit={handleAddLesson} className="mt-4 grid grid-cols-[1fr_auto_auto_auto] items-end gap-2">
@@ -365,14 +455,12 @@ const ModuleCard = ({ module, index, onChange, setError }) => {
         </div>
         <div>
           <label className="label">Type</label>
-          {/* `capitalize` is display-only: the option values stay lowercase to
-              match the Lesson.type enum on the server. */}
           <select
             value={lessonForm.type}
             onChange={(e) => setLessonForm((f) => ({ ...f, type: e.target.value }))}
-            className="field capitalize"
+            className="field"
           >
-            {LESSON_TYPES.map((t) => <option key={t} value={t}>{t}</option>)}
+            {LESSON_TYPES.map((t) => <option key={t} value={t}>{titleCase(t)}</option>)}
           </select>
         </div>
         <div>

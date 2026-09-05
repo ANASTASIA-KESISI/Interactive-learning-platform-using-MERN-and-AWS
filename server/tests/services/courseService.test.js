@@ -99,6 +99,128 @@ describe('getLessonForStudent (B1 — answers stay server-side)', () => {
   });
 });
 
+// S7 P2-D: the lesson payload also carries where the learner IS — module title,
+// instructor (for the Ask-instructor panel) and the prev/next links. Neighbours
+// walk the whole course, module order then lesson order, so the last lesson of
+// a module links to the first of the next one.
+describe('getLessonForStudent — course context', () => {
+  const lessonIn = (moduleTitle, courseModules, lessonId = 'l2') => ({
+    _id: lessonId,
+    title: 'Lesson',
+    type: 'exercise',
+    hints: [],
+    order: 1,
+    moduleId: {
+      _id: 'm1',
+      title: moduleTitle,
+      order: 0,
+      courseId: {
+        _id: 'course1',
+        title: 'JS Basics',
+        instructor: {
+          _id: { toString: () => 'teacher1' },
+          firstName: 'Ada',
+          lastName: 'Lovelace',
+          avatar: null,
+        },
+        modules: courseModules,
+      },
+    },
+  });
+
+  const modules = [
+    {
+      _id: 'm1',
+      title: 'Module one',
+      order: 0,
+      lessons: [
+        { _id: 'l1', order: 0 },
+        { _id: 'l2', order: 1 },
+      ],
+    },
+    {
+      _id: 'm2',
+      title: 'Module two',
+      order: 1,
+      lessons: [{ _id: 'l3', order: 0 }],
+    },
+  ];
+
+  test('resolves the module title and the course instructor', async () => {
+    Lesson.findById.mockReturnValue(query(lessonIn('Module one', modules)));
+
+    const result = await courseService.getLessonForStudent('l2');
+
+    expect(result.moduleTitle).toBe('Module one');
+    expect(result.instructor).toEqual({
+      id: 'teacher1',
+      firstName: 'Ada',
+      lastName: 'Lovelace',
+      avatar: null,
+    });
+  });
+
+  test('links across the module boundary into the next module', async () => {
+    Lesson.findById.mockReturnValue(query(lessonIn('Module one', modules)));
+
+    const result = await courseService.getLessonForStudent('l2');
+
+    expect(result.prevLessonId).toBe('l1');
+    expect(result.nextLessonId).toBe('l3');
+  });
+
+  test('null at the ends of the course', async () => {
+    Lesson.findById.mockReturnValue(query(lessonIn('Module one', modules, 'l1')));
+    const first = await courseService.getLessonForStudent('l1');
+    expect(first.prevLessonId).toBeNull();
+    expect(first.nextLessonId).toBe('l2');
+
+    Lesson.findById.mockReturnValue(query(lessonIn('Module two', modules, 'l3')));
+    const last = await courseService.getLessonForStudent('l3');
+    expect(last.prevLessonId).toBe('l2');
+    expect(last.nextLessonId).toBeNull();
+  });
+
+  test('walks modules and lessons in stored order, not array order', async () => {
+    const shuffled = [
+      { _id: 'm2', title: 'Module two', order: 1, lessons: [{ _id: 'l3', order: 0 }] },
+      {
+        _id: 'm1',
+        title: 'Module one',
+        order: 0,
+        lessons: [
+          { _id: 'l2', order: 1 },
+          { _id: 'l1', order: 0 },
+        ],
+      },
+    ];
+    Lesson.findById.mockReturnValue(query(lessonIn('Module one', shuffled)));
+
+    const result = await courseService.getLessonForStudent('l2');
+
+    expect(result.prevLessonId).toBe('l1');
+    expect(result.nextLessonId).toBe('l3');
+  });
+
+  test('the module lesson ids stay server-side (B1 — payload stays narrow)', async () => {
+    Lesson.findById.mockReturnValue(query(lessonIn('Module one', modules)));
+
+    const result = await courseService.getLessonForStudent('l2');
+
+    expect(result).not.toHaveProperty('moduleLessonIds');
+    expect(result).not.toHaveProperty('expectedOutput');
+  });
+
+  test('getLessonContext exposes the module lesson ids the submit route needs', async () => {
+    Lesson.findById.mockReturnValue(query(lessonIn('Module one', modules)));
+
+    const context = await courseService.getLessonContext('l2');
+
+    expect(context.moduleLessonIds).toEqual(['l1', 'l2']);
+    expect(context.nextLessonId).toBe('l3');
+  });
+});
+
 describe('getCourseById (B4 — draft visibility)', () => {
   const draft = (instructorId) => ({
     _id: 'course1',
@@ -366,5 +488,227 @@ describe('deletion (S6 — deferred CRUD)', () => {
       status: 403,
     });
     expect(Lesson.deleteOne).not.toHaveBeenCalled();
+  });
+});
+
+// S7 P1-B: the course page reads one payload (hero + institution + instructor +
+// counts) instead of composing it from three endpoints.
+describe('getCourseDetail (S7 — course page payload)', () => {
+  const published = (overrides = {}) => ({
+    _id: 'course1',
+    title: 'JS Basics',
+    isPublished: true,
+    about: '# About',
+    icon: '📘',
+    semester: 3,
+    instructor: {
+      _id: 'owner1',
+      firstName: 'Ada',
+      lastName: 'Lovelace',
+      avatar: 'a.png',
+      bio: 'Teaches JS',
+    },
+    departmentId: { _id: 'dept1', name: 'Applied Informatics', code: 'AI', semesterCount: 8 },
+    modules: [{ _id: 'm1', lessons: [{ _id: 'l1' }, { _id: 'l2' }] }, { _id: 'm2', lessons: [] }],
+    ...overrides,
+  });
+
+  test('flattens the department and instructor blocks and counts lessons', async () => {
+    Course.findById.mockReturnValue(query(published()));
+
+    const detail = await courseService.getCourseDetail('course1', {
+      id: 'owner1',
+      role: 'instructor',
+    });
+
+    expect(detail.department).toEqual({
+      id: 'dept1',
+      name: 'Applied Informatics',
+      code: 'AI',
+      semesterCount: 8,
+    });
+    expect(detail.departmentId).toBe('dept1');
+    expect(detail.instructor).toMatchObject({ id: 'owner1', firstName: 'Ada', bio: 'Teaches JS' });
+    expect(detail.lessonCount).toBe(2);
+    expect(detail.about).toBe('# About');
+    expect(detail.icon).toBe('📘');
+    expect(detail.semester).toBe(3);
+  });
+
+  test('answers viewerEnrolled from the caller enrolment list', async () => {
+    Course.findById.mockReturnValue(query(published()));
+
+    const detail = await courseService.getCourseDetail('course1', {
+      id: 'student1',
+      role: 'student',
+      enrolledCourseIds: ['other', 'course1'],
+    });
+
+    expect(detail.viewerEnrolled).toBe(true);
+  });
+
+  test('viewerEnrolled is false when the caller is not enrolled', async () => {
+    Course.findById.mockReturnValue(query(published()));
+
+    const detail = await courseService.getCourseDetail('course1', {
+      id: 'student1',
+      role: 'student',
+      enrolledCourseIds: ['other'],
+    });
+
+    expect(detail.viewerEnrolled).toBe(false);
+  });
+
+  test('nulls the institution block when the course has no department', async () => {
+    Course.findById.mockReturnValue(query(published({ departmentId: null, semester: null })));
+
+    const detail = await courseService.getCourseDetail('course1');
+
+    expect(detail.department).toBeNull();
+    expect(detail.departmentId).toBeNull();
+    expect(detail.semester).toBeNull();
+  });
+
+  test('keeps the draft visibility rule of getCourseById', async () => {
+    Course.findById.mockReturnValue(
+      query(published({ isPublished: false })),
+    );
+
+    await expect(
+      courseService.getCourseDetail('course1', { id: 'someone-else', role: 'student' }),
+    ).rejects.toMatchObject({ status: 404 });
+  });
+});
+
+// Mongoose only validates what its schema knows about: `about` and `task` have
+// no maxlength, and a malformed departmentId would surface as a cast 500.
+describe('S7 authoring field validation', () => {
+  const ownedCourse = () => {
+    const save = jest.fn().mockResolvedValue(true);
+    const course = { instructor: { toString: () => 'owner1' }, save };
+    Course.findById.mockReturnValue(query(course));
+    return course;
+  };
+
+  test.each([
+    ['a non-integer semester', { semester: 2.5 }],
+    ['a semester below range', { semester: 0 }],
+    ['a semester above range', { semester: 13 }],
+    ['a malformed departmentId', { departmentId: 'not-an-id' }],
+    ['an oversized icon', { icon: '📘📘📘📘📘📘📘📘📘' }],
+    ['an oversized about', { about: 'x'.repeat(50001) }],
+  ])('rejects %s', async (_label, updates) => {
+    ownedCourse();
+
+    await expect(
+      courseService.updateCourse('course1', 'owner1', updates),
+    ).rejects.toMatchObject({ status: 400 });
+  });
+
+  test('normalises empty institutional selects to null', async () => {
+    const course = ownedCourse();
+
+    await courseService.updateCourse('course1', 'owner1', { departmentId: '', semester: '' });
+
+    expect(course.departmentId).toBeNull();
+    expect(course.semester).toBeNull();
+  });
+
+  test('accepts a numeric string semester from the form', async () => {
+    const course = ownedCourse();
+
+    await courseService.updateCourse('course1', 'owner1', { semester: '4' });
+
+    expect(course.semester).toBe(4);
+  });
+
+  test('rejects an oversized lesson task', async () => {
+    const lesson = { moduleId: 'module1', save: jest.fn() };
+    Lesson.findById.mockReturnValue(query(lesson));
+    Module.findById.mockReturnValue(query({ _id: 'module1', courseId: 'course1' }));
+    Course.findById.mockReturnValue(
+      query({ _id: 'course1', instructor: { toString: () => 'owner1' } }),
+    );
+
+    await expect(
+      courseService.updateLesson('lesson1', 'owner1', { task: 'x'.repeat(50001) }),
+    ).rejects.toMatchObject({ status: 400 });
+  });
+
+  test('stores a task inside the cap', async () => {
+    const lesson = { moduleId: 'module1', save: jest.fn().mockResolvedValue(true) };
+    Lesson.findById.mockReturnValue(query(lesson));
+    Module.findById.mockReturnValue(query({ _id: 'module1', courseId: 'course1' }));
+    Course.findById.mockReturnValue(
+      query({ _id: 'course1', instructor: { toString: () => 'owner1' } }),
+    );
+
+    await courseService.updateLesson('lesson1', 'owner1', { task: '## Your task' });
+
+    expect(lesson.task).toBe('## Your task');
+  });
+});
+
+// The quiz half of the S5.5 B1 boundary. A quiz whose `correctIndex` ships with
+// the page measures nothing: the answer key is readable from the network tab,
+// and every result the pilot collects is suspect.
+describe('getLessonForStudent — quiz answers stay server-side', () => {
+  const quizDoc = {
+    _id: 'quiz1',
+    title: 'Knowledge check',
+    type: 'quiz',
+    passMark: 70,
+    questions: [
+      {
+        prompt: 'What does console.log do?',
+        options: ['Prints', 'Deletes'],
+        correctIndex: 0,
+        explanation: 'It writes to stdout.',
+      },
+      {
+        prompt: 'Which is a number?',
+        options: ['"1"', '1'],
+        correctIndex: 1,
+        explanation: 'Quotes make it a string.',
+      },
+    ],
+    hints: [],
+    moduleId: { _id: 'module1', title: 'Basics', courseId: { _id: 'course1', title: 'JS' } },
+  };
+
+  test('sends prompts and options but never correctIndex or explanation', async () => {
+    Lesson.findById.mockReturnValue(query(quizDoc));
+
+    const result = await courseService.getLessonForStudent('quiz1');
+
+    expect(result.questions).toHaveLength(2);
+    result.questions.forEach((q) => {
+      expect(q).not.toHaveProperty('correctIndex');
+      expect(q).not.toHaveProperty('explanation');
+      expect(q.prompt).toEqual(expect.any(String));
+      expect(q.options).toEqual(expect.any(Array));
+    });
+    // Belt and braces: nothing anywhere in the payload spells the answer out.
+    expect(JSON.stringify(result)).not.toContain('correctIndex');
+    expect(JSON.stringify(result)).not.toContain('It writes to stdout.');
+  });
+
+  test('reports the question count so the client can size the sheet', async () => {
+    Lesson.findById.mockReturnValue(query(quizDoc));
+
+    const result = await courseService.getLessonForStudent('quiz1');
+
+    expect(result.questionCount).toBe(2);
+  });
+
+  test('a non-quiz lesson simply has an empty question set', async () => {
+    Lesson.findById.mockReturnValue(
+      query({ ...quizDoc, type: 'tutorial', questions: undefined }),
+    );
+
+    const result = await courseService.getLessonForStudent('quiz1');
+
+    expect(result.questions).toEqual([]);
+    expect(result.questionCount).toBe(0);
   });
 });
