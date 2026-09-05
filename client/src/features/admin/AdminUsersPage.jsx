@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from 'react';
 
 import { listUsers, setUserRole } from '../../services/admin.js';
 import { Spinner, ErrorBanner } from '../../components/Spinner.jsx';
+import { titleCase } from '../../lib/labels.js';
 import { useAuth } from '../../hooks/useAuth.js';
 
 const ROLES = ['student', 'instructor', 'admin'];
@@ -73,7 +74,7 @@ export const AdminUsersPage = () => {
             className="field w-44"
           >
             <option value="">All roles</option>
-            {ROLES.map((r) => <option key={r} value={r}>{r}</option>)}
+            {ROLES.map((r) => <option key={r} value={r}>{titleCase(r)}</option>)}
           </select>
         </div>
       </div>
@@ -131,7 +132,7 @@ export const AdminUsersPage = () => {
                         className="field w-36"
                         title={isSelf ? 'You cannot change your own role' : undefined}
                       >
-                        {ROLES.map((r) => <option key={r} value={r}>{r}</option>)}
+                        {ROLES.map((r) => <option key={r} value={r}>{titleCase(r)}</option>)}
                       </select>
                     </td>
                   </tr>

@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 
 import { listAllCourses, setCoursePublished } from '../../services/admin.js';
 import { Spinner, ErrorBanner } from '../../components/Spinner.jsx';
+import { titleCase } from '../../lib/labels.js';
 
 export const AdminCoursesPage = () => {
   const [courses, setCourses] = useState(null);
@@ -75,7 +76,7 @@ export const AdminCoursesPage = () => {
                       {c.title}
                     </Link>
                     <div className="text-xs text-slate-500">
-                      {c.category || 'Uncategorised'} · {c.difficulty}
+                      {c.category || 'Uncategorised'} · {titleCase(c.difficulty)}
                     </div>
                   </td>
                   <td className="px-4 py-2 text-slate-600">
