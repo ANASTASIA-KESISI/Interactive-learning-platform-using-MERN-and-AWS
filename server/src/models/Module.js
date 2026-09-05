@@ -6,7 +6,10 @@ const moduleSchema = new mongoose.Schema(
     title: { type: String, required: true, trim: true },
     order: { type: Number, required: true, min: 0 },
     lessons: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Lesson' }],
-    quizId: { type: mongoose.Schema.Types.ObjectId, ref: 'Quiz' },
+    // `quizId` used to live here, referencing a `Quiz` model that was never
+    // written — populating it would have thrown MissingSchemaError. Quizzes are
+    // now lessons with `type: 'quiz'` and a `questions[]` body, so a module's
+    // quiz is simply one of its `lessons` and needs no separate reference.
   },
   { timestamps: true },
 );
