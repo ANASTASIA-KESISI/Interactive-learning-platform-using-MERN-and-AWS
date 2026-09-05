@@ -22,3 +22,25 @@ export const setCoursePublished = (courseId, isPublished) =>
   api.patch(`/admin/courses/${courseId}/publish`, { isPublished }).then(unwrap);
 
 export const listBadges = () => api.get('/admin/badges').then(unwrap);
+
+// ── Universities & departments (S7 D3) ────────────────────────────────────────
+// Reference data the signup form and the Courses grouping depend on. Deletes
+// are refused server-side (409) while something still references the record.
+
+export const createUniversity = (payload) =>
+  api.post('/admin/universities', payload).then(unwrap);
+
+export const updateUniversity = (universityId, payload) =>
+  api.patch(`/admin/universities/${universityId}`, payload).then(unwrap);
+
+export const deleteUniversity = (universityId) =>
+  api.delete(`/admin/universities/${universityId}`).then(unwrap);
+
+export const createDepartment = (universityId, payload) =>
+  api.post(`/admin/universities/${universityId}/departments`, payload).then(unwrap);
+
+export const updateDepartment = (departmentId, payload) =>
+  api.patch(`/admin/departments/${departmentId}`, payload).then(unwrap);
+
+export const deleteDepartment = (departmentId) =>
+  api.delete(`/admin/departments/${departmentId}`).then(unwrap);

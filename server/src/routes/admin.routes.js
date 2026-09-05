@@ -7,6 +7,7 @@ const { requireRole } = require('../middleware/requireRole');
 const { attachUser } = require('../middleware/attachUser');
 const { badRequest, notFound } = require('../utils/httpError');
 const authService = require('../services/authService');
+const universityService = require('../services/universityService');
 
 const router = express.Router();
 const adminAuth = [requireAuth, requireRole('admin'), attachUser];
@@ -158,6 +159,70 @@ router.patch('/courses/:id/publish', ...adminAuth, async (req, res, next) => {
     );
     if (!course) throw notFound('Course not found');
     res.json({ data: course });
+  } catch (err) {
+    next(err);
+  }
+});
+
+// ── Universities & departments (S7 D3) ────────────────────────────────────────
+//
+// Reference data every student's signup and course listing depends on, so the
+// service refuses deletes that would orphan a reference (409) rather than
+// cascading. Validation and the writable-field allowlists live in the service.
+
+// POST /api/admin/universities
+router.post('/universities', ...adminAuth, async (req, res, next) => {
+  try {
+    const university = await universityService.createUniversity(req.body);
+    res.status(201).json({ data: university });
+  } catch (err) {
+    next(err);
+  }
+});
+
+// PATCH /api/admin/universities/:id
+router.patch('/universities/:id', ...adminAuth, async (req, res, next) => {
+  try {
+    const university = await universityService.updateUniversity(req.params.id, req.body);
+    res.json({ data: university });
+  } catch (err) {
+    next(err);
+  }
+});
+
+// DELETE /api/admin/universities/:id — 409 while it still has departments
+router.delete('/universities/:id', ...adminAuth, async (req, res, next) => {
+  try {
+    res.json({ data: await universityService.deleteUniversity(req.params.id) });
+  } catch (err) {
+    next(err);
+  }
+});
+
+// POST /api/admin/universities/:id/departments
+router.post('/universities/:id/departments', ...adminAuth, async (req, res, next) => {
+  try {
+    const department = await universityService.createDepartment(req.params.id, req.body);
+    res.status(201).json({ data: department });
+  } catch (err) {
+    next(err);
+  }
+});
+
+// PATCH /api/admin/departments/:id
+router.patch('/departments/:id', ...adminAuth, async (req, res, next) => {
+  try {
+    const department = await universityService.updateDepartment(req.params.id, req.body);
+    res.json({ data: department });
+  } catch (err) {
+    next(err);
+  }
+});
+
+// DELETE /api/admin/departments/:id — 409 while users or courses reference it
+router.delete('/departments/:id', ...adminAuth, async (req, res, next) => {
+  try {
+    res.json({ data: await universityService.deleteDepartment(req.params.id) });
   } catch (err) {
     next(err);
   }
