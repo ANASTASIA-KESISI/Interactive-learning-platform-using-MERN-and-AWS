@@ -10,6 +10,11 @@ const userSchema = new mongoose.Schema(
     lastName: { type: String, trim: true },
     role: { type: String, enum: ROLES, default: 'student', index: true },
     avatar: { type: String },
+    // Institutional placement (S7 D3). Optional: accounts created before S7
+    // have neither and are prompted once on Home.
+    universityId: { type: mongoose.Schema.Types.ObjectId, ref: 'University' },
+    departmentId: { type: mongoose.Schema.Types.ObjectId, ref: 'Department', index: true },
+    bio: { type: String, trim: true, maxlength: 500 },
     enrolledCourses: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Course' }],
     xpPoints: { type: Number, default: 0, min: 0 },
     badges: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Badge' }],
@@ -39,11 +44,15 @@ userSchema.methods.toSafeJSON = function toSafeJSON() {
     lastName: this.lastName,
     role: this.role,
     avatar: this.avatar,
+    bio: this.bio,
+    universityId: this.universityId,
+    departmentId: this.departmentId,
     xpPoints: this.xpPoints,
     streak: this.streak,
     lessonsCompleted: this.lessonsCompleted,
     enrolledCourses: this.enrolledCourses,
     badges: this.badges,
+    createdAt: this.createdAt,
   };
 };
 

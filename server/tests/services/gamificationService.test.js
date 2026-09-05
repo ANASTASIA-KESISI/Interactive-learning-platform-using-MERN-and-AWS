@@ -1,4 +1,8 @@
 const {
+  xpForLevel,
+  levelFromXp,
+  rankForLevel,
+  gamificationSummary,
   _internal: { applyHintDiscount, utcDayDiff, updateStreak, evaluateBadges },
 } = require('../../src/services/gamificationService');
 
@@ -138,5 +142,103 @@ describe('evaluateBadges', () => {
     ];
     const awarded = evaluateBadges(user, badges);
     expect(awarded).toHaveLength(0);
+  });
+});
+
+// ── Level & rank (S7 D8) ──────────────────────────────────────────────────────
+//
+// xpForLevel(n) = 50·(n−1)·n is the CUMULATIVE XP needed to reach level n, so
+// the band widths grow linearly (100, 200, 300 …). These are pure display
+// functions — nothing is stored, so a threshold change re-levels everyone.
+describe('xpForLevel', () => {
+  test.each([
+    [1, 0],
+    [2, 100],
+    [3, 300],
+    [4, 600],
+    [5, 1000],
+    [10, 4500],
+  ])('level %i requires %i cumulative XP', (level, xp) => {
+    expect(xpForLevel(level)).toBe(xp);
+  });
+});
+
+describe('levelFromXp', () => {
+  test.each([
+    [0, 1, 0, 100],
+    [99, 1, 99, 100],
+    [100, 2, 0, 200],
+    [299, 2, 199, 200],
+    [300, 3, 0, 300],
+    [600, 4, 0, 400],
+    [1000, 5, 0, 500],
+    [1250, 5, 250, 500],
+    [4500, 10, 0, 1000],
+  ])('%i XP → level %i (%i/%i into the level)', (xp, level, into, next) => {
+    expect(levelFromXp(xp)).toEqual({
+      level,
+      xpIntoLevel: into,
+      xpForNextLevel: next,
+    });
+  });
+
+  test('treats negative or non-numeric XP as zero', () => {
+    expect(levelFromXp(-50).level).toBe(1);
+    expect(levelFromXp(undefined)).toEqual({ level: 1, xpIntoLevel: 0, xpForNextLevel: 100 });
+  });
+
+  test('xpIntoLevel never exceeds xpForNextLevel', () => {
+    for (let xp = 0; xp <= 5000; xp += 37) {
+      const { xpIntoLevel, xpForNextLevel } = levelFromXp(xp);
+      expect(xpIntoLevel).toBeGreaterThanOrEqual(0);
+      expect(xpIntoLevel).toBeLessThan(xpForNextLevel);
+    }
+  });
+});
+
+describe('rankForLevel', () => {
+  test.each([
+    [1, 'Bronze I'],
+    [2, 'Bronze II'],
+    [3, 'Bronze III'],
+    [4, 'Silver I'],
+    [5, 'Silver II'],
+    [6, 'Silver III'],
+    [7, 'Gold I'],
+    [8, 'Gold II'],
+    [9, 'Gold III'],
+    [10, 'Platinum'],
+    [42, 'Platinum'],
+  ])('level %i → %s', (level, rank) => {
+    expect(rankForLevel(level)).toBe(rank);
+  });
+
+  test('falls back to the first tier for a nonsense level', () => {
+    expect(rankForLevel(0)).toBe('Bronze I');
+    expect(rankForLevel(undefined)).toBe('Bronze I');
+  });
+});
+
+describe('gamificationSummary', () => {
+  test('assembles the block every consumer renders', () => {
+    expect(gamificationSummary({ xpPoints: 650, streak: 4 })).toEqual({
+      xpPoints: 650,
+      level: 4,
+      xpIntoLevel: 50,
+      xpForNextLevel: 400,
+      rank: 'Silver I',
+      streak: 4,
+    });
+  });
+
+  test('defaults a brand new user to level 1 / Bronze I', () => {
+    expect(gamificationSummary({})).toEqual({
+      xpPoints: 0,
+      level: 1,
+      xpIntoLevel: 0,
+      xpForNextLevel: 100,
+      rank: 'Bronze I',
+      streak: 0,
+    });
   });
 });

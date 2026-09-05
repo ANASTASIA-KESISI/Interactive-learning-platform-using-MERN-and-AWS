@@ -98,8 +98,58 @@ const onLessonCompleted = async ({ userId, xpReward, hintsUsed = 0, now = new Da
   return { xpDelta, newBadges };
 };
 
+// ── Level & rank (S7 D8) ──────────────────────────────────────────────────────
+//
+// Pure functions of xpPoints, computed on read and never stored. Cumulative XP
+// required to REACH level n: xpForLevel(n) = 50·(n−1)·n, so level 1 is 0 XP,
+// level 2 is 100, 3 is 300, 4 is 600, 5 is 1000. Thresholds are deliberately
+// low: pilot XP totals sit in the low hundreds and the bar has to move within
+// a 2–4 week window.
+const xpForLevel = (level) => 50 * (level - 1) * level;
+
+const levelFromXp = (xp) => {
+  const points = Number.isFinite(xp) && xp > 0 ? Math.floor(xp) : 0;
+  let level = 1;
+  while (xpForLevel(level + 1) <= points) level += 1;
+  const base = xpForLevel(level);
+  return {
+    level,
+    xpIntoLevel: points - base,
+    xpForNextLevel: xpForLevel(level + 1) - base,
+  };
+};
+
+const RANK_TIERS = ['Bronze', 'Silver', 'Gold'];
+const ROMAN = ['I', 'II', 'III'];
+
+const rankForLevel = (level) => {
+  const safe = Number.isFinite(level) && level >= 1 ? Math.floor(level) : 1;
+  if (safe >= 10) return 'Platinum';
+  const tier = RANK_TIERS[Math.floor((safe - 1) / 3)];
+  return `${tier} ${ROMAN[(safe - 1) % 3]}`;
+};
+
+// The gamification block attached to `/api/me`, the dashboard and the submit
+// response, so every consumer shows the same numbers.
+const gamificationSummary = (user) => {
+  const xpPoints = user?.xpPoints ?? 0;
+  const { level, xpIntoLevel, xpForNextLevel } = levelFromXp(xpPoints);
+  return {
+    xpPoints,
+    level,
+    xpIntoLevel,
+    xpForNextLevel,
+    rank: rankForLevel(level),
+    streak: user?.streak ?? 0,
+  };
+};
+
 module.exports = {
   onLessonCompleted,
+  xpForLevel,
+  levelFromXp,
+  rankForLevel,
+  gamificationSummary,
   // exported for unit tests; not part of the public service contract
   _internal: { applyHintDiscount, utcDayDiff, updateStreak, evaluateBadges },
 };

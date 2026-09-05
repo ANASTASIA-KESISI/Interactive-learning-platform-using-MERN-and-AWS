@@ -21,6 +21,16 @@ const getPool = () => {
 const buildUser = (email) =>
   new CognitoUser({ Username: email, Pool: getPool() });
 
+// The subset of a CognitoUserSession the app carries around. The ID token is
+// what the API verifies; the refresh token is what buys a NEW id token after a
+// group change (see refreshSession).
+const toSession = (session) => ({
+  idToken: session.getIdToken().getJwtToken(),
+  accessToken: session.getAccessToken().getJwtToken(),
+  refreshToken: session.getRefreshToken().getToken(),
+  expiresAt: session.getIdToken().getExpiration() * 1000,
+});
+
 // Returns the full session so the caller can pick the ID token it wants
 // to forward to the API.
 export const signIn = (email, password) =>
@@ -28,13 +38,7 @@ export const signIn = (email, password) =>
     const user = buildUser(email);
     const details = new AuthenticationDetails({ Username: email, Password: password });
     user.authenticateUser(details, {
-      onSuccess: (session) =>
-        resolve({
-          idToken: session.getIdToken().getJwtToken(),
-          accessToken: session.getAccessToken().getJwtToken(),
-          refreshToken: session.getRefreshToken().getToken(),
-          expiresAt: session.getIdToken().getExpiration() * 1000,
-        }),
+      onSuccess: (session) => resolve(toSession(session)),
       onFailure: reject,
       newPasswordRequired: () =>
         reject(new Error('New password required — complete setup in the AWS console first.')),
@@ -83,11 +87,23 @@ export const restoreSession = () =>
     if (!current) return resolve(null);
     current.getSession((err, session) => {
       if (err || !session || !session.isValid()) return resolve(null);
-      resolve({
-        idToken: session.getIdToken().getJwtToken(),
-        accessToken: session.getAccessToken().getJwtToken(),
-        refreshToken: session.getRefreshToken().getToken(),
-        expiresAt: session.getIdToken().getExpiration() * 1000,
+      resolve(toSession(session));
+    });
+  });
+
+// Exchanges the cached refresh token for a NEW ID token. Roles live in Cognito
+// groups, so a group change made server-side (claim-instructor, an admin role
+// change) is invisible to the client until its token is reissued — this is what
+// makes the new claim land without a sign-out/sign-in round trip.
+export const refreshSession = () =>
+  new Promise((resolve, reject) => {
+    const current = getPool().getCurrentUser();
+    if (!current) return resolve(null);
+    current.getSession((err, session) => {
+      if (err || !session) return reject(err || new Error('No active session to refresh'));
+      current.refreshSession(session.getRefreshToken(), (refreshErr, fresh) => {
+        if (refreshErr) return reject(refreshErr);
+        resolve(toSession(fresh));
       });
     });
   });
