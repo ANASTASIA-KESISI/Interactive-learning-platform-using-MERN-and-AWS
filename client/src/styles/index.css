@@ -2,6 +2,69 @@
 @tailwind components;
 @tailwind utilities;
 
+/* Sign-in entrance. Both halves begin stacked on the page's centre line and
+   part outward: the logo travels left, the form right. The slide is
+   horizontal only where the two actually end up side by side — below md
+   they are stacked, so the same classes rise instead, since sliding a
+   stacked pair sideways reads as a jitter rather than as a parting. */
+@keyframes learncode-part-left {
+  from {
+    opacity: 0;
+    transform: translateX(4rem);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+@keyframes learncode-part-right {
+  from {
+    opacity: 0;
+    transform: translateX(-4rem);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+@keyframes learncode-rise {
+  from {
+    opacity: 0;
+    transform: translateY(0.75rem);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.auth-enter-left,
+.auth-enter-right {
+  animation: learncode-rise 750ms cubic-bezier(0.4, 0, 0.2, 1) both;
+}
+
+@media (min-width: 768px) {
+  .auth-enter-left {
+    animation-name: learncode-part-left;
+    animation-duration: 900ms;
+  }
+  .auth-enter-right {
+    animation-name: learncode-part-right;
+    animation-duration: 900ms;
+  }
+}
+
+/* `animation: none` drops the fill too, so the pair simply starts in place
+   rather than stranded at 0 opacity (NFR5 / WCAG 2.1 AA). */
+@media (prefers-reduced-motion: reduce) {
+  .auth-enter-left,
+  .auth-enter-right {
+    animation: none;
+  }
+}
+
 /* The loading state: the logo breathes rather than a generic ring spinning.
    Shallow on purpose — the mark is detailed, and a big scale swing on it
    reads as a glitch rather than as progress. */

@@ -86,9 +86,10 @@ export const InstructorSignupPage = () => {
   };
 
   return (
-    <div className="flex min-h-screen items-center justify-center px-4 py-10">
-      <div className="w-full max-w-sm rounded-lg border border-slate-200 bg-white p-8 shadow-sm">
-        <Logo className="mx-auto mb-6 h-24 w-auto" />
+    <div className="mx-auto grid min-h-screen max-w-4xl items-center justify-items-center gap-10 px-4 py-10 md:grid-cols-2 md:gap-12">
+      <Logo className="auth-enter-left h-32 w-auto md:h-44" />
+
+      <div className="auth-enter-right w-full max-w-sm rounded-lg border border-slate-200 bg-white p-8 shadow-sm">
         <header className="mb-6">
           <h1 className="text-2xl font-semibold text-slate-900">
             {step === 'details' ? 'Create an instructor account' : 'Confirm your email'}
