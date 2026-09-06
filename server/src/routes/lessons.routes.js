@@ -79,6 +79,38 @@ const readCode = (body) => {
 };
 
 // POST /api/lessons/:id/run — execute without validating (S7 D10).
+// Active time on the lesson page, in seconds. The client posts increments while
+// the tab is visible, so this is the write that finally fills the `timeSpent`
+// the instructor breakdown has always displayed.
+//
+// Pure telemetry: it returns 202 with no body worth reading, and an instructor
+// previewing their own lesson records nothing (same rule as every other signal
+// here — preview must not pollute the pilot metrics).
+router.post('/:id/time', ...learnerOrPreview, async (req, res, next) => {
+  try {
+    if (req.dbUser.role !== 'student') return res.status(202).json({ data: { recorded: false } });
+
+    const seconds = Number(req.body?.seconds);
+    if (!Number.isFinite(seconds) || seconds <= 0) {
+      return res.status(400).json({ error: { message: 'seconds must be a positive number' } });
+    }
+
+    // A Dynamo hiccup must not surface to a learner who did nothing but read a
+    // page, so this fails quiet like the other counters.
+    try {
+      await progressService.recordTimeSpent(req.dbUser._id.toString(), req.params.id, seconds);
+    } catch (err) {
+      logger.warn('failed to record time on task', {
+        lessonId: req.params.id,
+        error: err.message,
+      });
+    }
+
+    return res.status(202).json({ data: { recorded: true } });
+  } catch (err) {
+    return next(err);
+  }
+});
 // The editor's Run button: the learner experiments, sees stdout, and burns no
 // attempt. The response carries NO `passed` and no `expectedOutput` — a
 // caller must not be able to discover the answer from an endpoint that never

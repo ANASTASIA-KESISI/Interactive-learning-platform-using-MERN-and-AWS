@@ -9,6 +9,7 @@ import { Spinner, ErrorBanner } from '../../components/Spinner.jsx';
 import { titleCase } from '../../lib/labels.js';
 import { Card, Chip, EmptyState, Tabs } from '../../components/ui/index.js';
 import { useAuth } from '../../hooks/useAuth.js';
+import { useTimeOnTask } from '../../hooks/useTimeOnTask.js';
 import { LessonNotesPanel } from '../notes/LessonNotesPanel.jsx';
 import { ChatDock } from '../messages/ChatDock.jsx';
 import { CompletionOverlay } from './CompletionOverlay.jsx';
@@ -19,6 +20,7 @@ const errorMessage = (err) =>
 
 export const LessonPage = () => {
   const { id } = useParams();
+  const { user } = useAuth();
   const [lesson, setLesson] = useState(null);
   const [error, setError] = useState(null);
   // The chat lives at page level, not inside a layout, so every lesson type
@@ -33,6 +35,12 @@ export const LessonPage = () => {
       .then(setLesson)
       .catch((err) => setError(errorMessage(err)));
   }, [id]);
+
+  // Above the early returns, or the hook order changes the moment the lesson
+  // finishes loading. Students only: an instructor previewing their own lesson
+  // must not land in the pilot's engagement data (the server ignores them too,
+  // but there is no reason to make the request).
+  useTimeOnTask(id, { enabled: user?.role === 'student' });
 
   if (error) {
     return (

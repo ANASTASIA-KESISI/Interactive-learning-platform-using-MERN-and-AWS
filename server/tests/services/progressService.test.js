@@ -330,3 +330,70 @@ describe('progressService.recordSubmission item seeding', () => {
     expect(updates.attempts).toBe(5);
   });
 });
+
+// `timeSpent` shipped in S4 and has been rendered as "Avg time" in the
+// instructor breakdown ever since, but nothing wrote to it — the column was
+// reading a real zero as if it were a measurement. These cover the write, and
+// in particular the clamp: the number arrives from the browser, so it is the
+// one engagement metric a learner could otherwise inflate at will.
+describe('progressService.recordTimeSpent', () => {
+  beforeEach(() => jest.clearAllMocks());
+
+  test('adds the reported seconds to the running total', async () => {
+    progressTable.getProgress.mockResolvedValue({ status: 'in_progress', timeSpent: 90 });
+
+    const result = await progressService.recordTimeSpent('u1', 'l1', 30);
+
+    expect(progressTable.updateProgress).toHaveBeenCalledWith('u1', 'l1', { timeSpent: 120 });
+    expect(result).toEqual({ timeSpent: 120 });
+  });
+
+  test('seeds status on an item that does not exist yet', async () => {
+    // A learner can read a lesson without ever submitting, so the report may be
+    // the first thing that touches the item. Without a status it would land in
+    // the pass-rate denominator as an unreadable blank.
+    progressTable.getProgress.mockResolvedValue(null);
+
+    await progressService.recordTimeSpent('u1', 'l1', 20);
+
+    expect(progressTable.updateProgress).toHaveBeenCalledWith('u1', 'l1', {
+      timeSpent: 20,
+      status: 'in_progress',
+    });
+  });
+
+  test('treats a missing timeSpent on an existing item as zero', async () => {
+    progressTable.getProgress.mockResolvedValue({ status: 'completed' });
+
+    await progressService.recordTimeSpent('u1', 'l1', 45);
+
+    expect(progressTable.updateProgress).toHaveBeenCalledWith('u1', 'l1', { timeSpent: 45 });
+  });
+
+  test('clamps an implausible report rather than trusting it', async () => {
+    progressTable.getProgress.mockResolvedValue({ timeSpent: 0 });
+
+    await progressService.recordTimeSpent('u1', 'l1', 86_400);
+
+    expect(progressTable.updateProgress).toHaveBeenCalledWith('u1', 'l1', {
+      timeSpent: progressService.MAX_TIME_REPORT_SEC,
+    });
+  });
+
+  test.each([0, -5, NaN, 'abc', null, undefined])(
+    'drops an unusable report (%s) without writing',
+    async (seconds) => {
+      await progressService.recordTimeSpent('u1', 'l1', seconds);
+
+      expect(progressTable.updateProgress).not.toHaveBeenCalled();
+    },
+  );
+
+  test('floors a fractional report so the stored total stays whole', async () => {
+    progressTable.getProgress.mockResolvedValue({ timeSpent: 10 });
+
+    await progressService.recordTimeSpent('u1', 'l1', 30.9);
+
+    expect(progressTable.updateProgress).toHaveBeenCalledWith('u1', 'l1', { timeSpent: 40 });
+  });
+});

@@ -209,6 +209,33 @@ const recordRun = (userId, lessonId) => bumpCounter(userId, lessonId, 'runs');
 const recordQuestionAsked = (userId, lessonId) =>
   bumpCounter(userId, lessonId, 'questionsAsked');
 
+// Active time on the lesson page, in seconds, reported by the client in
+// increments while the tab is visible.
+//
+// `timeSpent` has been on the item since S4 and in the instructor breakdown
+// since then, but nothing ever wrote to it: it was seeded at 0 and the
+// "Avg time" column has been reading a real zero as if it were a
+// measurement. This is the missing write.
+//
+// The number is the client's, so it is not trusted: a report is clamped to
+// MAX_TIME_REPORT_SEC. The client flushes far more often than that, so a
+// larger figure means a clock jump, a replayed request or a tampered one —
+// none of which should be able to inflate the engagement metric the pilot
+// reports. Anything unusable is dropped rather than stored as garbage.
+const MAX_TIME_REPORT_SEC = 300;
+
+const recordTimeSpent = async (userId, lessonId, seconds) => {
+  const reported = Math.floor(Number(seconds));
+  if (!Number.isFinite(reported) || reported <= 0) return { timeSpent: null };
+
+  const delta = Math.min(reported, MAX_TIME_REPORT_SEC);
+  const existing = await progressTable.getProgress(userId, lessonId);
+  const updates = { timeSpent: ((existing && existing.timeSpent) || 0) + delta };
+  if (!existing) updates.status = 'in_progress';
+  await progressTable.updateProgress(userId, lessonId, updates);
+  return { timeSpent: updates.timeSpent };
+};
+
 // Note-taking is a self-regulated-learning behaviour (H2). Only the timestamp
 // lives here; the note body is Mongo's (content vs events).
 const recordNoteActivity = async (userId, lessonId, now = new Date()) => {
@@ -226,6 +253,8 @@ module.exports = {
   recordRun,
   recordQuestionAsked,
   recordNoteActivity,
+  recordTimeSpent,
+  MAX_TIME_REPORT_SEC,
   getLessonProgress,
   getStudentProgress,
   getCourseAnalytics,

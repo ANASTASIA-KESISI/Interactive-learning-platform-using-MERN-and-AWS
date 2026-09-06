@@ -29,3 +29,8 @@ export const runCode = (lessonId, code) =>
 // answers only ever travel back in the response — never with the lesson.
 export const submitQuiz = (lessonId, answers) =>
   api.post(`/lessons/${lessonId}/quiz`, { answers }).then(unwrap);
+
+// Active seconds spent on the lesson page. Telemetry only — the response says
+// nothing a screen needs, so callers ignore it and swallow failures.
+export const reportTimeOnTask = (lessonId, seconds) =>
+  api.post(`/lessons/${lessonId}/time`, { seconds }).then(unwrap);
