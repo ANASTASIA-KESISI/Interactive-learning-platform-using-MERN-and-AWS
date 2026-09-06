@@ -1,0 +1,222 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1460 860" width="1460" height="860">
+  <rect width="1460" height="860" fill="#ffffff"/>
+  <text x="40" y="34" font-family="system-ui, 'Segoe UI', Roboto, Arial, sans-serif" font-size="17" font-weight="600" fill="#333333">LearnCode data model — content and progress</text>
+  <path d="M 155 126 V 158 H 180 V 190" fill="none" stroke="#4d4d4d" stroke-width="1.3"/>
+  <polygon points="180,190 175.5,181 184.5,181" fill="#4d4d4d"/>
+  <rect x="157.0" y="132.0" width="57.5" height="14" fill="#ffffff" opacity="0.92"/>
+  <text x="161.0" y="142.0" font-family="system-ui, 'Segoe UI', Roboto, Arial, sans-serif" font-size="10" fill="#4d4d4d" text-anchor="start">owns 1..N</text>
+  <path d="M 320 333 H 365 V 253 H 410" fill="none" stroke="#4d4d4d" stroke-width="1.3"/>
+  <polygon points="410,253 401,248.5 401,257.5" fill="#4d4d4d"/>
+  <rect x="322.0" y="319.0" width="74.0" height="14" fill="#ffffff" opacity="0.92"/>
+  <text x="326.0" y="329.0" font-family="system-ui, 'Segoe UI', Roboto, Arial, sans-serif" font-size="10" fill="#4d4d4d" text-anchor="start">ordered 1..N</text>
+  <path d="M 550 316 V 348 H 550 V 380" fill="none" stroke="#4d4d4d" stroke-width="1.3"/>
+  <polygon points="550,380 545.5,371 554.5,371" fill="#4d4d4d"/>
+  <rect x="552.0" y="322.0" width="74.0" height="14" fill="#ffffff" opacity="0.92"/>
+  <text x="556.0" y="332.0" font-family="system-ui, 'Segoe UI', Roboto, Arial, sans-serif" font-size="10" fill="#4d4d4d" text-anchor="start">ordered 1..N</text>
+  <path d="M 690 416.72 H 725 V 153 H 830" fill="none" stroke="#4d4d4d" stroke-width="1.3"/>
+  <polygon points="830,153 821,148.5 821,157.5" fill="#4d4d4d"/>
+  <rect x="692.0" y="402.7" width="63.0" height="14" fill="#ffffff" opacity="0.92"/>
+  <text x="696.0" y="412.7" font-family="system-ui, 'Segoe UI', Roboto, Arial, sans-serif" font-size="10" fill="#4d4d4d" text-anchor="start">notes 0..N</text>
+  <path d="M 690 739.8 H 753 V 153 H 830" fill="none" stroke="#4d4d4d" stroke-width="1.3"/>
+  <polygon points="830,153 821,148.5 821,157.5" fill="#4d4d4d"/>
+  <rect x="692.0" y="725.8" width="68.5" height="14" fill="#ffffff" opacity="0.92"/>
+  <text x="696.0" y="735.8" font-family="system-ui, 'Segoe UI', Roboto, Arial, sans-serif" font-size="10" fill="#4d4d4d" text-anchor="start">writes 1..N</text>
+  <path d="M 320 447.40000000000003 H 575 V 403 H 830" fill="none" stroke="#4d4d4d" stroke-width="1.3"/>
+  <polygon points="830,403 821,398.5 821,407.5" fill="#4d4d4d"/>
+  <rect x="322.0" y="433.4" width="68.5" height="14" fill="#ffffff" opacity="0.92"/>
+  <text x="326.0" y="443.4" font-family="system-ui, 'Segoe UI', Roboto, Arial, sans-serif" font-size="10" fill="#4d4d4d" text-anchor="start">thread 1..N</text>
+  <path d="M 690 756.3 H 776.8 V 403 H 830" fill="none" stroke="#4d4d4d" stroke-width="1.3"/>
+  <polygon points="830,403 821,398.5 821,407.5" fill="#4d4d4d"/>
+  <rect x="692.0" y="742.3" width="63.0" height="14" fill="#ffffff" opacity="0.92"/>
+  <text x="696.0" y="752.3" font-family="system-ui, 'Segoe UI', Roboto, Arial, sans-serif" font-size="10" fill="#4d4d4d" text-anchor="start">sends 1..N</text>
+  <path d="M 690 772.8 H 802 V 693 H 830" fill="none" stroke="#d79b00" stroke-width="1.3" stroke-dasharray="6 4"/>
+  <polygon points="830,693 821,688.5 821,697.5" fill="#d79b00"/>
+  <rect x="692.0" y="758.8" width="85.0" height="14" fill="#ffffff" opacity="0.92"/>
+  <text x="696.0" y="768.8" font-family="system-ui, 'Segoe UI', Roboto, Arial, sans-serif" font-size="10" fill="#d79b00" text-anchor="start">userId — no FK</text>
+  <path d="M 690 655.4000000000001 H 706.8 V 693 H 830" fill="none" stroke="#d79b00" stroke-width="1.3" stroke-dasharray="6 4"/>
+  <polygon points="830,693 821,688.5 821,697.5" fill="#d79b00"/>
+  <rect x="692.0" y="641.4" width="96.0" height="14" fill="#ffffff" opacity="0.92"/>
+  <text x="696.0" y="651.4" font-family="system-ui, 'Segoe UI', Roboto, Arial, sans-serif" font-size="10" fill="#d79b00" text-anchor="start">lessonId — no FK</text>
+  <g>
+    <rect x="40" y="60" width="230" height="66" fill="#ffffff" stroke="#b3b3b3" stroke-width="1.4" stroke-dasharray="5 3"/>
+    <rect x="40" y="60" width="230" height="26" fill="#f0f0f0" stroke="#b3b3b3" stroke-width="1.4" stroke-dasharray="5 3"/>
+    <text x="155" y="72" font-family="system-ui, 'Segoe UI', Roboto, Arial, sans-serif" font-size="12" font-weight="600" fill="#666666" text-anchor="middle">Department</text>
+    <text x="155" y="82" font-family="system-ui, 'Segoe UI', Roboto, Arial, sans-serif" font-size="9" fill="#888888" text-anchor="middle">detail in figure 1</text>
+    <text x="47" y="100" font-family="system-ui, 'Segoe UI', Roboto, Arial, sans-serif" font-size="10.5" fill="#666666" font-weight="600">_id : ObjectId  PK</text>
+    <line x1="40" y1="106" x2="270" y2="106" stroke="#e6e6e6" stroke-width="0.8"/>
+    <text x="47" y="120" font-family="system-ui, 'Segoe UI', Roboto, Arial, sans-serif" font-size="10.5" fill="#666666">semesterCount : Number</text>
+  </g>
+  <g>
+    <rect x="40" y="190" width="280" height="286" fill="#ffffff" stroke="#6c8ebf" stroke-width="1.4"/>
+    <rect x="40" y="190" width="280" height="26" fill="#dae8fc" stroke="#6c8ebf" stroke-width="1.4"/>
+    <text x="180" y="202" font-family="system-ui, 'Segoe UI', Roboto, Arial, sans-serif" font-size="12" font-weight="600" fill="#333333" text-anchor="middle">Course</text>
+    <text x="180" y="212" font-family="system-ui, 'Segoe UI', Roboto, Arial, sans-serif" font-size="9" fill="#5a6b7d" text-anchor="middle">courses</text>
+    <text x="47" y="230" font-family="system-ui, 'Segoe UI', Roboto, Arial, sans-serif" font-size="10.5" fill="#333333" font-weight="600">_id : ObjectId  PK</text>
+    <line x1="40" y1="236" x2="320" y2="236" stroke="#e6e6e6" stroke-width="0.8"/>
+    <text x="47" y="250" font-family="system-ui, 'Segoe UI', Roboto, Arial, sans-serif" font-size="10.5" fill="#333333">title : String</text>
+    <line x1="40" y1="256" x2="320" y2="256" stroke="#e6e6e6" stroke-width="0.8"/>
+    <text x="47" y="270" font-family="system-ui, 'Segoe UI', Roboto, Arial, sans-serif" font-size="10.5" fill="#333333">description : String</text>
+    <line x1="40" y1="276" x2="320" y2="276" stroke="#e6e6e6" stroke-width="0.8"/>
+    <text x="47" y="290" font-family="system-ui, 'Segoe UI', Roboto, Arial, sans-serif" font-size="10.5" fill="#333333">instructor : ObjectId  FK User</text>
+    <line x1="40" y1="296" x2="320" y2="296" stroke="#e6e6e6" stroke-width="0.8"/>
+    <text x="47" y="310" font-family="system-ui, 'Segoe UI', Roboto, Arial, sans-serif" font-size="10.5" fill="#333333">category : String</text>
+    <line x1="40" y1="316" x2="320" y2="316" stroke="#e6e6e6" stroke-width="0.8"/>
+    <text x="47" y="330" font-family="system-ui, 'Segoe UI', Roboto, Arial, sans-serif" font-size="10.5" fill="#333333">difficulty : enum</text>
+    <line x1="40" y1="336" x2="320" y2="336" stroke="#e6e6e6" stroke-width="0.8"/>
+    <text x="47" y="350" font-family="system-ui, 'Segoe UI', Roboto, Arial, sans-serif" font-size="10.5" fill="#333333">departmentId : ObjectId  FK</text>
+    <line x1="40" y1="356" x2="320" y2="356" stroke="#e6e6e6" stroke-width="0.8"/>
+    <text x="47" y="370" font-family="system-ui, 'Segoe UI', Roboto, Arial, sans-serif" font-size="10.5" fill="#333333">semester : Number  1-12</text>
+    <line x1="40" y1="376" x2="320" y2="376" stroke="#e6e6e6" stroke-width="0.8"/>
+    <text x="47" y="390" font-family="system-ui, 'Segoe UI', Roboto, Arial, sans-serif" font-size="10.5" fill="#333333">about : String  Markdown</text>
+    <line x1="40" y1="396" x2="320" y2="396" stroke="#e6e6e6" stroke-width="0.8"/>
+    <text x="47" y="410" font-family="system-ui, 'Segoe UI', Roboto, Arial, sans-serif" font-size="10.5" fill="#333333">icon : String</text>
+    <line x1="40" y1="416" x2="320" y2="416" stroke="#e6e6e6" stroke-width="0.8"/>
+    <text x="47" y="430" font-family="system-ui, 'Segoe UI', Roboto, Arial, sans-serif" font-size="10.5" fill="#333333">modules : ObjectId[]  FK</text>
+    <line x1="40" y1="436" x2="320" y2="436" stroke="#e6e6e6" stroke-width="0.8"/>
+    <text x="47" y="450" font-family="system-ui, 'Segoe UI', Roboto, Arial, sans-serif" font-size="10.5" fill="#333333">enrollmentCount : Number</text>
+    <line x1="40" y1="456" x2="320" y2="456" stroke="#e6e6e6" stroke-width="0.8"/>
+    <text x="47" y="470" font-family="system-ui, 'Segoe UI', Roboto, Arial, sans-serif" font-size="10.5" fill="#333333">isPublished : Boolean</text>
+  </g>
+  <g>
+    <rect x="410" y="720" width="280" height="66" fill="#ffffff" stroke="#b3b3b3" stroke-width="1.4" stroke-dasharray="5 3"/>
+    <rect x="410" y="720" width="280" height="26" fill="#f0f0f0" stroke="#b3b3b3" stroke-width="1.4" stroke-dasharray="5 3"/>
+    <text x="550" y="732" font-family="system-ui, 'Segoe UI', Roboto, Arial, sans-serif" font-size="12" font-weight="600" fill="#666666" text-anchor="middle">User</text>
+    <text x="550" y="742" font-family="system-ui, 'Segoe UI', Roboto, Arial, sans-serif" font-size="9" fill="#888888" text-anchor="middle">detail in figure 1</text>
+    <text x="417" y="760" font-family="system-ui, 'Segoe UI', Roboto, Arial, sans-serif" font-size="10.5" fill="#666666" font-weight="600">_id : ObjectId  PK</text>
+    <line x1="410" y1="766" x2="690" y2="766" stroke="#e6e6e6" stroke-width="0.8"/>
+    <text x="417" y="780" font-family="system-ui, 'Segoe UI', Roboto, Arial, sans-serif" font-size="10.5" fill="#666666">role : enum</text>
+  </g>
+  <g>
+    <rect x="410" y="190" width="280" height="126" fill="#ffffff" stroke="#6c8ebf" stroke-width="1.4"/>
+    <rect x="410" y="190" width="280" height="26" fill="#dae8fc" stroke="#6c8ebf" stroke-width="1.4"/>
+    <text x="550" y="202" font-family="system-ui, 'Segoe UI', Roboto, Arial, sans-serif" font-size="12" font-weight="600" fill="#333333" text-anchor="middle">Module</text>
+    <text x="550" y="212" font-family="system-ui, 'Segoe UI', Roboto, Arial, sans-serif" font-size="9" fill="#5a6b7d" text-anchor="middle">modules</text>
+    <text x="417" y="230" font-family="system-ui, 'Segoe UI', Roboto, Arial, sans-serif" font-size="10.5" fill="#333333" font-weight="600">_id : ObjectId  PK</text>
+    <line x1="410" y1="236" x2="690" y2="236" stroke="#e6e6e6" stroke-width="0.8"/>
+    <text x="417" y="250" font-family="system-ui, 'Segoe UI', Roboto, Arial, sans-serif" font-size="10.5" fill="#333333">courseId : ObjectId  FK</text>
+    <line x1="410" y1="256" x2="690" y2="256" stroke="#e6e6e6" stroke-width="0.8"/>
+    <text x="417" y="270" font-family="system-ui, 'Segoe UI', Roboto, Arial, sans-serif" font-size="10.5" fill="#333333">title : String</text>
+    <line x1="410" y1="276" x2="690" y2="276" stroke="#e6e6e6" stroke-width="0.8"/>
+    <text x="417" y="290" font-family="system-ui, 'Segoe UI', Roboto, Arial, sans-serif" font-size="10.5" fill="#333333">order : Number</text>
+    <line x1="410" y1="296" x2="690" y2="296" stroke="#e6e6e6" stroke-width="0.8"/>
+    <text x="417" y="310" font-family="system-ui, 'Segoe UI', Roboto, Arial, sans-serif" font-size="10.5" fill="#333333">lessons : ObjectId[]  FK</text>
+  </g>
+  <g>
+    <rect x="410" y="380" width="280" height="306" fill="#ffffff" stroke="#6c8ebf" stroke-width="1.4"/>
+    <rect x="410" y="380" width="280" height="26" fill="#dae8fc" stroke="#6c8ebf" stroke-width="1.4"/>
+    <text x="550" y="392" font-family="system-ui, 'Segoe UI', Roboto, Arial, sans-serif" font-size="12" font-weight="600" fill="#333333" text-anchor="middle">Lesson</text>
+    <text x="550" y="402" font-family="system-ui, 'Segoe UI', Roboto, Arial, sans-serif" font-size="9" fill="#5a6b7d" text-anchor="middle">lessons</text>
+    <text x="417" y="420" font-family="system-ui, 'Segoe UI', Roboto, Arial, sans-serif" font-size="10.5" fill="#333333" font-weight="600">_id : ObjectId  PK</text>
+    <line x1="410" y1="426" x2="690" y2="426" stroke="#e6e6e6" stroke-width="0.8"/>
+    <text x="417" y="440" font-family="system-ui, 'Segoe UI', Roboto, Arial, sans-serif" font-size="10.5" fill="#333333">moduleId : ObjectId  FK</text>
+    <line x1="410" y1="446" x2="690" y2="446" stroke="#e6e6e6" stroke-width="0.8"/>
+    <text x="417" y="460" font-family="system-ui, 'Segoe UI', Roboto, Arial, sans-serif" font-size="10.5" fill="#333333">title : String</text>
+    <line x1="410" y1="466" x2="690" y2="466" stroke="#e6e6e6" stroke-width="0.8"/>
+    <text x="417" y="480" font-family="system-ui, 'Segoe UI', Roboto, Arial, sans-serif" font-size="10.5" fill="#333333">type : enum  tutorial|exercise|quiz</text>
+    <line x1="410" y1="486" x2="690" y2="486" stroke="#e6e6e6" stroke-width="0.8"/>
+    <text x="417" y="500" font-family="system-ui, 'Segoe UI', Roboto, Arial, sans-serif" font-size="10.5" fill="#333333">language : enum  javascript|python</text>
+    <line x1="410" y1="506" x2="690" y2="506" stroke="#e6e6e6" stroke-width="0.8"/>
+    <text x="417" y="520" font-family="system-ui, 'Segoe UI', Roboto, Arial, sans-serif" font-size="10.5" fill="#333333">content : String  Markdown</text>
+    <line x1="410" y1="526" x2="690" y2="526" stroke="#e6e6e6" stroke-width="0.8"/>
+    <text x="417" y="540" font-family="system-ui, 'Segoe UI', Roboto, Arial, sans-serif" font-size="10.5" fill="#333333">task : String</text>
+    <line x1="410" y1="546" x2="690" y2="546" stroke="#e6e6e6" stroke-width="0.8"/>
+    <text x="417" y="560" font-family="system-ui, 'Segoe UI', Roboto, Arial, sans-serif" font-size="10.5" fill="#333333">codeTemplate : String</text>
+    <line x1="410" y1="566" x2="690" y2="566" stroke="#e6e6e6" stroke-width="0.8"/>
+    <text x="417" y="580" font-family="system-ui, 'Segoe UI', Roboto, Arial, sans-serif" font-size="10.5" fill="#333333">expectedOutput : String  never sent</text>
+    <line x1="410" y1="586" x2="690" y2="586" stroke="#e6e6e6" stroke-width="0.8"/>
+    <text x="417" y="600" font-family="system-ui, 'Segoe UI', Roboto, Arial, sans-serif" font-size="10.5" fill="#333333">hints : String[]  never sent</text>
+    <line x1="410" y1="606" x2="690" y2="606" stroke="#e6e6e6" stroke-width="0.8"/>
+    <text x="417" y="620" font-family="system-ui, 'Segoe UI', Roboto, Arial, sans-serif" font-size="10.5" fill="#333333">questions : Object[]  quiz only</text>
+    <line x1="410" y1="626" x2="690" y2="626" stroke="#e6e6e6" stroke-width="0.8"/>
+    <text x="417" y="640" font-family="system-ui, 'Segoe UI', Roboto, Arial, sans-serif" font-size="10.5" fill="#333333">passMark : Number</text>
+    <line x1="410" y1="646" x2="690" y2="646" stroke="#e6e6e6" stroke-width="0.8"/>
+    <text x="417" y="660" font-family="system-ui, 'Segoe UI', Roboto, Arial, sans-serif" font-size="10.5" fill="#333333">order : Number</text>
+    <line x1="410" y1="666" x2="690" y2="666" stroke="#e6e6e6" stroke-width="0.8"/>
+    <text x="417" y="680" font-family="system-ui, 'Segoe UI', Roboto, Arial, sans-serif" font-size="10.5" fill="#333333">xpReward : Number</text>
+  </g>
+  <g>
+    <rect x="830" y="60" width="270" height="186" fill="#ffffff" stroke="#6c8ebf" stroke-width="1.4"/>
+    <rect x="830" y="60" width="270" height="26" fill="#dae8fc" stroke="#6c8ebf" stroke-width="1.4"/>
+    <text x="965" y="72" font-family="system-ui, 'Segoe UI', Roboto, Arial, sans-serif" font-size="12" font-weight="600" fill="#333333" text-anchor="middle">Note</text>
+    <text x="965" y="82" font-family="system-ui, 'Segoe UI', Roboto, Arial, sans-serif" font-size="9" fill="#5a6b7d" text-anchor="middle">notes</text>
+    <text x="837" y="100" font-family="system-ui, 'Segoe UI', Roboto, Arial, sans-serif" font-size="10.5" fill="#333333" font-weight="600">_id : ObjectId  PK</text>
+    <line x1="830" y1="106" x2="1100" y2="106" stroke="#e6e6e6" stroke-width="0.8"/>
+    <text x="837" y="120" font-family="system-ui, 'Segoe UI', Roboto, Arial, sans-serif" font-size="10.5" fill="#333333">userId : ObjectId  FK</text>
+    <line x1="830" y1="126" x2="1100" y2="126" stroke="#e6e6e6" stroke-width="0.8"/>
+    <text x="837" y="140" font-family="system-ui, 'Segoe UI', Roboto, Arial, sans-serif" font-size="10.5" fill="#333333">scope : enum  lesson|module</text>
+    <line x1="830" y1="146" x2="1100" y2="146" stroke="#e6e6e6" stroke-width="0.8"/>
+    <text x="837" y="160" font-family="system-ui, 'Segoe UI', Roboto, Arial, sans-serif" font-size="10.5" fill="#333333">targetId : ObjectId</text>
+    <line x1="830" y1="166" x2="1100" y2="166" stroke="#e6e6e6" stroke-width="0.8"/>
+    <text x="837" y="180" font-family="system-ui, 'Segoe UI', Roboto, Arial, sans-serif" font-size="10.5" fill="#333333">courseId : ObjectId  FK</text>
+    <line x1="830" y1="186" x2="1100" y2="186" stroke="#e6e6e6" stroke-width="0.8"/>
+    <text x="837" y="200" font-family="system-ui, 'Segoe UI', Roboto, Arial, sans-serif" font-size="10.5" fill="#333333">moduleId : ObjectId  FK</text>
+    <line x1="830" y1="206" x2="1100" y2="206" stroke="#e6e6e6" stroke-width="0.8"/>
+    <text x="837" y="220" font-family="system-ui, 'Segoe UI', Roboto, Arial, sans-serif" font-size="10.5" fill="#333333">lessonId : ObjectId  FK</text>
+    <line x1="830" y1="226" x2="1100" y2="226" stroke="#e6e6e6" stroke-width="0.8"/>
+    <text x="837" y="240" font-family="system-ui, 'Segoe UI', Roboto, Arial, sans-serif" font-size="10.5" fill="#333333">body : String  plain text</text>
+  </g>
+  <g>
+    <rect x="830" y="300" width="270" height="206" fill="#ffffff" stroke="#6c8ebf" stroke-width="1.4"/>
+    <rect x="830" y="300" width="270" height="26" fill="#dae8fc" stroke="#6c8ebf" stroke-width="1.4"/>
+    <text x="965" y="312" font-family="system-ui, 'Segoe UI', Roboto, Arial, sans-serif" font-size="12" font-weight="600" fill="#333333" text-anchor="middle">Message</text>
+    <text x="965" y="322" font-family="system-ui, 'Segoe UI', Roboto, Arial, sans-serif" font-size="9" fill="#5a6b7d" text-anchor="middle">messages</text>
+    <text x="837" y="340" font-family="system-ui, 'Segoe UI', Roboto, Arial, sans-serif" font-size="10.5" fill="#333333" font-weight="600">_id : ObjectId  PK</text>
+    <line x1="830" y1="346" x2="1100" y2="346" stroke="#e6e6e6" stroke-width="0.8"/>
+    <text x="837" y="360" font-family="system-ui, 'Segoe UI', Roboto, Arial, sans-serif" font-size="10.5" fill="#333333">courseId : ObjectId  FK</text>
+    <line x1="830" y1="366" x2="1100" y2="366" stroke="#e6e6e6" stroke-width="0.8"/>
+    <text x="837" y="380" font-family="system-ui, 'Segoe UI', Roboto, Arial, sans-serif" font-size="10.5" fill="#333333">studentId : ObjectId  FK</text>
+    <line x1="830" y1="386" x2="1100" y2="386" stroke="#e6e6e6" stroke-width="0.8"/>
+    <text x="837" y="400" font-family="system-ui, 'Segoe UI', Roboto, Arial, sans-serif" font-size="10.5" fill="#333333">instructorId : ObjectId  FK</text>
+    <line x1="830" y1="406" x2="1100" y2="406" stroke="#e6e6e6" stroke-width="0.8"/>
+    <text x="837" y="420" font-family="system-ui, 'Segoe UI', Roboto, Arial, sans-serif" font-size="10.5" fill="#333333">senderId : ObjectId  FK</text>
+    <line x1="830" y1="426" x2="1100" y2="426" stroke="#e6e6e6" stroke-width="0.8"/>
+    <text x="837" y="440" font-family="system-ui, 'Segoe UI', Roboto, Arial, sans-serif" font-size="10.5" fill="#333333">senderRole : enum</text>
+    <line x1="830" y1="446" x2="1100" y2="446" stroke="#e6e6e6" stroke-width="0.8"/>
+    <text x="837" y="460" font-family="system-ui, 'Segoe UI', Roboto, Arial, sans-serif" font-size="10.5" fill="#333333">lessonId : ObjectId  FK</text>
+    <line x1="830" y1="466" x2="1100" y2="466" stroke="#e6e6e6" stroke-width="0.8"/>
+    <text x="837" y="480" font-family="system-ui, 'Segoe UI', Roboto, Arial, sans-serif" font-size="10.5" fill="#333333">body : String  plain text</text>
+    <line x1="830" y1="486" x2="1100" y2="486" stroke="#e6e6e6" stroke-width="0.8"/>
+    <text x="837" y="500" font-family="system-ui, 'Segoe UI', Roboto, Arial, sans-serif" font-size="10.5" fill="#333333">readAt : Date</text>
+  </g>
+  <g>
+    <rect x="830" y="550" width="270" height="286" fill="#ffffff" stroke="#d79b00" stroke-width="1.4"/>
+    <rect x="830" y="550" width="270" height="26" fill="#ffe6cc" stroke="#d79b00" stroke-width="1.4"/>
+    <text x="965" y="562" font-family="system-ui, 'Segoe UI', Roboto, Arial, sans-serif" font-size="12" font-weight="600" fill="#333333" text-anchor="middle">progress</text>
+    <text x="965" y="572" font-family="system-ui, 'Segoe UI', Roboto, Arial, sans-serif" font-size="9" fill="#5a6b7d" text-anchor="middle">DynamoDB  learncode_progress</text>
+    <text x="837" y="590" font-family="system-ui, 'Segoe UI', Roboto, Arial, sans-serif" font-size="10.5" fill="#333333" font-weight="600">userId : String  PARTITION KEY</text>
+    <line x1="830" y1="596" x2="1100" y2="596" stroke="#e6e6e6" stroke-width="0.8"/>
+    <text x="837" y="610" font-family="system-ui, 'Segoe UI', Roboto, Arial, sans-serif" font-size="10.5" fill="#333333" font-weight="600">lessonId : String  SORT KEY</text>
+    <line x1="830" y1="616" x2="1100" y2="616" stroke="#e6e6e6" stroke-width="0.8"/>
+    <text x="837" y="630" font-family="system-ui, 'Segoe UI', Roboto, Arial, sans-serif" font-size="10.5" fill="#333333">status : in_progress|completed</text>
+    <line x1="830" y1="636" x2="1100" y2="636" stroke="#e6e6e6" stroke-width="0.8"/>
+    <text x="837" y="650" font-family="system-ui, 'Segoe UI', Roboto, Arial, sans-serif" font-size="10.5" fill="#333333">attempts : Number  submits only</text>
+    <line x1="830" y1="656" x2="1100" y2="656" stroke="#e6e6e6" stroke-width="0.8"/>
+    <text x="837" y="670" font-family="system-ui, 'Segoe UI', Roboto, Arial, sans-serif" font-size="10.5" fill="#333333">score : Number</text>
+    <line x1="830" y1="676" x2="1100" y2="676" stroke="#e6e6e6" stroke-width="0.8"/>
+    <text x="837" y="690" font-family="system-ui, 'Segoe UI', Roboto, Arial, sans-serif" font-size="10.5" fill="#333333">timeSpent : Number  seconds</text>
+    <line x1="830" y1="696" x2="1100" y2="696" stroke="#e6e6e6" stroke-width="0.8"/>
+    <text x="837" y="710" font-family="system-ui, 'Segoe UI', Roboto, Arial, sans-serif" font-size="10.5" fill="#333333">hintsUsed : Number</text>
+    <line x1="830" y1="716" x2="1100" y2="716" stroke="#e6e6e6" stroke-width="0.8"/>
+    <text x="837" y="730" font-family="system-ui, 'Segoe UI', Roboto, Arial, sans-serif" font-size="10.5" fill="#333333">codeSubmissions : Object[]  capped</text>
+    <line x1="830" y1="736" x2="1100" y2="736" stroke="#e6e6e6" stroke-width="0.8"/>
+    <text x="837" y="750" font-family="system-ui, 'Segoe UI', Roboto, Arial, sans-serif" font-size="10.5" fill="#333333">startedAt : ISO String</text>
+    <line x1="830" y1="756" x2="1100" y2="756" stroke="#e6e6e6" stroke-width="0.8"/>
+    <text x="837" y="770" font-family="system-ui, 'Segoe UI', Roboto, Arial, sans-serif" font-size="10.5" fill="#333333">completedAt : ISO String</text>
+    <line x1="830" y1="776" x2="1100" y2="776" stroke="#e6e6e6" stroke-width="0.8"/>
+    <text x="837" y="790" font-family="system-ui, 'Segoe UI', Roboto, Arial, sans-serif" font-size="10.5" fill="#333333">runs : Number</text>
+    <line x1="830" y1="796" x2="1100" y2="796" stroke="#e6e6e6" stroke-width="0.8"/>
+    <text x="837" y="810" font-family="system-ui, 'Segoe UI', Roboto, Arial, sans-serif" font-size="10.5" fill="#333333">questionsAsked : Number</text>
+    <line x1="830" y1="816" x2="1100" y2="816" stroke="#e6e6e6" stroke-width="0.8"/>
+    <text x="837" y="830" font-family="system-ui, 'Segoe UI', Roboto, Arial, sans-serif" font-size="10.5" fill="#333333">noteUpdatedAt : ISO String</text>
+  </g>
+  <rect x="1150" y="60" width="270" height="122" fill="#f9f9f9" stroke="#999999" stroke-width="1.2"/>
+  <text x="1285" y="77" font-family="system-ui, 'Segoe UI', Roboto, Arial, sans-serif" font-size="11" font-weight="600" fill="#333333" text-anchor="middle">Legend</text>
+  <rect x="1158" y="93" width="13" height="10" fill="#dae8fc" stroke="#6c8ebf" stroke-width="1.2"/>
+  <text x="1178" y="102" font-family="system-ui, 'Segoe UI', Roboto, Arial, sans-serif" font-size="10" fill="#333333">MongoDB Atlas — content</text>
+  <rect x="1158" y="117" width="13" height="10" fill="#ffe6cc" stroke="#d79b00" stroke-width="1.2"/>
+  <text x="1178" y="126" font-family="system-ui, 'Segoe UI', Roboto, Arial, sans-serif" font-size="10" fill="#333333">DynamoDB — high-throughput events</text>
+  <rect x="1158" y="141" width="13" height="10" fill="#f0f0f0" stroke="#b3b3b3" stroke-width="1.2" stroke-dasharray="3 2"/>
+  <text x="1178" y="150" font-family="system-ui, 'Segoe UI', Roboto, Arial, sans-serif" font-size="10" fill="#333333">stub — full definition in figure 1</text>
+  <rect x="1158" y="165" width="13" height="10" fill="#ffffff" stroke="#d79b00" stroke-width="1.2" stroke-dasharray="3 2"/>
+  <text x="1178" y="174" font-family="system-ui, 'Segoe UI', Roboto, Arial, sans-serif" font-size="10" fill="#333333">dashed — id carried across stores</text>
+</svg>

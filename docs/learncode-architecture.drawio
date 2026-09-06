@@ -1,12 +1,15 @@
 <mxfile host="app.diagrams.net" type="device">
   <diagram id="data-people" name="1. Data model — people">
-    <mxGraphModel dx="1200" dy="800" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1000" pageHeight="560" math="0" shadow="0">
+    <mxGraphModel dx="1200" dy="800" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1080" pageHeight="570" math="0" shadow="0">
       <root>
         <mxCell id="0" />
         <mxCell id="1" parent="0" />
+        <mxCell id="data-people-title" value="LearnCode data model — people and institution" style="text;html=1;fontSize=16;fontStyle=1;align=left;verticalAlign=middle;strokeColor=none;fillColor=none;" vertex="1" parent="1">
+          <mxGeometry x="40" y="14" width="700" height="30" as="geometry" />
+        </mxCell>
         <mxCell id="university" value="University
 universities" style="swimlane;html=1;fontStyle=1;childLayout=stackLayout;horizontal=1;startSize=26;horizontalStack=0;resizeParent=0;resizeLast=0;collapsible=0;marginBottom=0;whiteSpace=wrap;fillColor=#dae8fc;strokeColor=#6c8ebf;align=center;verticalAlign=middle;fontSize=12;" vertex="1" parent="1">
-          <mxGeometry x="40" y="40" width="250" height="86" as="geometry" />
+          <mxGeometry x="40" y="60" width="250" height="86" as="geometry" />
         </mxCell>
         <mxCell id="university-f0" value="_id : ObjectId  PK" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;spacingLeft=6;spacingRight=6;overflow=hidden;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;rotatable=0;whiteSpace=wrap;fontSize=11;fontStyle=1;" vertex="1" parent="university">
           <mxGeometry y="26" width="250" height="20" as="geometry" />
@@ -19,7 +22,7 @@ universities" style="swimlane;html=1;fontStyle=1;childLayout=stackLayout;horizon
         </mxCell>
         <mxCell id="department" value="Department
 departments" style="swimlane;html=1;fontStyle=1;childLayout=stackLayout;horizontal=1;startSize=26;horizontalStack=0;resizeParent=0;resizeLast=0;collapsible=0;marginBottom=0;whiteSpace=wrap;fillColor=#dae8fc;strokeColor=#6c8ebf;align=center;verticalAlign=middle;fontSize=12;" vertex="1" parent="1">
-          <mxGeometry x="40" y="175" width="250" height="126" as="geometry" />
+          <mxGeometry x="40" y="195" width="250" height="126" as="geometry" />
         </mxCell>
         <mxCell id="department-f0" value="_id : ObjectId  PK" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;spacingLeft=6;spacingRight=6;overflow=hidden;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;rotatable=0;whiteSpace=wrap;fontSize=11;fontStyle=1;" vertex="1" parent="department">
           <mxGeometry y="26" width="250" height="20" as="geometry" />
@@ -38,7 +41,7 @@ departments" style="swimlane;html=1;fontStyle=1;childLayout=stackLayout;horizont
         </mxCell>
         <mxCell id="badge" value="Badge
 badges" style="swimlane;html=1;fontStyle=1;childLayout=stackLayout;horizontal=1;startSize=26;horizontalStack=0;resizeParent=0;resizeLast=0;collapsible=0;marginBottom=0;whiteSpace=wrap;fillColor=#dae8fc;strokeColor=#6c8ebf;align=center;verticalAlign=middle;fontSize=12;" vertex="1" parent="1">
-          <mxGeometry x="40" y="350" width="250" height="166" as="geometry" />
+          <mxGeometry x="40" y="370" width="250" height="166" as="geometry" />
         </mxCell>
         <mxCell id="badge-f0" value="_id : ObjectId  PK" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;spacingLeft=6;spacingRight=6;overflow=hidden;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;rotatable=0;whiteSpace=wrap;fontSize=11;fontStyle=1;" vertex="1" parent="badge">
           <mxGeometry y="26" width="250" height="20" as="geometry" />
@@ -63,7 +66,7 @@ badges" style="swimlane;html=1;fontStyle=1;childLayout=stackLayout;horizontal=1;
         </mxCell>
         <mxCell id="user" value="User
 users" style="swimlane;html=1;fontStyle=1;childLayout=stackLayout;horizontal=1;startSize=26;horizontalStack=0;resizeParent=0;resizeLast=0;collapsible=0;marginBottom=0;whiteSpace=wrap;fillColor=#dae8fc;strokeColor=#6c8ebf;align=center;verticalAlign=middle;fontSize=12;" vertex="1" parent="1">
-          <mxGeometry x="350" y="40" width="290" height="446" as="geometry" />
+          <mxGeometry x="390" y="60" width="290" height="446" as="geometry" />
         </mxCell>
         <mxCell id="user-f0" value="_id : ObjectId  PK" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;spacingLeft=6;spacingRight=6;overflow=hidden;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;rotatable=0;whiteSpace=wrap;fontSize=11;fontStyle=1;" vertex="1" parent="user">
           <mxGeometry y="26" width="290" height="20" as="geometry" />
@@ -129,8 +132,8 @@ users" style="swimlane;html=1;fontStyle=1;childLayout=stackLayout;horizontal=1;s
           <mxGeometry y="426" width="290" height="20" as="geometry" />
         </mxCell>
         <mxCell id="course_stub" value="Course
-detail in figure 2" style="swimlane;html=1;fontStyle=1;childLayout=stackLayout;horizontal=1;startSize=26;horizontalStack=0;resizeParent=0;resizeLast=0;collapsible=0;marginBottom=0;whiteSpace=wrap;fillColor=#f5f5f5;strokeColor=#b3b3b3;align=center;verticalAlign=middle;fontSize=12;dashed=1;fontColor=#666666;" vertex="1" parent="1">
-          <mxGeometry x="710" y="150" width="230" height="86" as="geometry" />
+detail in figure 2" style="swimlane;html=1;fontStyle=1;childLayout=stackLayout;horizontal=1;startSize=26;horizontalStack=0;resizeParent=0;resizeLast=0;collapsible=0;marginBottom=0;whiteSpace=wrap;fillColor=#f0f0f0;strokeColor=#b3b3b3;align=center;verticalAlign=middle;fontSize=12;dashed=1;fontColor=#666666;" vertex="1" parent="1">
+          <mxGeometry x="790" y="170" width="230" height="86" as="geometry" />
         </mxCell>
         <mxCell id="course_stub-f0" value="_id : ObjectId  PK" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;spacingLeft=6;spacingRight=6;overflow=hidden;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;rotatable=0;whiteSpace=wrap;fontSize=11;fontStyle=1;fontColor=#666666;" vertex="1" parent="course_stub">
           <mxGeometry y="26" width="230" height="20" as="geometry" />
@@ -141,50 +144,50 @@ detail in figure 2" style="swimlane;html=1;fontStyle=1;childLayout=stackLayout;h
         <mxCell id="course_stub-f2" value="departmentId : ObjectId  FK" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;spacingLeft=6;spacingRight=6;overflow=hidden;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;rotatable=0;whiteSpace=wrap;fontSize=11;fontColor=#666666;" vertex="1" parent="course_stub">
           <mxGeometry y="66" width="230" height="20" as="geometry" />
         </mxCell>
-        <mxCell id="p1r1" value="has 1..N" style="edgeStyle=entityRelationEdgeStyle;html=1;rounded=0;exitX=1;exitY=0.5;entryX=0;entryY=0.5;fontSize=10;endArrow=ERmany;startArrow=ERone;strokeColor=#4d4d4d;" edge="1" parent="1" source="university" target="department">
+        <mxCell id="data-people-r0" value="has 1..N" style="edgeStyle=entityRelationEdgeStyle;html=1;rounded=0;exitX=1;exitY=0.5;entryX=0;entryY=0.5;fontSize=10;endArrow=ERmany;startArrow=ERone;strokeColor=#4d4d4d;" edge="1" parent="1" source="university" target="department">
           <mxGeometry relative="1" as="geometry" />
         </mxCell>
-        <mxCell id="p1r2" value="places 1..N" style="edgeStyle=entityRelationEdgeStyle;html=1;rounded=0;exitX=1;exitY=0.5;entryX=0;entryY=0.5;fontSize=10;endArrow=ERmany;startArrow=ERone;strokeColor=#4d4d4d;" edge="1" parent="1" source="department" target="user">
+        <mxCell id="data-people-r1" value="places 1..N" style="edgeStyle=entityRelationEdgeStyle;html=1;rounded=0;exitX=1;exitY=0.5;entryX=0;entryY=0.5;fontSize=10;endArrow=ERmany;startArrow=ERone;strokeColor=#4d4d4d;" edge="1" parent="1" source="department" target="user">
           <mxGeometry relative="1" as="geometry" />
         </mxCell>
-        <mxCell id="p1r3" value="earned by N..N" style="edgeStyle=entityRelationEdgeStyle;html=1;rounded=0;exitX=1;exitY=0.5;entryX=0;entryY=0.5;fontSize=10;endArrow=ERmany;startArrow=ERone;strokeColor=#4d4d4d;" edge="1" parent="1" source="badge" target="user">
+        <mxCell id="data-people-r2" value="earns N..N" style="edgeStyle=entityRelationEdgeStyle;html=1;rounded=0;exitX=1;exitY=0.5;entryX=0;entryY=0.5;fontSize=10;endArrow=ERmany;startArrow=ERone;strokeColor=#4d4d4d;" edge="1" parent="1" source="badge" target="user">
           <mxGeometry relative="1" as="geometry" />
         </mxCell>
-        <mxCell id="p1r4" value="instructs 1..N" style="edgeStyle=entityRelationEdgeStyle;html=1;rounded=0;exitX=1;exitY=0.25;entryX=0;entryY=0.25;fontSize=10;endArrow=ERmany;startArrow=ERone;strokeColor=#4d4d4d;" edge="1" parent="1" source="user" target="course_stub">
+        <mxCell id="data-people-r3" value="teaches 1..N" style="edgeStyle=entityRelationEdgeStyle;html=1;rounded=0;exitX=1;exitY=0.25;entryX=0;entryY=0.25;fontSize=10;endArrow=ERmany;startArrow=ERone;strokeColor=#4d4d4d;" edge="1" parent="1" source="user" target="course_stub">
           <mxGeometry relative="1" as="geometry" />
         </mxCell>
-        <mxCell id="p1r5" value="enrols in N..N" style="edgeStyle=entityRelationEdgeStyle;html=1;rounded=0;exitX=1;exitY=0.75;entryX=0;entryY=0.75;fontSize=10;endArrow=ERmany;startArrow=ERone;strokeColor=#4d4d4d;" edge="1" parent="1" source="user" target="course_stub">
+        <mxCell id="data-people-r4" value="enrols N..N" style="edgeStyle=entityRelationEdgeStyle;html=1;rounded=0;exitX=1;exitY=0.75;entryX=0;entryY=0.75;fontSize=10;endArrow=ERmany;startArrow=ERone;strokeColor=#4d4d4d;" edge="1" parent="1" source="user" target="course_stub">
           <mxGeometry relative="1" as="geometry" />
         </mxCell>
-        <mxCell id="p1legend" value="Legend" style="swimlane;html=1;fontStyle=1;startSize=26;collapsible=0;fillColor=#f9f9f9;strokeColor=#999999;whiteSpace=wrap;fontSize=11;" vertex="1" parent="1">
-          <mxGeometry x="710" y="380" width="270" height="74" as="geometry" />
+        <mxCell id="data-people-legend" value="Legend" style="swimlane;html=1;fontStyle=1;startSize=26;collapsible=0;fillColor=#f9f9f9;strokeColor=#999999;whiteSpace=wrap;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="790" y="400" width="270" height="74" as="geometry" />
         </mxCell>
-        <mxCell id="p1legend-t0" value="MongoDB Atlas — content and user state" style="text;html=1;align=left;verticalAlign=middle;spacingLeft=24;fontSize=10;fillColor=none;strokeColor=none;" vertex="1" parent="p1legend">
+        <mxCell id="data-people-lt0" value="MongoDB Atlas — content and user state" style="text;html=1;align=left;verticalAlign=middle;spacingLeft=24;fontSize=10;fillColor=none;strokeColor=none;" vertex="1" parent="data-people-legend">
           <mxGeometry y="26" width="270" height="24" as="geometry" />
         </mxCell>
-        <mxCell id="p1legend-s0" value="" style="rounded=0;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;" vertex="1" parent="p1legend">
+        <mxCell id="data-people-ls0" value="" style="rounded=0;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;" vertex="1" parent="data-people-legend">
           <mxGeometry x="6" y="33" width="13" height="10" as="geometry" />
         </mxCell>
-        <mxCell id="p1legend-t1" value="stub — full definition on another page" style="text;html=1;align=left;verticalAlign=middle;spacingLeft=24;fontSize=10;fillColor=none;strokeColor=none;" vertex="1" parent="p1legend">
+        <mxCell id="data-people-lt1" value="stub — full definition in figure 2" style="text;html=1;align=left;verticalAlign=middle;spacingLeft=24;fontSize=10;fillColor=none;strokeColor=none;" vertex="1" parent="data-people-legend">
           <mxGeometry y="50" width="270" height="24" as="geometry" />
         </mxCell>
-        <mxCell id="p1legend-s1" value="" style="rounded=0;html=1;fillColor=#f5f5f5;strokeColor=#b3b3b3;dashed=1;" vertex="1" parent="p1legend">
+        <mxCell id="data-people-ls1" value="" style="rounded=0;html=1;fillColor=#f0f0f0;strokeColor=#b3b3b3;dashed=1;" vertex="1" parent="data-people-legend">
           <mxGeometry x="6" y="57" width="13" height="10" as="geometry" />
-        </mxCell>
-        <mxCell id="p1title" value="LearnCode data model — people and institution" style="text;html=1;fontSize=16;fontStyle=1;align=left;verticalAlign=middle;strokeColor=none;fillColor=none;" vertex="1" parent="1">
-          <mxGeometry x="40" y="0" width="600" height="30" as="geometry" />
         </mxCell>
       </root>
     </mxGraphModel>
   </diagram>
   <diagram id="data-content" name="2. Data model — content">
-    <mxGraphModel dx="1200" dy="800" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1360" pageHeight="830" math="0" shadow="0">
+    <mxGraphModel dx="1200" dy="800" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1460" pageHeight="860" math="0" shadow="0">
       <root>
         <mxCell id="0" />
         <mxCell id="1" parent="0" />
+        <mxCell id="data-content-title" value="LearnCode data model — content and progress" style="text;html=1;fontSize=16;fontStyle=1;align=left;verticalAlign=middle;strokeColor=none;fillColor=none;" vertex="1" parent="1">
+          <mxGeometry x="40" y="14" width="700" height="30" as="geometry" />
+        </mxCell>
         <mxCell id="dept_stub" value="Department
-detail in figure 1" style="swimlane;html=1;fontStyle=1;childLayout=stackLayout;horizontal=1;startSize=26;horizontalStack=0;resizeParent=0;resizeLast=0;collapsible=0;marginBottom=0;whiteSpace=wrap;fillColor=#f5f5f5;strokeColor=#b3b3b3;align=center;verticalAlign=middle;fontSize=12;dashed=1;fontColor=#666666;" vertex="1" parent="1">
-          <mxGeometry x="40" y="40" width="230" height="66" as="geometry" />
+detail in figure 1" style="swimlane;html=1;fontStyle=1;childLayout=stackLayout;horizontal=1;startSize=26;horizontalStack=0;resizeParent=0;resizeLast=0;collapsible=0;marginBottom=0;whiteSpace=wrap;fillColor=#f0f0f0;strokeColor=#b3b3b3;align=center;verticalAlign=middle;fontSize=12;dashed=1;fontColor=#666666;" vertex="1" parent="1">
+          <mxGeometry x="40" y="60" width="230" height="66" as="geometry" />
         </mxCell>
         <mxCell id="dept_stub-f0" value="_id : ObjectId  PK" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;spacingLeft=6;spacingRight=6;overflow=hidden;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;rotatable=0;whiteSpace=wrap;fontSize=11;fontStyle=1;fontColor=#666666;" vertex="1" parent="dept_stub">
           <mxGeometry y="26" width="230" height="20" as="geometry" />
@@ -194,7 +197,7 @@ detail in figure 1" style="swimlane;html=1;fontStyle=1;childLayout=stackLayout;h
         </mxCell>
         <mxCell id="course" value="Course
 courses" style="swimlane;html=1;fontStyle=1;childLayout=stackLayout;horizontal=1;startSize=26;horizontalStack=0;resizeParent=0;resizeLast=0;collapsible=0;marginBottom=0;whiteSpace=wrap;fillColor=#dae8fc;strokeColor=#6c8ebf;align=center;verticalAlign=middle;fontSize=12;" vertex="1" parent="1">
-          <mxGeometry x="40" y="160" width="280" height="286" as="geometry" />
+          <mxGeometry x="40" y="190" width="280" height="286" as="geometry" />
         </mxCell>
         <mxCell id="course-f0" value="_id : ObjectId  PK" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;spacingLeft=6;spacingRight=6;overflow=hidden;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;rotatable=0;whiteSpace=wrap;fontSize=11;fontStyle=1;" vertex="1" parent="course">
           <mxGeometry y="26" width="280" height="20" as="geometry" />
@@ -236,18 +239,18 @@ courses" style="swimlane;html=1;fontStyle=1;childLayout=stackLayout;horizontal=1
           <mxGeometry y="266" width="280" height="20" as="geometry" />
         </mxCell>
         <mxCell id="user_stub" value="User
-detail in figure 1" style="swimlane;html=1;fontStyle=1;childLayout=stackLayout;horizontal=1;startSize=26;horizontalStack=0;resizeParent=0;resizeLast=0;collapsible=0;marginBottom=0;whiteSpace=wrap;fillColor=#f5f5f5;strokeColor=#b3b3b3;align=center;verticalAlign=middle;fontSize=12;dashed=1;fontColor=#666666;" vertex="1" parent="1">
-          <mxGeometry x="40" y="500" width="230" height="66" as="geometry" />
+detail in figure 1" style="swimlane;html=1;fontStyle=1;childLayout=stackLayout;horizontal=1;startSize=26;horizontalStack=0;resizeParent=0;resizeLast=0;collapsible=0;marginBottom=0;whiteSpace=wrap;fillColor=#f0f0f0;strokeColor=#b3b3b3;align=center;verticalAlign=middle;fontSize=12;dashed=1;fontColor=#666666;" vertex="1" parent="1">
+          <mxGeometry x="410" y="720" width="280" height="66" as="geometry" />
         </mxCell>
         <mxCell id="user_stub-f0" value="_id : ObjectId  PK" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;spacingLeft=6;spacingRight=6;overflow=hidden;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;rotatable=0;whiteSpace=wrap;fontSize=11;fontStyle=1;fontColor=#666666;" vertex="1" parent="user_stub">
-          <mxGeometry y="26" width="230" height="20" as="geometry" />
+          <mxGeometry y="26" width="280" height="20" as="geometry" />
         </mxCell>
         <mxCell id="user_stub-f1" value="role : enum" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;spacingLeft=6;spacingRight=6;overflow=hidden;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;rotatable=0;whiteSpace=wrap;fontSize=11;fontColor=#666666;" vertex="1" parent="user_stub">
-          <mxGeometry y="46" width="230" height="20" as="geometry" />
+          <mxGeometry y="46" width="280" height="20" as="geometry" />
         </mxCell>
         <mxCell id="module" value="Module
 modules" style="swimlane;html=1;fontStyle=1;childLayout=stackLayout;horizontal=1;startSize=26;horizontalStack=0;resizeParent=0;resizeLast=0;collapsible=0;marginBottom=0;whiteSpace=wrap;fillColor=#dae8fc;strokeColor=#6c8ebf;align=center;verticalAlign=middle;fontSize=12;" vertex="1" parent="1">
-          <mxGeometry x="390" y="160" width="280" height="126" as="geometry" />
+          <mxGeometry x="410" y="190" width="280" height="126" as="geometry" />
         </mxCell>
         <mxCell id="module-f0" value="_id : ObjectId  PK" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;spacingLeft=6;spacingRight=6;overflow=hidden;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;rotatable=0;whiteSpace=wrap;fontSize=11;fontStyle=1;" vertex="1" parent="module">
           <mxGeometry y="26" width="280" height="20" as="geometry" />
@@ -266,7 +269,7 @@ modules" style="swimlane;html=1;fontStyle=1;childLayout=stackLayout;horizontal=1
         </mxCell>
         <mxCell id="lesson" value="Lesson
 lessons" style="swimlane;html=1;fontStyle=1;childLayout=stackLayout;horizontal=1;startSize=26;horizontalStack=0;resizeParent=0;resizeLast=0;collapsible=0;marginBottom=0;whiteSpace=wrap;fillColor=#dae8fc;strokeColor=#6c8ebf;align=center;verticalAlign=middle;fontSize=12;" vertex="1" parent="1">
-          <mxGeometry x="390" y="340" width="280" height="306" as="geometry" />
+          <mxGeometry x="410" y="380" width="280" height="306" as="geometry" />
         </mxCell>
         <mxCell id="lesson-f0" value="_id : ObjectId  PK" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;spacingLeft=6;spacingRight=6;overflow=hidden;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;rotatable=0;whiteSpace=wrap;fontSize=11;fontStyle=1;" vertex="1" parent="lesson">
           <mxGeometry y="26" width="280" height="20" as="geometry" />
@@ -312,7 +315,7 @@ lessons" style="swimlane;html=1;fontStyle=1;childLayout=stackLayout;horizontal=1
         </mxCell>
         <mxCell id="note" value="Note
 notes" style="swimlane;html=1;fontStyle=1;childLayout=stackLayout;horizontal=1;startSize=26;horizontalStack=0;resizeParent=0;resizeLast=0;collapsible=0;marginBottom=0;whiteSpace=wrap;fillColor=#dae8fc;strokeColor=#6c8ebf;align=center;verticalAlign=middle;fontSize=12;" vertex="1" parent="1">
-          <mxGeometry x="750" y="40" width="270" height="186" as="geometry" />
+          <mxGeometry x="830" y="60" width="270" height="186" as="geometry" />
         </mxCell>
         <mxCell id="note-f0" value="_id : ObjectId  PK" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;spacingLeft=6;spacingRight=6;overflow=hidden;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;rotatable=0;whiteSpace=wrap;fontSize=11;fontStyle=1;" vertex="1" parent="note">
           <mxGeometry y="26" width="270" height="20" as="geometry" />
@@ -340,7 +343,7 @@ notes" style="swimlane;html=1;fontStyle=1;childLayout=stackLayout;horizontal=1;s
         </mxCell>
         <mxCell id="message" value="Message
 messages" style="swimlane;html=1;fontStyle=1;childLayout=stackLayout;horizontal=1;startSize=26;horizontalStack=0;resizeParent=0;resizeLast=0;collapsible=0;marginBottom=0;whiteSpace=wrap;fillColor=#dae8fc;strokeColor=#6c8ebf;align=center;verticalAlign=middle;fontSize=12;" vertex="1" parent="1">
-          <mxGeometry x="750" y="270" width="270" height="206" as="geometry" />
+          <mxGeometry x="830" y="300" width="270" height="206" as="geometry" />
         </mxCell>
         <mxCell id="message-f0" value="_id : ObjectId  PK" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;spacingLeft=6;spacingRight=6;overflow=hidden;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;rotatable=0;whiteSpace=wrap;fontSize=11;fontStyle=1;" vertex="1" parent="message">
           <mxGeometry y="26" width="270" height="20" as="geometry" />
@@ -371,7 +374,7 @@ messages" style="swimlane;html=1;fontStyle=1;childLayout=stackLayout;horizontal=
         </mxCell>
         <mxCell id="progress" value="progress
 DynamoDB  learncode_progress" style="swimlane;html=1;fontStyle=1;childLayout=stackLayout;horizontal=1;startSize=26;horizontalStack=0;resizeParent=0;resizeLast=0;collapsible=0;marginBottom=0;whiteSpace=wrap;fillColor=#ffe6cc;strokeColor=#d79b00;align=center;verticalAlign=middle;fontSize=12;" vertex="1" parent="1">
-          <mxGeometry x="750" y="520" width="270" height="286" as="geometry" />
+          <mxGeometry x="830" y="550" width="270" height="286" as="geometry" />
         </mxCell>
         <mxCell id="progress-f0" value="userId : String  PARTITION KEY" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;spacingLeft=6;spacingRight=6;overflow=hidden;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;rotatable=0;whiteSpace=wrap;fontSize=11;fontStyle=1;" vertex="1" parent="progress">
           <mxGeometry y="26" width="270" height="20" as="geometry" />
@@ -412,193 +415,186 @@ DynamoDB  learncode_progress" style="swimlane;html=1;fontStyle=1;childLayout=sta
         <mxCell id="progress-f12" value="noteUpdatedAt : ISO String" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;spacingLeft=6;spacingRight=6;overflow=hidden;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;rotatable=0;whiteSpace=wrap;fontSize=11;" vertex="1" parent="progress">
           <mxGeometry y="266" width="270" height="20" as="geometry" />
         </mxCell>
-        <mxCell id="p2r1" value="owns 1..N" style="edgeStyle=entityRelationEdgeStyle;html=1;rounded=0;exitX=1;exitY=0.5;entryX=0;entryY=0.5;fontSize=10;endArrow=ERmany;startArrow=ERone;strokeColor=#4d4d4d;" edge="1" parent="1" source="dept_stub" target="course">
+        <mxCell id="data-content-r0" value="owns 1..N" style="edgeStyle=entityRelationEdgeStyle;html=1;rounded=0;exitX=1;exitY=0.5;entryX=0;entryY=0.5;fontSize=10;endArrow=ERmany;startArrow=ERone;strokeColor=#4d4d4d;" edge="1" parent="1" source="dept_stub" target="course">
           <mxGeometry relative="1" as="geometry" />
         </mxCell>
-        <mxCell id="p2r2" value="ordered 1..N" style="edgeStyle=entityRelationEdgeStyle;html=1;rounded=0;exitX=1;exitY=0.5;entryX=0;entryY=0.5;fontSize=10;endArrow=ERmany;startArrow=ERone;strokeColor=#4d4d4d;" edge="1" parent="1" source="course" target="module">
+        <mxCell id="data-content-r1" value="ordered 1..N" style="edgeStyle=entityRelationEdgeStyle;html=1;rounded=0;exitX=1;exitY=0.5;entryX=0;entryY=0.5;fontSize=10;endArrow=ERmany;startArrow=ERone;strokeColor=#4d4d4d;" edge="1" parent="1" source="course" target="module">
           <mxGeometry relative="1" as="geometry" />
         </mxCell>
-        <mxCell id="p2r3" value="ordered 1..N" style="edgeStyle=entityRelationEdgeStyle;html=1;rounded=0;exitX=1;exitY=0.5;entryX=0;entryY=0.5;fontSize=10;endArrow=ERmany;startArrow=ERone;strokeColor=#4d4d4d;" edge="1" parent="1" source="module" target="lesson">
+        <mxCell id="data-content-r2" value="ordered 1..N" style="edgeStyle=entityRelationEdgeStyle;html=1;rounded=0;exitX=1;exitY=0.5;entryX=0;entryY=0.5;fontSize=10;endArrow=ERmany;startArrow=ERone;strokeColor=#4d4d4d;" edge="1" parent="1" source="module" target="lesson">
           <mxGeometry relative="1" as="geometry" />
         </mxCell>
-        <mxCell id="p2r4" value="annotated by 0..N" style="edgeStyle=entityRelationEdgeStyle;html=1;rounded=0;exitX=1;exitY=0.2;entryX=0;entryY=0.5;fontSize=10;endArrow=ERmany;startArrow=ERone;strokeColor=#4d4d4d;" edge="1" parent="1" source="lesson" target="note">
+        <mxCell id="data-content-r3" value="notes 0..N" style="edgeStyle=entityRelationEdgeStyle;html=1;rounded=0;exitX=1;exitY=0.12;entryX=0;entryY=0.5;fontSize=10;endArrow=ERmany;startArrow=ERone;strokeColor=#4d4d4d;" edge="1" parent="1" source="lesson" target="note">
           <mxGeometry relative="1" as="geometry" />
         </mxCell>
-        <mxCell id="p2r5" value="writes 1..N" style="edgeStyle=entityRelationEdgeStyle;html=1;rounded=0;exitX=1;exitY=0.3;entryX=0;entryY=0.5;fontSize=10;endArrow=ERmany;startArrow=ERone;strokeColor=#4d4d4d;" edge="1" parent="1" source="user_stub" target="note">
+        <mxCell id="data-content-r4" value="writes 1..N" style="edgeStyle=entityRelationEdgeStyle;html=1;rounded=0;exitX=1;exitY=0.3;entryX=0;entryY=0.5;fontSize=10;endArrow=ERmany;startArrow=ERone;strokeColor=#4d4d4d;" edge="1" parent="1" source="user_stub" target="note">
           <mxGeometry relative="1" as="geometry" />
         </mxCell>
-        <mxCell id="p2r6" value="thread 1..N" style="edgeStyle=entityRelationEdgeStyle;html=1;rounded=0;exitX=1;exitY=0.8;entryX=0;entryY=0.5;fontSize=10;endArrow=ERmany;startArrow=ERone;strokeColor=#4d4d4d;" edge="1" parent="1" source="course" target="message">
+        <mxCell id="data-content-r5" value="thread 1..N" style="edgeStyle=entityRelationEdgeStyle;html=1;rounded=0;exitX=1;exitY=0.9;entryX=0;entryY=0.5;fontSize=10;endArrow=ERmany;startArrow=ERone;strokeColor=#4d4d4d;" edge="1" parent="1" source="course" target="message">
           <mxGeometry relative="1" as="geometry" />
         </mxCell>
-        <mxCell id="p2r7" value="sends 1..N" style="edgeStyle=entityRelationEdgeStyle;html=1;rounded=0;exitX=1;exitY=0.7;entryX=0;entryY=0.5;fontSize=10;endArrow=ERmany;startArrow=ERone;strokeColor=#4d4d4d;" edge="1" parent="1" source="user_stub" target="message">
+        <mxCell id="data-content-r6" value="sends 1..N" style="edgeStyle=entityRelationEdgeStyle;html=1;rounded=0;exitX=1;exitY=0.55;entryX=0;entryY=0.5;fontSize=10;endArrow=ERmany;startArrow=ERone;strokeColor=#4d4d4d;" edge="1" parent="1" source="user_stub" target="message">
           <mxGeometry relative="1" as="geometry" />
         </mxCell>
-        <mxCell id="p2r8" value="userId — no FK" style="edgeStyle=entityRelationEdgeStyle;html=1;rounded=0;exitX=1;exitY=0.9;entryX=0;entryY=0.5;fontSize=10;endArrow=ERmany;startArrow=ERone;strokeColor=#d79b00;dashed=1;" edge="1" parent="1" source="user_stub" target="progress">
+        <mxCell id="data-content-r7" value="userId — no FK" style="edgeStyle=entityRelationEdgeStyle;html=1;rounded=0;exitX=1;exitY=0.8;entryX=0;entryY=0.5;fontSize=10;endArrow=ERmany;startArrow=ERone;strokeColor=#d79b00;dashed=1;" edge="1" parent="1" source="user_stub" target="progress">
           <mxGeometry relative="1" as="geometry" />
         </mxCell>
-        <mxCell id="p2r9" value="lessonId — no FK" style="edgeStyle=entityRelationEdgeStyle;html=1;rounded=0;exitX=1;exitY=0.9;entryX=0;entryY=0.5;fontSize=10;endArrow=ERmany;startArrow=ERone;strokeColor=#d79b00;dashed=1;" edge="1" parent="1" source="lesson" target="progress">
+        <mxCell id="data-content-r8" value="lessonId — no FK" style="edgeStyle=entityRelationEdgeStyle;html=1;rounded=0;exitX=1;exitY=0.9;entryX=0;entryY=0.5;fontSize=10;endArrow=ERmany;startArrow=ERone;strokeColor=#d79b00;dashed=1;" edge="1" parent="1" source="lesson" target="progress">
           <mxGeometry relative="1" as="geometry" />
         </mxCell>
-        <mxCell id="p2legend" value="Legend" style="swimlane;html=1;fontStyle=1;startSize=26;collapsible=0;fillColor=#f9f9f9;strokeColor=#999999;whiteSpace=wrap;fontSize=11;" vertex="1" parent="1">
-          <mxGeometry x="1060" y="40" width="270" height="122" as="geometry" />
+        <mxCell id="data-content-legend" value="Legend" style="swimlane;html=1;fontStyle=1;startSize=26;collapsible=0;fillColor=#f9f9f9;strokeColor=#999999;whiteSpace=wrap;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="1150" y="60" width="270" height="122" as="geometry" />
         </mxCell>
-        <mxCell id="p2legend-t0" value="MongoDB Atlas — content" style="text;html=1;align=left;verticalAlign=middle;spacingLeft=24;fontSize=10;fillColor=none;strokeColor=none;" vertex="1" parent="p2legend">
+        <mxCell id="data-content-lt0" value="MongoDB Atlas — content" style="text;html=1;align=left;verticalAlign=middle;spacingLeft=24;fontSize=10;fillColor=none;strokeColor=none;" vertex="1" parent="data-content-legend">
           <mxGeometry y="26" width="270" height="24" as="geometry" />
         </mxCell>
-        <mxCell id="p2legend-s0" value="" style="rounded=0;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;" vertex="1" parent="p2legend">
+        <mxCell id="data-content-ls0" value="" style="rounded=0;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;" vertex="1" parent="data-content-legend">
           <mxGeometry x="6" y="33" width="13" height="10" as="geometry" />
         </mxCell>
-        <mxCell id="p2legend-t1" value="DynamoDB — high-throughput events" style="text;html=1;align=left;verticalAlign=middle;spacingLeft=24;fontSize=10;fillColor=none;strokeColor=none;" vertex="1" parent="p2legend">
+        <mxCell id="data-content-lt1" value="DynamoDB — high-throughput events" style="text;html=1;align=left;verticalAlign=middle;spacingLeft=24;fontSize=10;fillColor=none;strokeColor=none;" vertex="1" parent="data-content-legend">
           <mxGeometry y="50" width="270" height="24" as="geometry" />
         </mxCell>
-        <mxCell id="p2legend-s1" value="" style="rounded=0;html=1;fillColor=#ffe6cc;strokeColor=#d79b00;" vertex="1" parent="p2legend">
+        <mxCell id="data-content-ls1" value="" style="rounded=0;html=1;fillColor=#ffe6cc;strokeColor=#d79b00;" vertex="1" parent="data-content-legend">
           <mxGeometry x="6" y="57" width="13" height="10" as="geometry" />
         </mxCell>
-        <mxCell id="p2legend-t2" value="stub — full definition on figure 1" style="text;html=1;align=left;verticalAlign=middle;spacingLeft=24;fontSize=10;fillColor=none;strokeColor=none;" vertex="1" parent="p2legend">
+        <mxCell id="data-content-lt2" value="stub — full definition in figure 1" style="text;html=1;align=left;verticalAlign=middle;spacingLeft=24;fontSize=10;fillColor=none;strokeColor=none;" vertex="1" parent="data-content-legend">
           <mxGeometry y="74" width="270" height="24" as="geometry" />
         </mxCell>
-        <mxCell id="p2legend-s2" value="" style="rounded=0;html=1;fillColor=#f5f5f5;strokeColor=#b3b3b3;dashed=1;" vertex="1" parent="p2legend">
+        <mxCell id="data-content-ls2" value="" style="rounded=0;html=1;fillColor=#f0f0f0;strokeColor=#b3b3b3;dashed=1;" vertex="1" parent="data-content-legend">
           <mxGeometry x="6" y="81" width="13" height="10" as="geometry" />
         </mxCell>
-        <mxCell id="p2legend-t3" value="dashed line — id carried across stores" style="text;html=1;align=left;verticalAlign=middle;spacingLeft=24;fontSize=10;fillColor=none;strokeColor=none;" vertex="1" parent="p2legend">
+        <mxCell id="data-content-lt3" value="dashed — id carried across stores" style="text;html=1;align=left;verticalAlign=middle;spacingLeft=24;fontSize=10;fillColor=none;strokeColor=none;" vertex="1" parent="data-content-legend">
           <mxGeometry y="98" width="270" height="24" as="geometry" />
         </mxCell>
-        <mxCell id="p2legend-s3" value="" style="rounded=0;html=1;fillColor=#ffffff;strokeColor=#d79b00;dashed=1;" vertex="1" parent="p2legend">
+        <mxCell id="data-content-ls3" value="" style="rounded=0;html=1;fillColor=#ffffff;strokeColor=#d79b00;dashed=1;" vertex="1" parent="data-content-legend">
           <mxGeometry x="6" y="105" width="13" height="10" as="geometry" />
-        </mxCell>
-        <mxCell id="p2title" value="LearnCode data model — content and progress" style="text;html=1;fontSize=16;fontStyle=1;align=left;verticalAlign=middle;strokeColor=none;fillColor=none;" vertex="1" parent="1">
-          <mxGeometry x="40" y="0" width="600" height="30" as="geometry" />
         </mxCell>
       </root>
     </mxGraphModel>
   </diagram>
   <diagram id="aws" name="3. AWS topology">
-    <mxGraphModel dx="1200" dy="800" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1280" pageHeight="780" math="0" shadow="0">
+    <mxGraphModel dx="1200" dy="800" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1280" pageHeight="790" math="0" shadow="0">
       <root>
         <mxCell id="0" />
         <mxCell id="1" parent="0" />
-        <mxCell id="g-aws" value="AWS account — region eu-west-1" style="rounded=0;whiteSpace=wrap;html=1;fillColor=none;strokeColor=#ff9900;dashed=1;verticalAlign=top;align=left;spacingLeft=8;spacingTop=4;fontSize=11;fontStyle=2;" vertex="1" parent="1">
-          <mxGeometry x="300" y="20" width="940" height="720" as="geometry" />
+        <mxCell id="aws-title" value="LearnCode — AWS deployment topology" style="text;html=1;fontSize=16;fontStyle=1;align=left;verticalAlign=middle;strokeColor=none;fillColor=none;" vertex="1" parent="1">
+          <mxGeometry x="40" y="14" width="700" height="30" as="geometry" />
+        </mxCell>
+        <mxCell id="aws-group" value="AWS account — region eu-west-1" style="rounded=0;whiteSpace=wrap;html=1;fillColor=none;strokeColor=#ff9900;dashed=1;verticalAlign=top;align=left;spacingLeft=8;spacingTop=4;fontSize=11;fontStyle=2;" vertex="1" parent="1">
+          <mxGeometry x="300" y="50" width="940" height="700" as="geometry" />
         </mxCell>
         <mxCell id="browser" value="Browser
 student · instructor · admin" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f5f5f5;strokeColor=#666666;align=center;verticalAlign=middle;fontSize=11;" vertex="1" parent="1">
-          <mxGeometry x="40" y="120" width="200" height="70" as="geometry" />
+          <mxGeometry x="40" y="150" width="200" height="70" as="geometry" />
         </mxCell>
         <mxCell id="amplify" value="AWS Amplify Hosting
 React SPA (Vite build)
 branch dev, builds on push" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;align=center;verticalAlign=middle;fontSize=11;" vertex="1" parent="1">
-          <mxGeometry x="330" y="60" width="240" height="90" as="geometry" />
+          <mxGeometry x="330" y="90" width="240" height="90" as="geometry" />
         </mxCell>
         <mxCell id="cloudfront" value="CloudFront
 HTTPS for the API
 CachingDisabled +
 AllViewerExceptHostHeader" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;align=center;verticalAlign=middle;fontSize=11;" vertex="1" parent="1">
-          <mxGeometry x="330" y="250" width="240" height="110" as="geometry" />
+          <mxGeometry x="330" y="280" width="240" height="100" as="geometry" />
         </mxCell>
         <mxCell id="cognito" value="Cognito User Pool
 groups student | instructor | admin
 issues the JWT the API verifies" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;align=center;verticalAlign=middle;fontSize=11;" vertex="1" parent="1">
-          <mxGeometry x="330" y="430" width="240" height="100" as="geometry" />
+          <mxGeometry x="330" y="460" width="240" height="90" as="geometry" />
         </mxCell>
         <mxCell id="ec2" value="EC2 t3.micro — learncode-api
 Amazon Linux 2023, Elastic IP
 nginx :80  →  node :4000
 systemd unit learncode-api" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffe6cc;strokeColor=#d79b00;align=center;verticalAlign=middle;fontSize=11;" vertex="1" parent="1">
-          <mxGeometry x="630" y="250" width="290" height="100" as="geometry" />
+          <mxGeometry x="630" y="280" width="290" height="100" as="geometry" />
         </mxCell>
         <mxCell id="lambda" value="Lambda code runners
-learncode-runner-js  (Node.js)
-learncode-runner-py  (Python)
-untrusted code, credentials
-scrubbed per invocation" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffe6cc;strokeColor=#d79b00;align=center;verticalAlign=middle;fontSize=11;" vertex="1" parent="1">
-          <mxGeometry x="980" y="60" width="240" height="120" as="geometry" />
+learncode-runner-js (Node.js)
+learncode-runner-py (Python)
+credentials scrubbed per call" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffe6cc;strokeColor=#d79b00;align=center;verticalAlign=middle;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="980" y="90" width="240" height="110" as="geometry" />
         </mxCell>
         <mxCell id="dynamo" value="DynamoDB — learncode_progress
 PK userId · SK lessonId
-on-demand, encrypted at rest
-attempts, hints, runs, time" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffe6cc;strokeColor=#d79b00;align=center;verticalAlign=middle;fontSize=11;" vertex="1" parent="1">
-          <mxGeometry x="980" y="230" width="240" height="110" as="geometry" />
+on-demand, encrypted at rest" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffe6cc;strokeColor=#d79b00;align=center;verticalAlign=middle;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="980" y="260" width="240" height="100" as="geometry" />
         </mxCell>
         <mxCell id="s3" value="S3 — learncode-media
 media and static assets" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffe6cc;strokeColor=#d79b00;align=center;verticalAlign=middle;fontSize=11;" vertex="1" parent="1">
-          <mxGeometry x="980" y="390" width="240" height="60" as="geometry" />
+          <mxGeometry x="980" y="420" width="240" height="60" as="geometry" />
         </mxCell>
         <mxCell id="cw" value="CloudWatch Logs
-structured JSON request logs
-(queryable in Logs Insights)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffe6cc;strokeColor=#d79b00;align=center;verticalAlign=middle;fontSize=11;" vertex="1" parent="1">
-          <mxGeometry x="980" y="500" width="240" height="80" as="geometry" />
+structured JSON request logs" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffe6cc;strokeColor=#d79b00;align=center;verticalAlign=middle;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="980" y="530" width="240" height="70" as="geometry" />
         </mxCell>
         <mxCell id="atlas" value="MongoDB Atlas
 database learncode
 content + user state" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;align=center;verticalAlign=middle;fontSize=11;" vertex="1" parent="1">
-          <mxGeometry x="330" y="590" width="240" height="90" as="geometry" />
+          <mxGeometry x="330" y="620" width="240" height="80" as="geometry" />
         </mxCell>
         <mxCell id="gh" value="GitHub Actions
 lint + test gate, then deploy" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f5f5f5;strokeColor=#666666;align=center;verticalAlign=middle;fontSize=11;" vertex="1" parent="1">
-          <mxGeometry x="40" y="430" width="200" height="70" as="geometry" />
+          <mxGeometry x="40" y="460" width="200" height="70" as="geometry" />
         </mxCell>
         <mxCell id="oidc" value="IAM role learncode-github-deploy
 assumed via GitHub OIDC
 (no stored AWS keys)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;align=center;verticalAlign=middle;fontSize=11;" vertex="1" parent="1">
-          <mxGeometry x="630" y="420" width="290" height="80" as="geometry" />
+          <mxGeometry x="630" y="450" width="290" height="70" as="geometry" />
         </mxCell>
         <mxCell id="ssm" value="SSM Run Command
 deploy/update-ec2.sh" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;align=center;verticalAlign=middle;fontSize=11;" vertex="1" parent="1">
-          <mxGeometry x="630" y="540" width="290" height="60" as="geometry" />
+          <mxGeometry x="630" y="560" width="290" height="55" as="geometry" />
         </mxCell>
         <mxCell id="ec2role" value="IAM role learncode-ec2-role
-inline policy learncode-runtime:
-lambda:InvokeFunction scoped to
-explicit function ARNs" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;align=center;verticalAlign=middle;fontSize=11;" vertex="1" parent="1">
-          <mxGeometry x="630" y="640" width="290" height="80" as="geometry" />
+lambda:InvokeFunction scoped
+to explicit function ARNs" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;align=center;verticalAlign=middle;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="630" y="650" width="290" height="70" as="geometry" />
         </mxCell>
-        <mxCell id="a1" value="HTTPS  app" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;fontSize=10;" edge="1" parent="1" source="browser" target="amplify">
+        <mxCell id="aws-a0" value="HTTPS  app" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;fontSize=10;" edge="1" parent="1" source="browser" target="amplify">
           <mxGeometry relative="1" as="geometry" />
         </mxCell>
-        <mxCell id="a2" value="HTTPS  /api" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;fontSize=10;" edge="1" parent="1" source="browser" target="cloudfront">
+        <mxCell id="aws-a1" value="HTTPS  /api" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;fontSize=10;" edge="1" parent="1" source="browser" target="cloudfront">
           <mxGeometry relative="1" as="geometry" />
         </mxCell>
-        <mxCell id="a3" value="sign-in, JWT" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;fontSize=10;" edge="1" parent="1" source="browser" target="cognito">
+        <mxCell id="aws-a2" value="sign-in, JWT" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;fontSize=10;" edge="1" parent="1" source="browser" target="cognito">
           <mxGeometry relative="1" as="geometry" />
         </mxCell>
-        <mxCell id="a4" value="HTTP :80" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;fontSize=10;" edge="1" parent="1" source="cloudfront" target="ec2">
+        <mxCell id="aws-a3" value="HTTP :80" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;fontSize=10;" edge="1" parent="1" source="cloudfront" target="ec2">
           <mxGeometry relative="1" as="geometry" />
         </mxCell>
-        <mxCell id="a5" value="TLS" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;fontSize=10;" edge="1" parent="1" source="ec2" target="atlas">
+        <mxCell id="aws-a4" value="TLS" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;fontSize=10;" edge="1" parent="1" source="ec2" target="atlas">
           <mxGeometry relative="1" as="geometry" />
         </mxCell>
-        <mxCell id="a6" value="SDK" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;fontSize=10;" edge="1" parent="1" source="ec2" target="dynamo">
+        <mxCell id="aws-a5" value="SDK" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;fontSize=10;" edge="1" parent="1" source="ec2" target="dynamo">
           <mxGeometry relative="1" as="geometry" />
         </mxCell>
-        <mxCell id="a7" value="Invoke" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;fontSize=10;" edge="1" parent="1" source="ec2" target="lambda">
+        <mxCell id="aws-a6" value="Invoke" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;fontSize=10;" edge="1" parent="1" source="ec2" target="lambda">
           <mxGeometry relative="1" as="geometry" />
         </mxCell>
-        <mxCell id="a8" value="SDK" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;fontSize=10;" edge="1" parent="1" source="ec2" target="s3">
+        <mxCell id="aws-a7" value="SDK" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;fontSize=10;" edge="1" parent="1" source="ec2" target="s3">
           <mxGeometry relative="1" as="geometry" />
         </mxCell>
-        <mxCell id="a9" value="logs" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;fontSize=10;" edge="1" parent="1" source="ec2" target="cw">
+        <mxCell id="aws-a8" value="logs" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;fontSize=10;" edge="1" parent="1" source="ec2" target="cw">
           <mxGeometry relative="1" as="geometry" />
         </mxCell>
-        <mxCell id="a10" value="verify JWT, group moves" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;fontSize=10;dashed=1;" edge="1" parent="1" source="ec2" target="cognito">
+        <mxCell id="aws-a9" value="verify JWT" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;fontSize=10;dashed=1;" edge="1" parent="1" source="ec2" target="cognito">
           <mxGeometry relative="1" as="geometry" />
         </mxCell>
-        <mxCell id="a11" value="assume role" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;fontSize=10;dashed=1;" edge="1" parent="1" source="gh" target="oidc">
+        <mxCell id="aws-a10" value="assume role" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;fontSize=10;dashed=1;" edge="1" parent="1" source="gh" target="oidc">
           <mxGeometry relative="1" as="geometry" />
         </mxCell>
-        <mxCell id="a12" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;fontSize=10;dashed=1;" edge="1" parent="1" source="oidc" target="ssm">
+        <mxCell id="aws-a11" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;fontSize=10;dashed=1;" edge="1" parent="1" source="oidc" target="ssm">
           <mxGeometry relative="1" as="geometry" />
         </mxCell>
-        <mxCell id="a13" value="pull + restart" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;fontSize=10;dashed=1;" edge="1" parent="1" source="ssm" target="ec2">
+        <mxCell id="aws-a12" value="pull + restart" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;fontSize=10;dashed=1;" edge="1" parent="1" source="ssm" target="ec2">
           <mxGeometry relative="1" as="geometry" />
         </mxCell>
-        <mxCell id="a14" value="push triggers build" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;fontSize=10;dashed=1;" edge="1" parent="1" source="gh" target="amplify">
+        <mxCell id="aws-a13" value="triggers build" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;fontSize=10;dashed=1;" edge="1" parent="1" source="gh" target="amplify">
           <mxGeometry relative="1" as="geometry" />
         </mxCell>
-        <mxCell id="a15" value="attached" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;fontSize=10;dashed=1;" edge="1" parent="1" source="ec2role" target="ec2">
+        <mxCell id="aws-a14" value="attached" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;fontSize=10;dashed=1;" edge="1" parent="1" source="ec2role" target="ec2">
           <mxGeometry relative="1" as="geometry" />
-        </mxCell>
-        <mxCell id="p3title" value="LearnCode — AWS deployment topology" style="text;html=1;fontSize=16;fontStyle=1;align=left;verticalAlign=middle;strokeColor=none;fillColor=none;" vertex="1" parent="1">
-          <mxGeometry x="40" y="30" width="600" height="30" as="geometry" />
         </mxCell>
       </root>
     </mxGraphModel>

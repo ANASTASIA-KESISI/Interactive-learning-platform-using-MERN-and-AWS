@@ -310,10 +310,21 @@ relationship is drawn on exactly one page, on the side that owns it; the entity
 at the far end appears there as a greyed stub so the line still has something
 to land on.
 
-Open the file at https://app.diagrams.net[app.diagrams.net] (menu:File[Open
-from ▸ Device]) or with the *Draw.io Integration* extension in VS Code. Page
-tabs are at the bottom left. menu:File[Export as ▸ SVG] exports the current
-page; menu:File[Export as ▸ PDF] offers an *All Pages* option.
+Both figures are rendered below. They are generated — `docs/generate-diagrams.js`
+emits the `.drawio` and the SVGs from one description of the layout, so the
+editable source and the figures cannot drift apart. See `docs/README.md` to
+regenerate them.
+
+.Figure 1 — people and institution
+image::data-model-people.svg[People and institution,align="center",width="100%"]
+
+.Figure 2 — content and progress
+image::data-model-content.svg[Content and progress,align="center",width="100%"]
+
+To edit rather than read: open `learncode-architecture.drawio` at
+https://app.diagrams.net[app.diagrams.net] (menu:File[Open from ▸ Device]) or
+with the *Draw.io Integration* extension in VS Code — but change the generator
+and re-run it, or the next regeneration will overwrite the edit.
 
 === Collections at a glance
 
@@ -385,8 +396,10 @@ evaluates. So:
 
 == AWS configuration
 
-The *AWS topology* page (page 3) of `docs/learncode-architecture.drawio` draws
-what follows. Concrete resource identifiers live in `DEPLOYMENT.md`, deliberately in
+Figure 3 draws what follows.
+
+.Figure 3 — AWS deployment topology
+image::aws-topology.svg[AWS deployment topology,align="center",width="100%"] Concrete resource identifiers live in `DEPLOYMENT.md`, deliberately in
 one place rather than repeated here.
 
 Everything is in a single region, `eu-west-1`.
@@ -705,5 +718,6 @@ hardware.
 | `CHALLENGES.md` | Problems encountered during construction and how they were resolved, by sprint. The source for the thesis's implementation chapter.
 | `SOLUTION_SKETCH.md` | The original design sketch and sprint roadmap.
 | `REFACTOR.md` | The pre-deployment hardening review and its implementation record.
-| `docs/learncode-architecture.drawio` | Three-page editable diagram: the data model in two figures, and the AWS topology.
+| `docs/generate-diagrams.js` | Emits the editable `.drawio` and the three SVG figures from one layout description.
+| `docs/README.md` | How to regenerate the diagrams, the HTML and the PDF.
 |===
