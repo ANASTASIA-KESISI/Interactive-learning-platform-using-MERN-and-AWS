@@ -459,7 +459,7 @@ export const ProfilePage = () => {
                 </Link>
               }
             >
-              {authored === null ? <Spinner /> : <AuthoredCourseList courses={authored} />}
+              {authored === null ? <Spinner compact /> : <AuthoredCourseList courses={authored} />}
             </Card>
           )}
 
