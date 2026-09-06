@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
 
 import { listThreads } from '../../services/messages.js';
 import { useAuth } from '../../hooks/useAuth.js';
@@ -180,7 +181,25 @@ export const MessagesPage = () => {
 
   const [threads, setThreads] = useState(null);
   const [error, setError] = useState(null);
-  const [selectedId, setSelectedId] = useState(null);
+  // `?thread=<id>` deep-links one conversation, so a card elsewhere in the app
+  // (the profile Messages list) can open the thread it is previewing instead of
+  // dropping the reader on an unselected inbox. Kept in the URL rather than in
+  // state alone so the selection survives a reload and a shared link.
+  const [searchParams, setSearchParams] = useSearchParams();
+  const [selectedId, setSelectedId] = useState(() => searchParams.get('thread'));
+
+  const selectThread = useCallback(
+    (id) => {
+      setSelectedId(id);
+      const next = new URLSearchParams(searchParams);
+      if (id) next.set('thread', id);
+      else next.delete('thread');
+      // Replace, not push: paging through threads should not bury the page the
+      // reader arrived from under a stack of back-button steps.
+      setSearchParams(next, { replace: true });
+    },
+    [searchParams, setSearchParams],
+  );
 
   const load = useCallback(async ({ silent = false } = {}) => {
     try {
@@ -247,7 +266,7 @@ export const MessagesPage = () => {
                   thread={thread}
                   isStudent={isStudent}
                   selected={thread.id === selectedId}
-                  onSelect={(next) => setSelectedId(next.id)}
+                  onSelect={(next) => selectThread(next.id)}
                 />
               ))}
             </ul>
@@ -257,7 +276,7 @@ export const MessagesPage = () => {
             <Conversation
               thread={selected}
               isStudent={isStudent}
-              onBack={() => setSelectedId(null)}
+              onBack={() => selectThread(null)}
               onRead={refreshBadges}
             />
           ) : (

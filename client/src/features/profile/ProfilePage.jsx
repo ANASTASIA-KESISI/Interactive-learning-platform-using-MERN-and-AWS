@@ -341,7 +341,7 @@ const MessagesCard = ({ threads }) => {
           return (
             <li key={courseId || index} className="py-2 first:pt-0 last:pb-0">
               <Link
-                to={courseId ? `/courses/${courseId}` : '/courses'}
+                to={thread.id ? `/messages?thread=${encodeURIComponent(thread.id)}` : '/messages'}
                 className="flex items-start justify-between gap-3 rounded-md px-1 py-1 hover:bg-slate-50"
               >
                 <span className="min-w-0">
