@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 
 import { useAuth } from '../../hooks/useAuth.js';
+import { Logo } from '../../components/Logo.jsx';
 import { claimInstructor } from '../../services/auth.js';
 import { updateMe } from '../../services/me.js';
 import {
@@ -125,7 +126,8 @@ export const LoginPage = () => {
   return (
     <div className="flex min-h-screen items-center justify-center px-4 py-10">
       <div className="w-full max-w-sm rounded-lg border border-slate-200 bg-white p-8 shadow-sm">
-        <h1 className="mb-6 text-2xl font-semibold text-slate-900">Sign in to LearnCode</h1>
+        <Logo className="mx-auto mb-6 h-24 w-auto" />
+        <h1 className="mb-6 text-2xl font-semibold text-slate-900">Sign in</h1>
 
         {notice && (
           <p role="status" className="mb-4 rounded-md bg-brand-50 px-3 py-2 text-sm text-brand-700">

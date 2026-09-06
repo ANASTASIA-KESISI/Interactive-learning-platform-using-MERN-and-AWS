@@ -2,6 +2,34 @@
 @tailwind components;
 @tailwind utilities;
 
+/* The loading state: the logo breathes rather than a generic ring spinning.
+   Shallow on purpose — the mark is detailed, and a big scale swing on it
+   reads as a glitch rather than as progress. */
+@keyframes learncode-breathe {
+  0%,
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.55;
+    transform: scale(0.94);
+  }
+}
+
+.logo-pulse {
+  animation: learncode-breathe 1.6s ease-in-out infinite;
+}
+
+/* Loading must not become a flicker for anyone who has asked motion to
+   stop (NFR5 / WCAG 2.1 AA, and the rule S7 D7 already set for confetti):
+   the mark simply holds. */
+@media (prefers-reduced-motion: reduce) {
+  .logo-pulse {
+    animation: none;
+  }
+}
+
 @layer components {
   .btn {
     @apply inline-flex items-center justify-center rounded-md px-4 py-2 text-sm font-medium transition-colors focus:outline-none focus:ring-2 focus:ring-brand-500 focus:ring-offset-2 disabled:opacity-50;

@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 
+import { Logo } from '../../components/Logo.jsx';
 import { signUp, confirmSignUp, resendConfirmationCode } from '../../services/cognito.js';
 import {
   InstitutionFields,
@@ -75,6 +76,7 @@ export const SignupPage = () => {
   return (
     <div className="flex min-h-screen items-center justify-center px-4 py-10">
       <div className="w-full max-w-sm rounded-lg border border-slate-200 bg-white p-8 shadow-sm">
+        <Logo className="mx-auto mb-6 h-24 w-auto" />
         <h1 className="mb-6 text-2xl font-semibold text-slate-900">
           {step === 'details' ? 'Create your account' : 'Confirm your email'}
         </h1>

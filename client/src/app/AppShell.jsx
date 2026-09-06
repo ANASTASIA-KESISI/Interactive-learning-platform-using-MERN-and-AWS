@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { Link, NavLink, Outlet, useLocation } from 'react-router-dom';
 
 import { useAuth } from '../hooks/useAuth.js';
+import { LogoMark } from '../components/Logo.jsx';
 import { Avatar, Chip } from '../components/ui/index.js';
 import { formatXp, levelProgressPct } from '../lib/gamification.js';
 
@@ -91,8 +92,8 @@ export const AppShell = () => {
               <span aria-hidden="true">☰</span>
             </button>
 
-            <Link to="/" className="text-lg font-semibold text-slate-900">
-              LearnCode
+            <Link to="/" className="shrink-0">
+              <LogoMark className="h-9 w-auto" alt="LearnCode" />
             </Link>
 
             <nav className="hidden items-center gap-4 sm:flex">
