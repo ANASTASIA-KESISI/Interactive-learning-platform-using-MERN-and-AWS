@@ -42,6 +42,19 @@ const updateStreak = (user, now) => {
   user.lastCompletionAt = now;
 };
 
+// Criteria type → the User counter that satisfies it. Every criteria type in
+// the Badge model must appear here; the model comment is the other half of
+// this contract.
+const COUNTER_FOR = Object.freeze({
+  xp_reached: 'xpPoints',
+  streak_days: 'streak',
+  lessons_completed: 'lessonsCompleted',
+  unaided_completions: 'unaidedCompletions',
+  quizzes_passed: 'quizzesPassed',
+  courses_completed: 'coursesCompleted',
+  notes_written: 'notesWritten',
+});
+
 // Idempotent badge award. Loops because a badge's xpValue can cross the next
 // badge's xp_reached threshold (cascade), and we want all earned badges
 // surfaced in a single response.
@@ -57,10 +70,10 @@ const evaluateBadges = (user, allBadges) => {
       if (earnedIds.has(idStr)) continue;
 
       const { type, threshold } = badge.criteria;
-      let earned = false;
-      if (type === 'xp_reached' && user.xpPoints >= threshold) earned = true;
-      else if (type === 'streak_days' && user.streak >= threshold) earned = true;
-      else if (type === 'lessons_completed' && user.lessonsCompleted >= threshold) earned = true;
+      const counter = COUNTER_FOR[type];
+      // An unknown criteria type awards nothing rather than throwing: a badge
+      // seeded by a newer build must not break the award path for everyone.
+      const earned = counter ? (user[counter] || 0) >= threshold : false;
 
       if (earned) {
         earnedIds.add(idStr);
@@ -81,14 +94,28 @@ const evaluateBadges = (user, allBadges) => {
 
 // Called from the submit route when a student passes a lesson for the first
 // time. `hintsUsed` is the count from the progress record at submit time.
-// `now` is injectable for tests.
-const onLessonCompleted = async ({ userId, xpReward, hintsUsed = 0, now = new Date() }) => {
+// `lessonType` and `courseCompleted` come from the same request that already
+// resolved them, so no counter here costs an extra query. `now` is
+// injectable for tests.
+const onLessonCompleted = async ({
+  userId,
+  xpReward,
+  hintsUsed = 0,
+  lessonType = null,
+  courseCompleted = false,
+  now = new Date(),
+}) => {
   const user = await User.findById(userId);
   if (!user) return { xpDelta: 0, newBadges: [] };
 
   const xpDelta = applyHintDiscount(xpReward, hintsUsed);
   user.xpPoints += xpDelta;
   user.lessonsCompleted = (user.lessonsCompleted || 0) + 1;
+  // Unaided means no hint was revealed before the pass — the same input the
+  // XP discount reads, so the badge and the XP can never disagree.
+  if (hintsUsed <= 0) user.unaidedCompletions = (user.unaidedCompletions || 0) + 1;
+  if (lessonType === 'quiz') user.quizzesPassed = (user.quizzesPassed || 0) + 1;
+  if (courseCompleted) user.coursesCompleted = (user.coursesCompleted || 0) + 1;
   updateStreak(user, now);
 
   const allBadges = await Badge.find({});
@@ -96,6 +123,26 @@ const onLessonCompleted = async ({ userId, xpReward, hintsUsed = 0, now = new Da
 
   await user.save();
   return { xpDelta, newBadges };
+};
+
+// Called by noteService after a note is saved. It passes the count rather
+// than the note, so gamification never has to import the Note model — and
+// because a recount is self-correcting where an increment would drift every
+// time a learner deleted a note.
+//
+// Awarding here means a note badge lands on the note itself rather than
+// waiting for the next lesson completion to notice.
+const onNotesChanged = async ({ userId, noteCount }) => {
+  const user = await User.findById(userId);
+  if (!user) return { newBadges: [] };
+
+  user.notesWritten = Math.max(0, Number(noteCount) || 0);
+
+  const allBadges = await Badge.find({});
+  const newBadges = evaluateBadges(user, allBadges);
+
+  await user.save();
+  return { newBadges };
 };
 
 // ── Level & rank (S7 D8) ──────────────────────────────────────────────────────
@@ -146,6 +193,7 @@ const gamificationSummary = (user) => {
 
 module.exports = {
   onLessonCompleted,
+  onNotesChanged,
   applyHintDiscount,
   xpForLevel,
   levelFromXp,

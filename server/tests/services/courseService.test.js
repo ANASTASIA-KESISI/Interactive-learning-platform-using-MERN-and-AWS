@@ -208,6 +208,7 @@ describe('getLessonForStudent — course context', () => {
     const result = await courseService.getLessonForStudent('l2');
 
     expect(result).not.toHaveProperty('moduleLessonIds');
+    expect(result).not.toHaveProperty('courseLessonIds');
     expect(result).not.toHaveProperty('expectedOutput');
   });
 
@@ -218,6 +219,16 @@ describe('getLessonForStudent — course context', () => {
 
     expect(context.moduleLessonIds).toEqual(['l1', 'l2']);
     expect(context.nextLessonId).toBe('l3');
+  });
+
+  test('getLessonContext exposes every lesson in the course, across modules', async () => {
+    // The input to the course-completion check, and the reason a course badge
+    // costs no extra query: this walk is already computed for prev/next.
+    Lesson.findById.mockReturnValue(query(lessonIn('Module one', modules)));
+
+    const context = await courseService.getLessonContext('l2');
+
+    expect(context.courseLessonIds).toEqual(['l1', 'l2', 'l3']);
   });
 });
 

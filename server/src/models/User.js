@@ -24,6 +24,23 @@ const userSchema = new mongoose.Schema(
     // badge criteria — replaces the old xpPoints/xpReward heuristic, which
     // broke as soon as XP came from anywhere other than lesson completion.
     lessonsCompleted: { type: Number, default: 0, min: 0 },
+    // Completions where the learner revealed no hint. The scaffolding
+    // signal H1 is about, kept as its own counter rather than derived:
+    // the hint count lives on the Dynamo progress item, which the award
+    // path never reads back.
+    unaidedCompletions: { type: Number, default: 0, min: 0 },
+    // Lessons of `type: 'quiz'` passed. A quiz is an ordinary lesson, so it
+    // already counts in `lessonsCompleted`; this narrows it to the quizzes.
+    quizzesPassed: { type: Number, default: 0, min: 0 },
+    // Incremented when a completion is the one that finishes a course.
+    // A course can finish twice if an instructor adds a lesson to one the
+    // learner had already cleared — rare, and the second finish is a real
+    // achievement, so it is not guarded against.
+    coursesCompleted: { type: Number, default: 0, min: 0 },
+    // Recounted from the notes collection on every save rather than
+    // incremented, so deleting notes cannot leave it drifting upward.
+    // Badges already earned stay earned if the count later falls.
+    notesWritten: { type: Number, default: 0, min: 0 },
     // Touched on every authenticated request — drives the admin weekly-active
     // users KPI. Deliberately NOT the streak input: it advances on mere logins,
     // which made the streak diff always 0 and pinned every streak at its

@@ -3,6 +3,7 @@ const { Lesson } = require('../models/Lesson');
 const { Module } = require('../models/Module');
 const { Course } = require('../models/Course');
 const progressService = require('./progressService');
+const gamificationService = require('./gamificationService');
 const logger = require('../utils/logger');
 const { badRequest, notFound } = require('../utils/httpError');
 
@@ -198,6 +199,20 @@ const upsert = async (userId, scope, targetId, body, { role } = {}) => {
         lessonId: target,
         error: err.message,
       });
+    }
+  }
+
+  // The note badges award here rather than waiting for the next lesson pass.
+  // A recount, not an increment: deleting notes must not leave the counter
+  // stranded above the truth. Best effort for the same reason as the Dynamo
+  // stamp above — the note is saved, and a badge that lands one save late is
+  // a better failure than a save the learner is told did not happen.
+  if (role === 'student') {
+    try {
+      const noteCount = await Note.countDocuments({ userId: owner });
+      await gamificationService.onNotesChanged({ userId: owner, noteCount });
+    } catch (err) {
+      logger.warn('note badge evaluation failed', { userId: owner, error: err.message });
     }
   }
 

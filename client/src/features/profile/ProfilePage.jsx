@@ -16,6 +16,7 @@ import { levelProgressPct } from '../../lib/gamification.js';
 import { getStudentActivity, getStudentDashboard } from '../../services/student.js';
 import { listMyCourses } from '../../services/courses.js';
 import { listThreads } from '../../services/messages.js';
+import { BadgeIcon } from '../../components/BadgeIcon.jsx';
 import { ActivityHeatmap } from './ActivityHeatmap.jsx';
 import { EditProfileForm } from './EditProfileForm.jsx';
 
@@ -154,7 +155,7 @@ const BadgePreviewCard = ({ badges = [], earnedCount, total }) => {
                 aria-label={`${badge.name} — ${badge.earned ? 'earned' : 'locked'}`}
                 title={`${badge.name} — ${badge.earned ? 'earned' : 'locked'}`}
               >
-                {badge.icon || '🏅'}
+                <BadgeIcon icon={badge.icon} name={badge.name} />
               </span>
             </li>
           ))}
@@ -193,7 +194,7 @@ const BadgeGalleryCard = ({ badges = [], earnedCount, total }) => (
                   badge.earned ? 'bg-amber-100' : 'bg-slate-100 opacity-60'
                 }`}
               >
-                {badge.icon || '🏅'}
+                <BadgeIcon icon={badge.icon} name={badge.name} />
               </span>
               <div className="min-w-0">
                 <div className="flex flex-wrap items-center gap-2">

@@ -441,6 +441,11 @@ const lessonContextFrom = (lesson) => {
     // The parent module's lessons, in order — the input to the "module
     // completed" check on submit (D7). Ids only, never lesson bodies.
     moduleLessonIds: lessonIdsIn(own),
+    // Every lesson in the course, in order. `walk` is already computed for
+    // the prev/next links, so the course-completion check on submit costs
+    // nothing extra. Server-side only — stripped from the learner payload
+    // below alongside moduleLessonIds.
+    courseLessonIds: walk,
     courseId: course ? course._id : null,
     courseTitle: course ? (course.title ?? null) : null,
     instructor: teacher
@@ -489,7 +494,7 @@ const getLessonForStudent = async (lessonId, revealedCount = 0) => {
   // results the pilot evaluates. Only prompts and options go out; grading
   // happens server-side and the feedback travels on the way back.
   const { expectedOutput, hints = [], questions = [], ...safe } = lesson;
-  const { moduleLessonIds, ...context } = lessonContextFrom(lesson);
+  const { moduleLessonIds, courseLessonIds, ...context } = lessonContextFrom(lesson);
 
   return {
     ...safe,

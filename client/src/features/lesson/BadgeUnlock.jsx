@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 
 import { Chip } from '../../components/ui/index.js';
+import { BadgeIcon } from '../../components/BadgeIcon.jsx';
 
 /**
  * The badge hero beneath the completion card (demo_assets/achievement_unlocked.png).
@@ -33,8 +34,8 @@ export const BadgeUnlock = ({ badges = [], onNextLesson, nextLabel = 'Next lesso
       aria-label="Badge unlocked"
       className="mt-6 w-full max-w-md rounded-xl border border-amber-200 bg-white p-6 text-center shadow-lg"
     >
-      <div className="text-6xl" aria-hidden="true">
-        {badge.icon || '🏅'}
+      <div className="flex justify-center text-6xl" aria-hidden="true">
+        <BadgeIcon icon={badge.icon} name={badge.name} className="h-20 w-20" />
       </div>
 
       <Chip tone="warning" className="mt-4 tracking-[0.2em]">

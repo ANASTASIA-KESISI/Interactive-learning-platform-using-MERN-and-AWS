@@ -11,6 +11,7 @@ jest.mock('../../src/models/Note', () => ({
     findOne: jest.fn(),
     findOneAndUpdate: jest.fn(),
     findOneAndDelete: jest.fn(),
+    countDocuments: jest.fn(),
   },
   NOTE_SCOPES: ['lesson', 'module'],
   NOTE_BODY_MAX: 20_000,
@@ -19,6 +20,7 @@ jest.mock('../../src/models/Lesson', () => ({ Lesson: { findById: jest.fn(), fin
 jest.mock('../../src/models/Module', () => ({ Module: { findById: jest.fn(), find: jest.fn() } }));
 jest.mock('../../src/models/Course', () => ({ Course: { find: jest.fn() } }));
 jest.mock('../../src/services/progressService', () => ({ recordNoteActivity: jest.fn() }));
+jest.mock('../../src/services/gamificationService', () => ({ onNotesChanged: jest.fn() }));
 jest.mock('../../src/utils/logger', () => ({
   info: jest.fn(),
   warn: jest.fn(),
@@ -27,6 +29,7 @@ jest.mock('../../src/utils/logger', () => ({
 }));
 
 const { Note } = require('../../src/models/Note');
+const gamificationService = require('../../src/services/gamificationService');
 const { Lesson } = require('../../src/models/Lesson');
 const { Module } = require('../../src/models/Module');
 const { Course } = require('../../src/models/Course');
@@ -319,6 +322,52 @@ describe('upsert — DynamoDB stamp (students only, best effort)', () => {
   });
 });
 
+describe('upsert — note badges (students only, best effort)', () => {
+  beforeEach(() => {
+    Note.countDocuments.mockResolvedValue(4);
+  });
+
+  test('reports the recounted total so a delete cannot leave it drifting', async () => {
+    mockLessonChain();
+
+    await noteService.upsert(ALICE, 'lesson', LESSON, 'note text', { role: 'student' });
+
+    expect(Note.countDocuments).toHaveBeenCalledWith({ userId: ALICE });
+    expect(gamificationService.onNotesChanged).toHaveBeenCalledWith({
+      userId: ALICE,
+      noteCount: 4,
+    });
+  });
+
+  test('counts a module note too — the criterion is notes, not lessons', async () => {
+    Module.findById.mockReturnValue(query(moduleDoc));
+    Note.findOneAndUpdate.mockReturnValue(query(storedNote({ scope: 'module', targetId: MODULE })));
+
+    await noteService.upsert(ALICE, 'module', MODULE, 'module note', { role: 'student' });
+
+    expect(gamificationService.onNotesChanged).toHaveBeenCalled();
+  });
+
+  test('does not award for an instructor previewing their own lesson', async () => {
+    mockLessonChain();
+
+    await noteService.upsert(ALICE, 'lesson', LESSON, 'note text', { role: 'instructor' });
+
+    expect(gamificationService.onNotesChanged).not.toHaveBeenCalled();
+  });
+
+  test('an award failure is logged and swallowed — the note still saves', async () => {
+    mockLessonChain();
+    gamificationService.onNotesChanged.mockRejectedValue(new Error('mongo down'));
+
+    const result = await noteService.upsert(ALICE, 'lesson', LESSON, 'note text', {
+      role: 'student',
+    });
+
+    expect(result.body).toBe(storedNote().body);
+    expect(logger.warn).toHaveBeenCalled();
+  });
+});
 describe('listForUser', () => {
   const otherLesson = id('9');
   const otherModule = id('8');

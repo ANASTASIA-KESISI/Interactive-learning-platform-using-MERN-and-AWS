@@ -118,8 +118,16 @@ router.post('/:id/run', ...learnerOrPreview, async (req, res, next) => {
 // depends on — the module's lesson ids (Mongo) against the learner's completed
 // records (Dynamo). The lesson just submitted is seeded into the set because
 // the query that reads it back is only eventually consistent.
-const isModuleComplete = async (userId, lessonId, moduleLessonIds) => {
-  if (!moduleLessonIds || moduleLessonIds.length === 0) return false;
+// One read answers both questions a pass raises: did this finish the module
+// (the overlay's module-complete state, D7) and did it finish the course (the
+// `courses_completed` badge criterion). Asking them separately would read the
+// learner's whole progress history twice on every pass.
+const completionFlags = async (userId, lessonId, context) => {
+  const moduleIds = context?.moduleLessonIds ?? [];
+  const courseIds = context?.courseLessonIds ?? [];
+  if (moduleIds.length === 0 && courseIds.length === 0) {
+    return { moduleCompleted: false, courseCompleted: false };
+  }
 
   const records = await progressService.getStudentProgress(userId);
   const completed = new Set(
@@ -127,7 +135,8 @@ const isModuleComplete = async (userId, lessonId, moduleLessonIds) => {
   );
   completed.add(String(lessonId));
 
-  return moduleLessonIds.every((id) => completed.has(String(id)));
+  const allDone = (ids) => ids.length > 0 && ids.every((id) => completed.has(String(id)));
+  return { moduleCompleted: allDone(moduleIds), courseCompleted: allDone(courseIds) };
 };
 
 // POST /api/lessons/:id/submit — execute code, record progress, apply gamification
@@ -163,20 +172,26 @@ router.post('/:id/submit', ...learnerOrPreview, async (req, res, next) => {
 
       let user = req.dbUser;
       if (runResult.passed && progressUpdate.firstCompletion) {
+        // Resolved before the award, not after: whether this pass finished the
+        // course is an input to it.
+        const flags = await completionFlags(
+          req.dbUser._id.toString(),
+          req.params.id,
+          context,
+        );
+        moduleCompleted = flags.moduleCompleted;
+
         gamificationResult = await gamificationService.onLessonCompleted({
           userId: req.dbUser._id,
           xpReward: lesson.xpReward,
           hintsUsed: progressUpdate.hintsUsed,
+          lessonType: lesson.type,
+          courseCompleted: flags.courseCompleted,
         });
         // `onLessonCompleted` saves its own copy of the document, so the one
         // `attachUser` loaded is now stale on xp, streak and badges — re-read
         // before summarising or the overlay shows the pre-award numbers.
         user = (await authService.getByCognitoId(req.user.cognitoId)) || req.dbUser;
-        moduleCompleted = await isModuleComplete(
-          req.dbUser._id.toString(),
-          req.params.id,
-          context.moduleLessonIds,
-        );
       }
 
       gamification = gamificationService.gamificationSummary(user);
@@ -239,17 +254,21 @@ router.post('/:id/quiz', ...learnerOrPreview, async (req, res, next) => {
 
       let user = req.dbUser;
       if (quiz.passed && progressUpdate.firstCompletion) {
+        const flags = await completionFlags(
+          req.dbUser._id.toString(),
+          req.params.id,
+          context,
+        );
+        moduleCompleted = flags.moduleCompleted;
+
         gamificationResult = await gamificationService.onLessonCompleted({
           userId: req.dbUser._id,
           xpReward: lesson.xpReward,
           hintsUsed: progressUpdate.hintsUsed,
+          lessonType: lesson.type,
+          courseCompleted: flags.courseCompleted,
         });
         user = (await authService.getByCognitoId(req.user.cognitoId)) || req.dbUser;
-        moduleCompleted = await isModuleComplete(
-          req.dbUser._id.toString(),
-          req.params.id,
-          context.moduleLessonIds,
-        );
       }
 
       gamification = gamificationService.gamificationSummary(user);

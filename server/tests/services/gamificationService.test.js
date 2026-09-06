@@ -112,6 +112,47 @@ describe('evaluateBadges', () => {
     expect(user.badges).toHaveLength(1);
   });
 
+  // One case per criteria type added after the original three. Each asserts
+  // the counter it reads, because the failure mode of a wrong mapping is a
+  // badge that silently never awards.
+  test.each([
+    ['unaided_completions', 'unaidedCompletions'],
+    ['quizzes_passed', 'quizzesPassed'],
+    ['courses_completed', 'coursesCompleted'],
+    ['notes_written', 'notesWritten'],
+  ])('awards a %s badge from the %s counter', (type, counter) => {
+    const user = { xpPoints: 0, streak: 0, lessonsCompleted: 0, badges: [], [counter]: 3 };
+    const badges = [makeBadge({ name: 'Earned', criteria: { type, threshold: 3 }, xpValue: 10 })];
+
+    expect(evaluateBadges(user, badges).map((b) => b.name)).toEqual(['Earned']);
+    expect(user.xpPoints).toBe(10);
+  });
+
+  test('withholds a badge whose counter is still short of the threshold', () => {
+    const user = { xpPoints: 0, streak: 0, lessonsCompleted: 0, badges: [], quizzesPassed: 2 };
+    const badges = [makeBadge({ name: 'Quiz Master', criteria: { type: 'quizzes_passed', threshold: 3 } })];
+
+    expect(evaluateBadges(user, badges)).toEqual([]);
+  });
+
+  test('treats a missing counter as zero rather than throwing', () => {
+    // A pre-S8 user document has none of the new fields on it.
+    const user = { xpPoints: 0, streak: 0, lessonsCompleted: 0, badges: [] };
+    const badges = [makeBadge({ name: 'On Your Own', criteria: { type: 'unaided_completions', threshold: 1 } })];
+
+    expect(evaluateBadges(user, badges)).toEqual([]);
+  });
+
+  test('ignores a criteria type it does not know', () => {
+    // A badge seeded by a newer build must not break the award path for a
+    // server that predates it.
+    const user = { xpPoints: 9999, streak: 99, lessonsCompleted: 99, badges: [] };
+    const badges = [makeBadge({ name: 'From The Future', criteria: { type: 'moon_landings', threshold: 1 } })];
+
+    expect(evaluateBadges(user, badges)).toEqual([]);
+    expect(user.xpPoints).toBe(9999);
+  });
+
   test('does not re-award an already earned badge', () => {
     const earnedId = { toString: () => 'First Steps' };
     const user = { xpPoints: 25, streak: 0, lessonsCompleted: 1, badges: [earnedId] };
