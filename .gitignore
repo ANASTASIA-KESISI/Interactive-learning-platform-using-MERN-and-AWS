@@ -43,3 +43,6 @@ exports/
 # while building, and `S7_PLAN.md` is a scratch planning document.
 demo_assets/
 S7_PLAN.md
+
+# Rendered output of docs/*.adoc — regenerate with `npx asciidoctor`, do not commit.
+docs/*.html

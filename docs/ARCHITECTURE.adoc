@@ -296,14 +296,24 @@ Two properties follow from the split and are worth stating explicitly:
 
 == Data model
 
-The full entity diagram — every collection, its fields, and the relationships
-between them — is the *Data model* page of:
+The entity diagram lives in `docs/learncode-architecture.drawio`, split across
+the first two of its three pages:
 
-`docs/learncode-architecture.drawio`
+. *Data model — people*: the institutional tree, the user, and badges.
+. *Data model — content*: courses, modules, lessons, notes, messages, and the
+  DynamoDB progress table.
+. *AWS topology*: the deployment, described in the next section.
 
-Open it at https://app.diagrams.net[app.diagrams.net] (menu:File[Open from ▸
-Device]) or with the *Draw.io Integration* extension in VS Code. Export to SVG
-or PNG beside this file if you need it embedded in the thesis.
+The split is for legibility — all ten entities on one page is 1700px wide, and
+at 100% on a portrait page the field text stops being readable. Each
+relationship is drawn on exactly one page, on the side that owns it; the entity
+at the far end appears there as a greyed stub so the line still has something
+to land on.
+
+Open the file at https://app.diagrams.net[app.diagrams.net] (menu:File[Open
+from ▸ Device]) or with the *Draw.io Integration* extension in VS Code. Page
+tabs are at the bottom left. menu:File[Export as ▸ SVG] exports the current
+page; menu:File[Export as ▸ PDF] offers an *All Pages* option.
 
 === Collections at a glance
 
@@ -375,8 +385,8 @@ evaluates. So:
 
 == AWS configuration
 
-The *AWS topology* page of `docs/learncode-architecture.drawio` draws what
-follows. Concrete resource identifiers live in `DEPLOYMENT.md`, deliberately in
+The *AWS topology* page (page 3) of `docs/learncode-architecture.drawio` draws
+what follows. Concrete resource identifiers live in `DEPLOYMENT.md`, deliberately in
 one place rather than repeated here.
 
 Everything is in a single region, `eu-west-1`.
@@ -695,5 +705,5 @@ hardware.
 | `CHALLENGES.md` | Problems encountered during construction and how they were resolved, by sprint. The source for the thesis's implementation chapter.
 | `SOLUTION_SKETCH.md` | The original design sketch and sprint roadmap.
 | `REFACTOR.md` | The pre-deployment hardening review and its implementation record.
-| `docs/learncode-architecture.drawio` | Two-page editable diagram: the data model, and the AWS topology.
+| `docs/learncode-architecture.drawio` | Three-page editable diagram: the data model in two figures, and the AWS topology.
 |===
