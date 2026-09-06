@@ -1,10 +1,11 @@
 const { User } = require('../models/User');
 const courseService = require('./courseService');
+const gamificationService = require('./gamificationService');
 const progressTable = require('../dynamo/progressTable');
 const { badRequest } = require('../utils/httpError');
 
-// Course leaderboard (S7 D9): lessons completed per learner inside the course,
-// over a rolling window. It reads the DynamoDB progress table directly — a
+// Course leaderboard (S7 D9): XP earned per learner inside the course, over a
+// rolling window. It reads the DynamoDB progress table directly — a
 // service may, a route may not (CLAUDE.md layering) — through the same
 // `scanByLessonIds` path the instructor analytics view already uses. At pilot
 // scale (≤30 learners, a few hundred items) the scan is acceptable; past that,
@@ -51,8 +52,8 @@ const completedWithin = (record, cutoff) => {
  *   has already decided whether this caller may see the board at all.
  * @returns {Promise<{
  *   window: string,
- *   top: Array<{ userId, displayName, avatar, completions, rank }>,
- *   me: { rank: number|null, completions: number },
+ *   top: Array<{ userId, displayName, avatar, xp, completions, rank }>,
+ *   me: { rank: number|null, xp: number, completions: number },
  * }>}
  */
 const getCourseLeaderboard = async (
@@ -63,19 +64,28 @@ const getCourseLeaderboard = async (
 
   const viewer = viewerId ? { id: viewerId, role: viewerRole } : null;
   const course = await courseService.getCourseById(courseId, viewer);
-  const lessonIds = (course.modules || []).flatMap((module) =>
-    (module.lessons || []).map((lesson) => lesson._id.toString()),
-  );
+  // lessonId → xpReward. The board ranks by XP earned in THIS course, so the
+  // per-lesson reward has to come from the course document: a progress item
+  // records `hintsUsed` but never the XP it produced. The banked total lives
+  // on `User.xpPoints`, which is global — ranking by that would let a learner
+  // top the board for a course they never opened.
+  const lessonXp = new Map();
+  for (const module of course.modules || []) {
+    for (const lesson of module.lessons || []) {
+      lessonXp.set(lesson._id.toString(), Number(lesson.xpReward) || 0);
+    }
+  }
+  const lessonIds = [...lessonXp.keys()];
 
   const viewerKey = viewerId ? viewerId.toString() : null;
-  const empty = { window, top: [], me: { rank: null, completions: 0 } };
+  const empty = { window, top: [], me: { rank: null, xp: 0, completions: 0 } };
   if (lessonIds.length === 0) return empty;
 
   const records = await progressTable.scanByLessonIds(lessonIds);
   const cutoff = cutoffFor(window, Date.now());
 
-  // userId → { completions, lastCompletionAt }. `lastCompletionAt` is the
-  // tiebreak: on equal counts the learner who got there first ranks higher,
+  // userId → { xp, completions, lastCompletionAt }. `lastCompletionAt` is the
+  // final tiebreak: on equal XP the learner who got there first ranks higher,
   // which also makes the ordering stable across requests (Array#sort is not
   // required to preserve input order for equal keys).
   const byUser = new Map();
@@ -83,7 +93,19 @@ const getCourseLeaderboard = async (
     if (!completedWithin(record, cutoff)) continue;
     const key = String(record.userId);
     const at = Date.parse(record.completedAt);
-    const entry = byUser.get(key) || { userId: key, completions: 0, lastCompletionAt: 0 };
+    const entry = byUser.get(key) || {
+      userId: key,
+      xp: 0,
+      completions: 0,
+      lastCompletionAt: 0,
+    };
+    // The same discount the learner actually banked, so the board agrees with
+    // the XP their profile credits them for this work rather than paying a
+    // hint-heavy completion the same as an unaided one.
+    entry.xp += gamificationService.applyHintDiscount(
+      lessonXp.get(String(record.lessonId)) || 0,
+      Number(record.hintsUsed) || 0,
+    );
     entry.completions += 1;
     if (at > entry.lastCompletionAt) entry.lastCompletionAt = at;
     byUser.set(key, entry);
@@ -92,6 +114,7 @@ const getCourseLeaderboard = async (
   const ranked = [...byUser.values()]
     .sort(
       (a, b) =>
+        b.xp - a.xp ||
         b.completions - a.completions ||
         a.lastCompletionAt - b.lastCompletionAt ||
         a.userId.localeCompare(b.userId),
@@ -117,11 +140,13 @@ const getCourseLeaderboard = async (
       userId: entry.userId,
       displayName: displayNameFor(usersById.get(entry.userId)),
       avatar: usersById.get(entry.userId)?.avatar ?? null,
+      xp: entry.xp,
       completions: entry.completions,
       rank: entry.rank,
     })),
     me: {
       rank: mine ? mine.rank : null,
+      xp: mine ? mine.xp : 0,
       completions: mine ? mine.completions : 0,
     },
   };

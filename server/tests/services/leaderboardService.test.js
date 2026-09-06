@@ -1,6 +1,6 @@
 // Course leaderboard (S7 D9). The service joins DynamoDB progress rows to Mongo
-// users, so both sides are mocked: these assert the windowing, grouping,
-// ranking, tiebreak and name formatting, not persistence.
+// users, so both sides are mocked: these assert the windowing, grouping, XP
+// scoring, ranking, tiebreak and name formatting, not persistence.
 
 jest.mock('../../src/models/User', () => ({ User: { find: jest.fn() } }));
 jest.mock('../../src/services/courseService', () => ({ getCourseById: jest.fn() }));
@@ -26,9 +26,18 @@ const query = (result) => {
   return chain;
 };
 
-const courseWithLessons = (lessonIds) => ({
+// A bare id takes the schema default reward of 10 XP; `[id, xp]` sets its own,
+// which is what the XP-scoring tests need to tell rewards apart.
+const courseWithLessons = (lessons) => ({
   _id: 'course1',
-  modules: [{ lessons: lessonIds.map((id) => ({ _id: id })) }],
+  modules: [
+    {
+      lessons: lessons.map((entry) => {
+        const [id, xpReward] = Array.isArray(entry) ? entry : [entry, 10];
+        return { _id: id, xpReward };
+      }),
+    },
+  ],
 });
 
 const done = (userId, lessonId, completedAt) => ({
@@ -117,7 +126,7 @@ describe('grouping', () => {
     const board = await leaderboardService.getCourseLeaderboard('course1', { viewerId: 'u1' });
 
     expect(progressTable.scanByLessonIds).not.toHaveBeenCalled();
-    expect(board).toEqual({ window: '7d', top: [], me: { rank: null, completions: 0 } });
+    expect(board).toEqual({ window: '7d', top: [], me: { rank: null, xp: 0, completions: 0 } });
   });
 
   test('passes the resolved lesson ids to the scan', async () => {
@@ -130,7 +139,7 @@ describe('grouping', () => {
 });
 
 describe('ranking', () => {
-  test('orders by completions descending and ranks from 1', async () => {
+  test('orders by xp descending and ranks from 1', async () => {
     progressTable.scanByLessonIds.mockResolvedValue([
       done('low', 'l1', daysAgo(1)),
       done('high', 'l1', daysAgo(1)),
@@ -176,8 +185,58 @@ describe('ranking', () => {
   });
 });
 
+describe('xp scoring', () => {
+  test('discounts a completion by the hints the learner revealed', async () => {
+    courseService.getCourseById.mockResolvedValue(
+      courseWithLessons([['l1', 100]]),
+    );
+    progressTable.scanByLessonIds.mockResolvedValue([
+      done('unaided', 'l1', daysAgo(1)),
+      { ...done('one-hint', 'l1', daysAgo(1)), hintsUsed: 1 },
+      { ...done('many-hints', 'l1', daysAgo(1)), hintsUsed: 3 },
+    ]);
+
+    const board = await leaderboardService.getCourseLeaderboard('course1', { window: '7d' });
+
+    // The same 100/50/20% ladder gamificationService banked at completion.
+    expect(board.top.map((r) => [r.userId, r.xp])).toEqual([
+      ['unaided', 100],
+      ['one-hint', 50],
+      ['many-hints', 20],
+    ]);
+  });
+
+  test('ranks one high-value lesson above several cheap ones', async () => {
+    courseService.getCourseById.mockResolvedValue(
+      courseWithLessons([['boss', 200], ['easy1', 10], ['easy2', 10], ['easy3', 10]]),
+    );
+    progressTable.scanByLessonIds.mockResolvedValue([
+      done('one-big', 'boss', daysAgo(1)),
+      done('three-small', 'easy1', daysAgo(1)),
+      done('three-small', 'easy2', daysAgo(1)),
+      done('three-small', 'easy3', daysAgo(1)),
+    ]);
+
+    const board = await leaderboardService.getCourseLeaderboard('course1', { window: '7d' });
+
+    // This is the whole point of the change: effort earned, not rows ticked.
+    expect(board.top.map((r) => [r.userId, r.xp, r.completions])).toEqual([
+      ['one-big', 200, 1],
+      ['three-small', 30, 3],
+    ]);
+  });
+});
+
 describe('the viewer row', () => {
   const sevenLearners = ['u1', 'u2', 'u3', 'u4', 'u5', 'u6', 'u7'];
+
+  // These tests spread completions across `l0`…`l6`; a lesson the course does
+  // not declare carries no reward, so all seven have to be on it.
+  beforeEach(() => {
+    courseService.getCourseById.mockResolvedValue(
+      courseWithLessons(['l0', 'l1', 'l2', 'l3', 'l4', 'l5', 'l6']),
+    );
+  });
 
   test('is present with a real rank even when outside the top five', async () => {
     progressTable.scanByLessonIds.mockResolvedValue([
@@ -195,7 +254,7 @@ describe('the viewer row', () => {
     });
 
     expect(board.top.map((r) => r.userId)).not.toContain('u7');
-    expect(board.me).toEqual({ rank: 7, completions: 1 });
+    expect(board.me).toEqual({ rank: 7, xp: 10, completions: 1 });
   });
 
   test('reports a null rank for a learner with no completions in the window', async () => {
@@ -206,7 +265,7 @@ describe('the viewer row', () => {
       viewerId: 'nobody',
     });
 
-    expect(board.me).toEqual({ rank: null, completions: 0 });
+    expect(board.me).toEqual({ rank: null, xp: 0, completions: 0 });
   });
 
   test('looks up the viewer alongside the top five in a single query', async () => {

@@ -84,12 +84,12 @@ const CourseLeaderboard = ({ courseId, viewerName, showMe }) => {
         </div>
       }
     >
-      <p className="mb-3 text-xs text-slate-500">Most lessons completed in this course</p>
+      <p className="mb-3 text-xs text-slate-500">Most XP earned in this course</p>
 
       {!board ? (
         <p className="text-sm text-slate-500">Loading…</p>
       ) : board.top.length === 0 ? (
-        <p className="text-sm text-slate-500">No completions in this period yet.</p>
+        <p className="text-sm text-slate-500">No XP earned in this period yet.</p>
       ) : (
         <ol className="space-y-1">
           {board.top.map((row) => (
@@ -105,7 +105,7 @@ const CourseLeaderboard = ({ courseId, viewerName, showMe }) => {
               <span className="sr-only">Rank {row.rank}</span>
               <Avatar src={row.avatar} name={row.displayName} size="sm" />
               <span className="flex-1 truncate text-sm text-slate-800">{row.displayName}</span>
-              <span className="text-sm font-semibold text-slate-900">{row.completions}</span>
+              <span className="text-sm font-semibold text-slate-900">{row.xp} XP</span>
             </li>
           ))}
         </ol>
@@ -123,7 +123,7 @@ const CourseLeaderboard = ({ courseId, viewerName, showMe }) => {
               You
             </Chip>
           </span>
-          <span className="text-sm font-semibold text-slate-900">{board.me.completions}</span>
+          <span className="text-sm font-semibold text-slate-900">{board.me.xp} XP</span>
         </div>
       )}
     </Card>

@@ -146,6 +146,7 @@ const gamificationSummary = (user) => {
 
 module.exports = {
   onLessonCompleted,
+  applyHintDiscount,
   xpForLevel,
   levelFromXp,
   rankForLevel,
