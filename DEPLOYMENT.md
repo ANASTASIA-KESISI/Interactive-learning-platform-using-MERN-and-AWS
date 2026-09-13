@@ -428,8 +428,9 @@ Run in order once the platform is live:
       unset is safe — `POST /api/auth/claim-instructor` returns 503 and instructor
       signup degrades to a student account — but no one can self-serve the
       instructor role until it is set
-- [ ] `node scripts/resetStreaks.js` — **required once.** Pre-S5.5 streak values
-      are meaningless; run `--dry-run` first to see the count
+- [x] `node scripts/resetStreaks.js` — **required once.** Pre-S5.5 streak values
+      are meaningless; run `--dry-run` first to see the count. Done 2026-09-13:
+      4 users, 2 non-zero streaks cleared, second dry run reports 0 left.
 - [ ] End-to-end smoke test as a real student: sign up with a university and
       department → enrol → open an exercise → **Run** without submitting → fail a
       submission → reveal a hint → pass → confirm XP, badge, and the confetti
