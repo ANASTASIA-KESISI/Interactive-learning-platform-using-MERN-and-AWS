@@ -390,11 +390,24 @@ journalctl -u learncode-api --since today -o cat | jq -c 'select(.message=="requ
 
 ### Alarms
 
-None are configured. Once the group exists, the first alarm worth adding is a
-metric filter on `/learncode/api` for `{ $.status >= 500 }` with an alarm on
-its count, so a 5xx spike during the pilot is noticed by a person being told
-rather than by a student. After that: Lambda error rate and throttles, and
-DynamoDB throttled requests.
+One alarm is live since 2026-09-13, so a 5xx spike during the pilot is noticed
+by a person being told rather than by a student:
+
+| Piece | Value |
+|---|---|
+| Metric filter on `/learncode/api` | name `api-5xx`, pattern `{ $.status >= 500 }`, metric `LearnCode/Api5xx`, value 1, default 0 |
+| Alarm `learncode-api-5xx` | Sum over 5 minutes >= 1, missing data treated as good |
+| Notification | SNS topic `learncode-alerts`, email subscription confirmed |
+
+Two console traps met while creating it: the filter name field picked up a
+trailing space and the create failed with "Could not describe metric filter";
+and the metric does not appear in the alarm's metric picker until a log line
+has arrived after the filter exists, so create the alarm from the filter
+itself (log group → Metric filters → select → Create alarm) rather than by
+browsing metrics.
+
+Not yet configured, in the order worth adding: Lambda error rate and
+throttles for the two runners, and DynamoDB throttled requests.
 
 ---
 

@@ -601,9 +601,11 @@ Because the lines are JSON, Logs Insights queries fields directly instead of
 parsing free text. The per-route latency query in `DEPLOYMENT.md` is how NFR3
 is checked.
 
-What is not there: no custom metrics, no alarms and no dashboards. The alarms
-worth adding first are API 5xx rate, Lambda errors and throttles, and DynamoDB
-throttled requests.
+One alarm exists: a metric filter counts request lines with `status >= 500`,
+and `learncode-api-5xx` emails a person when that count is at least one in a
+five-minute period, since 2026-09-13. There are no dashboards and no other
+alarms; the next worth adding are Lambda errors and throttles for the runners,
+and DynamoDB throttled requests.
 
 === IAM
 
@@ -720,9 +722,9 @@ signal for those.
 commit and timestamp. Comparing its `commit` against the branch is the fastest
 way to establish what is actually running.
 
-Application logs are structured JSON in CloudWatch. There are no alarms yet, so
-an outage is noticed by a person rather than paged. Uptime for the pilot is
-targeted at 99.5%.
+Application logs are structured JSON in CloudWatch, and a 5xx alarm emails a
+person within five minutes of the API failing a request. Uptime for the pilot
+is targeted at 99.5%.
 
 == Environments and configuration
 
@@ -814,7 +816,7 @@ re-identification key is opt-in and written to a separate file.
 | NFR3 | Primary interactions under 3 s | Aggregated endpoints; warm Lambda invocations measured in tens of milliseconds
 | NFR4 | HTTPS/TLS everywhere | CloudFront and Amplify
 | NFR5 | WCAG 2.1 AA | Designed toward AA and validated with automated tooling (Lighthouse 100 on the public pages); conformance not claimed — see gaps below
-| NFR6 | 99.5% uptime during the pilot | systemd restart; CloudWatch logs, no alarms yet
+| NFR6 | 99.5% uptime during the pilot | systemd restart; CloudWatch logs and the API 5xx alarm
 |===
 
 == Known gaps
@@ -847,10 +849,10 @@ are labelled.
 | Course analytics use a filtered `Scan`, which is fine at pilot scale and not
 beyond it.
 
-| No CloudWatch alarms
-| CloudWatch holds logs only. No alarms, dashboards or custom metrics are
-configured, so a 5xx spike or a throttled Lambda is found by reading logs, not
-by being told.
+| One alarm only
+| The API 5xx alarm is the only one. A throttled or failing Lambda runner, or
+DynamoDB throttling, is still found by reading logs rather than by being told.
+No dashboards.
 
 | Session duration not measured
 | The thesis lists average session duration; the platform records active time
