@@ -141,8 +141,8 @@ npm run dev:client        # client on :5173
 npm run dev:server        # API with hot reload
 npm run dev:client        # Vite dev server
 npm test                  # both suites
-npm run test:server       # Jest — 342 tests
-npm run test:client       # Jest + React Testing Library — 20 tests
+npm run test:server       # Jest — 429 tests
+npm run test:client       # Jest + React Testing Library — 30 tests
 npm run lint              # ESLint across both workspaces
 
 # from server/
@@ -177,14 +177,15 @@ npm run test:server
 npm run test:client
 ```
 
-**Server:** 342 Jest tests covering services, routes and middleware. Mongoose
+**Server:** 429 Jest tests covering services, routes and middleware. Mongoose
 and the AWS SDK are mocked, so the suite asserts behaviour rather than
 persistence and needs no live infrastructure.
 
-**Client:** 20 Jest + React Testing Library tests under `client/tests/`, run in
+**Client:** 30 Jest + React Testing Library tests under `client/tests/`, run in
 a jsdom environment with Babel transforming JSX (config in
 `client/jest.config.cjs`, kept out of the Vite build). They cover the display
-helpers, the `BadgeIcon` fallback logic and the time-on-task hook, which is the
+helpers, the publish rule, the `BadgeIcon` fallback logic and the time-on-task and
+session-heartbeat hooks, the first of which is the
 input to the `timeSpent` metric the pilot reports. Page-level components are
 not tested yet; the production build remains the regression signal for those.
 
@@ -248,7 +249,7 @@ have not been measured and the manual WCAG checks have not been done, so
 conformance is not claimed.
 
 Known gaps, stated plainly: the client test suite is thin (helpers, one
-component and one hook; no page-level tests); WCAG 2.1 AA is designed toward
+component and two hooks; no page-level tests); WCAG 2.1 AA is designed toward
 and validated with automated tooling, not formally audited; local development currently shares the production database;
 course analytics use a filtered `Scan`, which is fine at pilot scale and not
 beyond it; the API 5xx alarm is the only alarm; session duration is approximated by

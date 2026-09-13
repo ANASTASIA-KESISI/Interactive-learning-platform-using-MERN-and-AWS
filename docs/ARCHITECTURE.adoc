@@ -728,15 +728,15 @@ start.
 | Suite | Size | Scope
 
 | Server
-| 342 tests, 21 files
+| 429 tests, 27 files
 | Services, routes and middleware. Mongoose and the AWS SDK are mocked, so the
 suite asserts behaviour rather than persistence and needs no live
 infrastructure.
 
 | Client
-| 20 tests, 4 files
-| The display helpers, the `BadgeIcon` fallback logic and the `useTimeOnTask`
-hook, run in jsdom with React Testing Library. Babel is configured inline in
+| 30 tests, 6 files
+| The display helpers, the publish rule, the `BadgeIcon` fallback logic and the `useTimeOnTask` and `useSessionHeartbeat`
+hooks, run in jsdom with React Testing Library. Babel is configured inline in
 `client/jest.config.cjs` so it cannot reach the Vite build, which runs its own.
 No page-level component is tested yet; the production build is the regression
 signal for those.
@@ -864,8 +864,8 @@ less useful than one that says where the system falls short.
 | Gap | Detail
 
 | Thin client test suite
-| The client has 20 tests over its display helpers, one component and the
-time-on-task hook. No page-level component is tested; the production build in
+| The client has 30 tests over its display helpers, one component and the
+time-on-task and session-heartbeat hooks. No page-level component is tested; the production build in
 CI is the regression signal for those. The backend has full unit and
 integration coverage.
 
