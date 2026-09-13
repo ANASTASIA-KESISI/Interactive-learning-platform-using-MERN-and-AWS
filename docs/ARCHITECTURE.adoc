@@ -562,7 +562,11 @@ unbounded history of submissions would eventually hit it.
 
 === S3 — media
 
-A single bucket for media and static assets, encrypted at rest.
+Reserved, not yet used. The bucket name is configured in the API's
+environment and the backend identity holds S3 access, but no code path reads
+or writes it: `config/aws.js` builds an S3 client that no service calls, and
+badge artwork ships inside the client bundle. S3 stays in the design for
+lesson media; its honest present status is idle.
 
 === Cognito — identity
 
@@ -882,6 +886,7 @@ hardware.
 | Document | Contents
 
 | `DEPLOYMENT.md` | The runbook: deploy steps, IAM policies, environment variables, the pre-pilot checklist, CI/CD setup and troubleshooting. Holds the concrete resource identifiers.
+| `docs/AWS-SERVICES.md` | Service by service: what each AWS service does for the platform, what was created on it, how the code touches it, what was deliberately not used, and the traps met along the way.
 | `CHALLENGES.md` | Problems encountered during construction and how they were resolved, by sprint. The source for the thesis's implementation chapter.
 | `SOLUTION_SKETCH.md` | The original design sketch and sprint roadmap.
 | `REFACTOR.md` | The pre-deployment hardening review and its implementation record.

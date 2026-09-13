@@ -36,7 +36,7 @@ Recorded here so they are not re-created by mistake:
 the Lambda adapter is the default on any host that does not explicitly opt into
 the dev runner, so nothing works in production until this function exists.
 
-`template.yaml` at the repo root defines `learncode-runner-js` (Node 22, 10s
+`template.yaml` at the repo root defines `learncode-runner-js` (Node 24, 10s
 timeout, 256MB) from `server/runners/js/`.
 
 **Option A — install AWS SAM CLI (recommended).**
@@ -51,7 +51,8 @@ sam deploy --guided     # stack name e.g. learncode-runners, region eu-west-1
 by hand:
 
 1. Lambda → Create function → Author from scratch
-2. Name `learncode-runner-js`, runtime **Node.js 22.x**, architecture x86_64
+2. Name `learncode-runner-js`, runtime **Node.js 24.x** (what is deployed; keep
+   `template.yaml` in step), architecture x86_64
 3. Configuration → General → Timeout **10s**, Memory **256MB**
 4. Upload the deployment zip under Code → Upload from → .zip file
 5. Handler must be `index.handler`
@@ -113,7 +114,8 @@ available, e.g. to demonstrate multi-language support at a defence.
 
 Same Console flow as §2 Option B, with three differences:
 
-1. Function name **`learncode-runner-py`**, runtime **Python 3.13**
+1. Function name **`learncode-runner-py`**, runtime **Python 3.14** (what is
+   deployed; `template.yaml` matches)
 2. Upload `learncode-runner-py.zip`, rebuilt with:
    ```powershell
    Compress-Archive -Path server/runners/python/index.py `
@@ -190,8 +192,18 @@ error):
 }
 ```
 
-Attach both as an inline policy on the `learncode-backend` user (IAM → Users →
-learncode-backend → Add permissions → Create inline policy → JSON).
+Attach both, as the inline policy `learncode-runtime`, to **two identities**,
+and remember that updating one does not touch the other:
+
+| Identity | Used by | Where |
+|---|---|---|
+| User `learncode-backend` | Local development, keys in `server/.env` | IAM → Users → learncode-backend → Add permissions → Create inline policy → JSON |
+| Role `learncode-ec2-role` | The deployed API | IAM → Roles → learncode-ec2-role → same |
+
+The instance role additionally carries two AWS-managed policies:
+`AmazonSSMManagedInstanceCore`, so the SSM agent can register and Session
+Manager and Run Command work, and `CloudWatchAgentServerPolicy`, so the
+CloudWatch agent can create the log group and ship lines (§7).
 
 ---
 
@@ -295,10 +307,23 @@ It must end in `200` with no redirect. Applied to the live app on 2026-09-13.
 
 ## 6. HTTPS
 
-NFR4 requires TLS everywhere. Terminate at the load balancer or CloudFront with
-an ACM certificate; ACM certificates are free and auto-renewing. If running
-nginx on a single EC2 box instead, use certbot. `CLIENT_ORIGIN` must be the
-`https://` origin or CORS will reject the browser's requests.
+NFR4 requires TLS everywhere. As deployed: the client is served by Amplify
+over HTTPS on its `*.amplifyapp.com` name, and the API sits behind CloudFront
+distribution `E20QDA6UFH1VN0` (`https://d3n7zqt9fcw62k.cloudfront.net`), which
+terminates TLS on its `*.cloudfront.net` name with an AWS-managed certificate
+and forwards to the instance over plain HTTP on port 80. No certificate is
+installed or renewed on the box, and no custom domain exists, so ACM and
+Route 53 are not involved.
+
+CloudFront's defaults are wrong for an API and were changed: cache policy
+`CachingDisabled` (the default would serve one learner's response to another),
+origin request policy `AllViewerExceptHostHeader` (the default strips the
+`Authorization` header), all HTTP methods allowed, and the origin given as the
+instance's public DNS name because CloudFront refuses a bare IP.
+
+`CLIENT_ORIGIN` on the API must be the `https://` Amplify origin or CORS will
+reject the browser's requests. If a custom domain is ever added, an ACM
+certificate in `us-east-1` is what CloudFront needs for it.
 
 ---
 
@@ -480,9 +505,10 @@ Run in order once the platform is live:
   the unit — and update the pin in the setup script so a rebuild does not
   reintroduce it. The Lambda runner is unaffected (Node 24).
 
-- **No client test suite.** CI lints and builds the frontend; React Testing
-  Library specs are planned but unwritten, so the build is the only frontend
-  regression signal.
+- **Thin client test suite.** Since 2026-09-13 the client has 20 Jest + React
+  Testing Library tests (display helpers, `BadgeIcon`, the time-on-task hook)
+  and CI runs them. No page-level component is tested; the production build
+  remains the regression signal for those.
 - **Admin activity log** (`GET /api/admin/activity-log` in the sketch) is not
   implemented — it needs an audit store that does not exist yet. The request
   logger now emits structured events, so CloudWatch Logs Insights covers the
@@ -503,7 +529,7 @@ Since the pipeline landed, a push to `dev` deploys the whole platform:
 - **Client** — Amplify Hosting watches `dev` and rebuilds the SPA on every
   push by itself. Nothing to do; this predates the pipeline.
 - **API** — the `deploy-api` job in `.github/workflows/ci.yml` runs **after**
-  the server (lint + test) and client (lint + build) jobs pass, and only for
+  the server (lint + test) and client (lint + test + build) jobs pass, and only for
   pushes to `dev`. It assumes an AWS role via **GitHub OIDC** (no stored AWS
   keys), then uses **SSM Run Command** — the same channel as Session Manager,
   so no ports are opened and no SSH keys exist — to reset `/opt/learncode` to
