@@ -24,6 +24,17 @@ const userSchema = new mongoose.Schema(
     enrolledCourses: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Course' }],
     xpPoints: { type: Number, default: 0, min: 0 },
     badges: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Badge' }],
+    // When each badge was earned (S8 D5). A parallel array rather than a
+    // reshaped `badges[]` so nothing that reads the id list has to change.
+    // Written by gamificationService.evaluateBadges alongside every push to
+    // `badges`; awards made before S8 have no entry here and are reported as
+    // undated. This is what lets badge acquisition be plotted over time.
+    badgeAwards: [
+      {
+        badge: { type: mongoose.Schema.Types.ObjectId, ref: 'Badge' },
+        awardedAt: { type: Date, default: Date.now },
+      },
+    ],
     streak: { type: Number, default: 0, min: 0 },
     // Authoritative count of distinct lessons the user has completed (set on
     // first pass only). Used by gamification to evaluate `lessons_completed`

@@ -163,16 +163,27 @@ router.get('/dashboard', ...studentAuth, async (req, res, next) => {
     // visible.
     const allBadges = await Badge.find().lean();
     const earnedBadgeIds = new Set(user.badges.map((id) => id.toString()));
+    // Award dates live in the parallel `badgeAwards` array (S8 D5). A badge
+    // earned before S8 has no entry, so its date is null and the client shows
+    // nothing rather than a guess.
+    const awardedAtById = new Map(
+      (user.badgeAwards || []).map((a) => [a.badge.toString(), a.awardedAt]),
+    );
     const badges = allBadges
-      .map((b) => ({
-        id: b._id,
-        name: b.name,
-        description: b.description,
-        icon: b.icon,
-        criteria: b.criteria,
-        xpValue: b.xpValue,
-        earned: earnedBadgeIds.has(b._id.toString()),
-      }))
+      .map((b) => {
+        const idStr = b._id.toString();
+        const earned = earnedBadgeIds.has(idStr);
+        return {
+          id: b._id,
+          name: b.name,
+          description: b.description,
+          icon: b.icon,
+          criteria: b.criteria,
+          xpValue: b.xpValue,
+          earned,
+          awardedAt: earned ? awardedAtById.get(idStr) || null : null,
+        };
+      })
       .sort((a, b) => {
         if (a.earned !== b.earned) return a.earned ? -1 : 1;
         return a.criteria.threshold - b.criteria.threshold;

@@ -58,9 +58,15 @@ const COUNTER_FOR = Object.freeze({
 // Idempotent badge award. Loops because a badge's xpValue can cross the next
 // badge's xp_reached threshold (cascade), and we want all earned badges
 // surfaced in a single response.
-const evaluateBadges = (user, allBadges) => {
+//
+// Every push to `badges` is mirrored by a dated entry in `badgeAwards` (S8
+// D5). `now` is resolved once per call, so a cascade awarded by one completion
+// shares a single timestamp — they were earned by the same event.
+const evaluateBadges = (user, allBadges, now = new Date()) => {
   const earnedIds = new Set(user.badges.map((id) => id.toString()));
   const newlyAwarded = [];
+  // A pre-S8 document loaded without the field, or a plain object in a test.
+  if (!user.badgeAwards) user.badgeAwards = [];
 
   let changed = true;
   while (changed) {
@@ -78,6 +84,7 @@ const evaluateBadges = (user, allBadges) => {
       if (earned) {
         earnedIds.add(idStr);
         user.badges.push(badge._id);
+        user.badgeAwards.push({ badge: badge._id, awardedAt: now });
         user.xpPoints += badge.xpValue || 0;
         newlyAwarded.push({
           id: badge._id,
@@ -119,7 +126,7 @@ const onLessonCompleted = async ({
   updateStreak(user, now);
 
   const allBadges = await Badge.find({});
-  const newBadges = evaluateBadges(user, allBadges);
+  const newBadges = evaluateBadges(user, allBadges, now);
 
   await user.save();
   return { xpDelta, newBadges };

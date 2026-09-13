@@ -29,7 +29,7 @@ export const AdminOverviewPage = () => {
 
   return (
     <div className="space-y-6">
-      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
         <KpiCard label="Total users" value={data.totalUsers} />
         <KpiCard
           label="Active this week"
@@ -46,9 +46,33 @@ export const AdminOverviewPage = () => {
           value={roles.student ?? 0}
           hint={`${roles.instructor ?? 0} instructors · ${roles.admin ?? 0} admins`}
         />
+        <KpiCard
+          label="Badges awarded"
+          value={data.badgesAwardedTotal ?? 0}
+          hint="Dated awards, all time"
+        />
       </div>
 
-      <WeeklyActivityCard weeks={data.activeByWeek || []} />
+      <div className="grid gap-6 lg:grid-cols-2">
+        <WeeklySeriesCard
+          title="Active users per week"
+          hint="Users by the week they were last active. Each user counts once."
+          emptyText="No recorded activity yet."
+          weeks={data.activeByWeek || []}
+          valueKey="activeUsers"
+          valueLabel="Active users"
+          fill="#0ea5e9"
+        />
+        <WeeklySeriesCard
+          title="Badges awarded per week"
+          hint="Awards by the week they were earned. Badges earned before awards were dated are not shown."
+          emptyText="No badges awarded yet."
+          weeks={data.badgesAwardedByWeek || []}
+          valueKey="badgesAwarded"
+          valueLabel="Badges awarded"
+          fill="#f59e0b"
+        />
+      </div>
     </div>
   );
 };
@@ -64,28 +88,27 @@ const KpiCard = ({ label, value, hint }) => (
 const formatWeek = (iso) =>
   new Date(iso).toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
 
-// Bars rather than a line: the API buckets each user by the week they were LAST
-// seen, so the weeks are disjoint counts, not samples of a continuous quantity.
-// A line would draw interpolation between weeks that does not exist.
+// Bars rather than a line: the API buckets each event by the week it fell in
+// (a user by the week they were LAST seen, a badge by the week it was earned),
+// so the weeks are disjoint counts, not samples of a continuous quantity. A
+// line would draw interpolation between weeks that does not exist.
 //
 // The single series carries no legend — the card title names it. The chart
 // colour sits below 3:1 against the card surface, so exact values are always
 // reachable through the tooltip and the toggleable data table rather than by
 // reading the bars alone.
-const WeeklyActivityCard = ({ weeks }) => {
+const WeeklySeriesCard = ({ title, hint, emptyText, weeks, valueKey, valueLabel, fill }) => {
   const [showTable, setShowTable] = useState(false);
 
-  const chartData = weeks.map((w) => ({ name: formatWeek(w.weekStart), value: w.activeUsers }));
-  const hasActivity = weeks.some((w) => w.activeUsers > 0);
+  const chartData = weeks.map((w) => ({ name: formatWeek(w.weekStart), value: w[valueKey] }));
+  const hasActivity = weeks.some((w) => w[valueKey] > 0);
 
   return (
     <section className="rounded-lg border border-slate-200 bg-white p-6 shadow-sm">
       <div className="flex items-start justify-between gap-4">
         <div>
-          <h2 className="text-lg font-semibold text-slate-900">Active users per week</h2>
-          <p className="mt-1 text-xs text-slate-500">
-            Users by the week they were last active. Each user counts once.
-          </p>
+          <h2 className="text-lg font-semibold text-slate-900">{title}</h2>
+          <p className="mt-1 text-xs text-slate-500">{hint}</p>
         </div>
         <button
           type="button"
@@ -99,7 +122,7 @@ const WeeklyActivityCard = ({ weeks }) => {
 
       {!hasActivity ? (
         <p className="mt-6 rounded-md border border-dashed border-slate-300 p-8 text-center text-slate-500">
-          No recorded activity yet.
+          {emptyText}
         </p>
       ) : (
         <div className="mt-4 h-64">
@@ -108,8 +131,8 @@ const WeeklyActivityCard = ({ weeks }) => {
               <CartesianGrid strokeDasharray="3 3" />
               <XAxis dataKey="name" tick={{ fontSize: 11 }} interval={0} height={40} />
               <YAxis tick={{ fontSize: 12 }} allowDecimals={false} />
-              <Tooltip formatter={(v) => [v, 'Active users']} />
-              <Bar dataKey="value" fill="#0ea5e9" radius={[4, 4, 0, 0]} />
+              <Tooltip formatter={(v) => [v, valueLabel]} />
+              <Bar dataKey="value" fill={fill} radius={[4, 4, 0, 0]} />
             </BarChart>
           </ResponsiveContainer>
         </div>
@@ -118,18 +141,18 @@ const WeeklyActivityCard = ({ weeks }) => {
       {showTable && (
         <div className="mt-4 overflow-x-auto">
           <table className="w-full text-left text-sm">
-            <caption className="sr-only">Active users per week</caption>
+            <caption className="sr-only">{title}</caption>
             <thead className="bg-slate-50 text-xs uppercase tracking-wide text-slate-500">
               <tr>
                 <th scope="col" className="px-4 py-2">Week beginning</th>
-                <th scope="col" className="px-4 py-2 text-right">Active users</th>
+                <th scope="col" className="px-4 py-2 text-right">{valueLabel}</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
               {weeks.map((w) => (
                 <tr key={w.weekStart}>
                   <td className="px-4 py-2">{w.weekStart}</td>
-                  <td className="px-4 py-2 text-right tabular-nums">{w.activeUsers}</td>
+                  <td className="px-4 py-2 text-right tabular-nums">{w[valueKey]}</td>
                 </tr>
               ))}
             </tbody>

@@ -39,6 +39,52 @@ const activeUsersByWeek = async (weeks) => {
   return buckets;
 };
 
+// Badges awarded per week over the same window, oldest first, plus the
+// all-time total (S8 D5/D8). Awards are dated since S8 through
+// `users.badgeAwards`; a badge earned before that has no entry and lands in
+// neither figure — `badges[]` still counts it on the learner's own profile.
+// One aggregation unwinds every user's awards and buckets them by the week
+// index from the window start, so the route does not loop over weeks.
+const badgesAwardedByWeek = async (weeks) => {
+  const now = Date.now();
+  const windowStart = new Date(now - weeks * WEEK_MS);
+
+  const [result] = await User.aggregate([
+    { $unwind: '$badgeAwards' },
+    {
+      $facet: {
+        total: [{ $count: 'count' }],
+        byWeek: [
+          { $match: { 'badgeAwards.awardedAt': { $gte: windowStart, $lt: new Date(now) } } },
+          {
+            $group: {
+              _id: {
+                $floor: {
+                  $divide: [{ $subtract: ['$badgeAwards.awardedAt', windowStart] }, WEEK_MS],
+                },
+              },
+              count: { $sum: 1 },
+            },
+          },
+        ],
+      },
+    },
+  ]);
+
+  const countByIndex = new Map(((result && result.byWeek) || []).map((b) => [b._id, b.count]));
+  const buckets = [];
+  for (let i = 0; i < weeks; i += 1) {
+    const start = new Date(windowStart.getTime() + i * WEEK_MS);
+    buckets.push({
+      weekStart: start.toISOString().slice(0, 10),
+      badgesAwarded: countByIndex.get(i) || 0,
+    });
+  }
+
+  const total = result && result.total && result.total[0] ? result.total[0].count : 0;
+  return { badgesAwardedTotal: total, badgesAwardedByWeek: buckets };
+};
+
 // GET /api/admin/kpis?weeks=8
 router.get('/kpis', ...adminAuth, async (req, res, next) => {
   try {
@@ -54,6 +100,8 @@ router.get('/kpis', ...adminAuth, async (req, res, next) => {
     const weekAgo = new Date(Date.now() - WEEK_MS);
     const weeklyActiveUsers = await User.countDocuments({ lastActiveAt: { $gte: weekAgo } });
     const activeByWeek = await activeUsersByWeek(weeks);
+    const { badgesAwardedTotal, badgesAwardedByWeek: badgesByWeek } =
+      await badgesAwardedByWeek(weeks);
 
     res.json({
       data: {
@@ -63,6 +111,8 @@ router.get('/kpis', ...adminAuth, async (req, res, next) => {
         weeklyActiveUsers,
         usersByRole: Object.fromEntries(usersByRole.map((r) => [r._id, r.count])),
         activeByWeek,
+        badgesAwardedTotal,
+        badgesAwardedByWeek: badgesByWeek,
       },
     });
   } catch (err) {

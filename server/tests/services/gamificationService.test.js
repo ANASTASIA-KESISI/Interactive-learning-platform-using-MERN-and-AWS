@@ -184,6 +184,86 @@ describe('evaluateBadges', () => {
     const awarded = evaluateBadges(user, badges);
     expect(awarded).toHaveLength(0);
   });
+
+  // S8 D5: every award is dated through the parallel `badgeAwards` array, so
+  // badge acquisition can be placed in time. `badges[]` keeps its id-only
+  // shape for every existing reader.
+  describe('award timestamps', () => {
+    test('writes a dated entry alongside the id for each award', () => {
+      const user = { xpPoints: 0, streak: 0, lessonsCompleted: 1, badges: [], badgeAwards: [] };
+      const badge = makeBadge({
+        name: 'First Steps',
+        criteria: { type: 'lessons_completed', threshold: 1 },
+      });
+      const now = new Date('2026-09-13T10:00:00Z');
+
+      evaluateBadges(user, [badge], now);
+
+      expect(user.badges).toEqual([badge._id]);
+      expect(user.badgeAwards).toEqual([{ badge: badge._id, awardedAt: now }]);
+    });
+
+    test('a cascade from one completion shares a single timestamp', () => {
+      const user = { xpPoints: 75, streak: 0, lessonsCompleted: 5, badges: [], badgeAwards: [] };
+      const badges = [
+        makeBadge({ name: 'Getting Started', criteria: { type: 'lessons_completed', threshold: 5 }, xpValue: 50 }),
+        makeBadge({ name: 'Centurion', criteria: { type: 'xp_reached', threshold: 100 } }),
+      ];
+      const now = new Date('2026-09-13T10:00:00Z');
+
+      evaluateBadges(user, badges, now);
+
+      expect(user.badgeAwards).toHaveLength(2);
+      expect(user.badgeAwards.every((a) => a.awardedAt === now)).toBe(true);
+      expect(user.badgeAwards.map((a) => a.badge)).toEqual(user.badges);
+    });
+
+    test('defaults the timestamp once per call when none is given', () => {
+      const user = { xpPoints: 75, streak: 0, lessonsCompleted: 5, badges: [], badgeAwards: [] };
+      const badges = [
+        makeBadge({ name: 'Getting Started', criteria: { type: 'lessons_completed', threshold: 5 }, xpValue: 50 }),
+        makeBadge({ name: 'Centurion', criteria: { type: 'xp_reached', threshold: 100 } }),
+      ];
+
+      evaluateBadges(user, badges);
+
+      const [first, second] = user.badgeAwards;
+      expect(first.awardedAt).toBeInstanceOf(Date);
+      expect(second.awardedAt).toBe(first.awardedAt);
+    });
+
+    test('tolerates a pre-S8 document with no badgeAwards field', () => {
+      const user = { xpPoints: 0, streak: 0, lessonsCompleted: 1, badges: [] };
+      const badge = makeBadge({
+        name: 'First Steps',
+        criteria: { type: 'lessons_completed', threshold: 1 },
+      });
+
+      evaluateBadges(user, [badge]);
+
+      expect(user.badgeAwards).toHaveLength(1);
+      expect(user.badgeAwards[0].badge).toBe(badge._id);
+    });
+
+    test('an already-earned badge gets no second award entry', () => {
+      const earnedId = { toString: () => 'First Steps' };
+      const user = {
+        xpPoints: 25,
+        streak: 0,
+        lessonsCompleted: 1,
+        badges: [earnedId],
+        badgeAwards: [{ badge: earnedId, awardedAt: new Date('2026-01-01T00:00:00Z') }],
+      };
+      const badge = makeBadge({
+        name: 'First Steps',
+        criteria: { type: 'lessons_completed', threshold: 1 },
+      });
+
+      evaluateBadges(user, [badge]);
+
+      expect(user.badgeAwards).toHaveLength(1);
+    });
+  });
 });
 
 // ── Level & rank (S7 D8) ──────────────────────────────────────────────────────

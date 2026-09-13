@@ -55,6 +55,15 @@ const memberSince = (iso) => {
   return date.toLocaleDateString('en-GB', { month: 'long', year: 'numeric' });
 };
 
+// Awards are dated since S8; an earlier one arrives as null and shows nothing
+// rather than a guessed date.
+const earnedOn = (iso) => {
+  if (!iso) return null;
+  const date = new Date(iso);
+  if (Number.isNaN(date.getTime())) return null;
+  return date.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
+};
+
 const IdentityCard = ({ profile, name, variant, onEdit }) => {
   const Heading = variant === 'profile' ? 'h1' : 'h2';
   const since = variant === 'profile' ? memberSince(profile?.createdAt) : null;
@@ -206,6 +215,11 @@ const BadgeGalleryCard = ({ badges = [], earnedCount, total }) => (
                 <p className="mt-0.5 text-xs text-slate-600">{badge.description}</p>
                 {!badge.earned && (
                   <p className="mt-1 text-[11px] text-slate-500">{formatCriteria(badge.criteria)}</p>
+                )}
+                {badge.earned && earnedOn(badge.awardedAt) && (
+                  <p className="mt-1 text-[11px] text-slate-500">
+                    Earned {earnedOn(badge.awardedAt)}
+                  </p>
                 )}
               </div>
             </div>
