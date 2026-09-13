@@ -314,10 +314,16 @@ journal, and the CloudWatch agent reads files, not the journal.
 
 ### Shipping the API logs
 
-**State as of 2026-09-13: not yet done on the live instance.** The API logs
-exist only in the journal on the host. The pieces below are in `deploy/` and
-ready to apply; nothing about the API itself changes and the API is not
-restarted.
+**Live on the instance since 2026-09-13.** Log group `/learncode/api`, one
+stream per instance id, 90-day retention. The steps below are what was run,
+kept for a fresh host; nothing about the API itself changes and the API is
+not restarted.
+
+One trap, already handled by the script but worth knowing if the unit is ever
+installed by hand: systemd opens the `StandardOutput=append:` file *before*
+it creates the directory `LogsDirectory=` declares, so on a host where
+`/var/log/learncode` does not exist the unit dies with `209/STDOUT` before
+`journalctl` runs. Create the directory first.
 
 How it fits together:
 
@@ -411,12 +417,9 @@ Run in order once the platform is live:
 - [ ] Confirm in DevTools that the lesson response contains **no**
       `expectedOutput` and no unrevealed hint text (S5.5 B1)
 - [ ] Confirm a draft course 404s for a student account (S5.5 B4)
-- [ ] Ship the API logs to CloudWatch (§7: `CloudWatchAgentServerPolicy` is
-  already on `learncode-ec2-role`; run `sudo bash /opt/learncode/deploy/setup-cloudwatch.sh`).
-  **Not done as of 2026-09-13**; until then the API logs exist only in the
-  instance's journal.
-- [ ] Verify request logs are arriving in CloudWatch as JSON: log group
-  `/learncode/api`, Insights query in §7 returns rows
+- [x] Ship the API logs to CloudWatch (§7) — done 2026-09-13.
+- [x] Verify request logs are arriving in CloudWatch as JSON — log group
+  `/learncode/api` visible with the instance stream, 2026-09-13.
 - [ ] Deep links return `200`, not `404` (§5 curl check). The live app fails
   this as of 2026-09-13.
 - [ ] Lighthouse accessibility on the authenticated screens. The public pages

@@ -217,10 +217,9 @@ Also recorded: unvalidated runs, questions asked and note activity per lesson,
 and users active per week. The anonymised dataset comes from
 `server/scripts/exportSubmissions.js`.
 
-The API emits structured JSON request logs. Shipping them to CloudWatch is
-prepared in `deploy/` but, as of 2026-09-13, not yet applied on the instance
-(runbook §7); Lambda and Amplify logs are there already. No alarms,
-dashboards or custom metrics yet.
+The API's structured JSON request logs ship to the CloudWatch log group
+`/learncode/api` (runbook §7); Lambda and Amplify logs are there too. No
+alarms, dashboards or custom metrics yet.
 
 ## Documentation
 
@@ -249,8 +248,7 @@ Known gaps, stated plainly: the client test suite is thin (helpers, one
 component and one hook; no page-level tests); WCAG 2.1 AA is designed toward
 and validated with automated tooling, not formally audited; local development currently shares the production database;
 course analytics use a filtered `Scan`, which is fine at pilot scale and not
-beyond it; the API logs are not yet shipped to CloudWatch and there are no
-alarms; session duration is approximated by
+beyond it; CloudWatch has no alarms; session duration is approximated by
 per-lesson time on task; badge awards are not timestamped; the DynamoDB table
 was created in the console rather than in code; live deep links render but
 return a 404 status.

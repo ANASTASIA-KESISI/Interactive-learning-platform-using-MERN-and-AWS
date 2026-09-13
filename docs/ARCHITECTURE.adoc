@@ -588,9 +588,9 @@ small companion unit tails it into a file that the agent ships to the log group
 touching the API process. Lambda and Amplify ship their own logs without
 configuration.
 
-As of 2026-09-13 that setup has been prepared but not run on the live
-instance, so the API logs exist only in the host's journal; `DEPLOYMENT.md`
-section 7 has the steps and the checklist item.
+Live on the instance since 2026-09-13: log group `/learncode/api`, one stream
+per instance, 90-day retention. `DEPLOYMENT.md` section 7 has the setup for a
+fresh host and the one systemd trap it works around.
 
 Request bodies, query strings, tokens and the `authorization` header are never
 logged: bodies carry learner source code, and the rest would put secrets in a
@@ -851,12 +851,6 @@ Amplify section.
 | Analytics scan
 | Course analytics use a filtered `Scan`, which is fine at pilot scale and not
 beyond it.
-
-| API logs not yet in CloudWatch
-| The Lambda runners and Amplify log to CloudWatch automatically; the API does
-not. Its structured logs sit in the instance's journal until
-`deploy/setup-cloudwatch.sh` is run with `CloudWatchAgentServerPolicy` on the
-instance role. Prepared, not applied, as of 2026-09-13.
 
 | No CloudWatch alarms
 | CloudWatch holds logs only. No alarms, dashboards or custom metrics are
