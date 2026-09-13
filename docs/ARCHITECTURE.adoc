@@ -97,6 +97,13 @@ usual argument for SSR does not apply.
 
 A React 18 single-page application, built by Vite and deployed to AWS Amplify.
 
+It is a single-page application in the strict sense: one HTML shell with a
+single mount point, one script entry, and every route declared client-side in
+`App.jsx` under a `BrowserRouter`. Vite emits a static bundle that Amplify
+serves; nothing is rendered on a server. The one hosting consequence is the
+rewrite rule that sends 404s to `index.html`, so a deep link such as
+`/admin/users` survives a refresh.
+
 [cols="1,3",options="header"]
 |===
 | Concern | Choice
@@ -133,6 +140,34 @@ time while the document is visible and flushes increments to the API, so a tab
 left open unattended contributes nothing. This is the distinction between
 time-on-task, which the evaluation reports, and wall-clock elapsed, which an
 idle tab would inflate for free.
+
+=== Accessibility
+
+NFR5 asks for WCAG 2.1 AA. The automated part of that was measured on
+2026-09-13 with Lighthouse 13.4 (axe-core 4.13) in headless Chrome, against the
+deployed build and a local production build of the same commit; the two agreed
+exactly. The reports are in `docs/lighthouse/`.
+
+[cols="2,1,3",options="header"]
+|===
+| Page | Score | Automated failures
+
+| Login (live and local) | 97 | No `main` landmark
+| Student signup | 98 | No `main` landmark
+| Instructor signup | 98 | No `main` landmark
+|===
+
+The one failure is shared: the app shell renders content without a `<main>`
+element, so assistive technology has no landmark to jump to. It is a
+one-element fix in the layout.
+
+Two limits on what the number means. Only the public pages were measured,
+because every other screen sits behind Cognito and no test account exists for
+tooling. And Lighthouse automates roughly a third of the standard; the ten
+manual checks it lists — focus order, keyboard traps and the like — still need
+a human pass. The defensible claim, and the one made throughout these
+documents, is that the platform is *designed toward WCAG 2.1 AA and validated
+with automated tooling*. Conformance is not claimed.
 
 == Layer 2 — API
 
@@ -373,6 +408,10 @@ A single DynamoDB table, partition key `userId` and sort key `lessonId`. The
 composite key answers both of the questions the application asks — "this
 learner's whole history" and "this learner on this lesson" — in one round-trip.
 
+The table is not defined in code. It was created in the console, and its name
+reaches the API through the `DYNAMO_PROGRESS_TABLE` variable; `DEPLOYMENT.md`
+holds the identifier.
+
 Three of its attributes exist to keep the pilot's headline metric honest.
 `runs`, `questionsAsked` and `noteUpdatedAt` record engagement that is
 deliberately *not* folded into `attempts`: only a submit is an attempt, so
@@ -428,7 +467,13 @@ Two configuration points that are easy to get wrong:
 * `VITE_*` variables are inlined at *build* time, not read at runtime, so
   changing one requires a rebuild.
 
-The default redirect rule already provides the SPA fallback — nothing to add.
+The default redirect rule serves `index.html` for unknown paths, so deep links
+render. Measured on 2026-09-13, though, the status codes are wrong: `/login`
+answers 301 to `/login/`, and that answers 404 with the `index.html` body.
+Browsers render it and users never notice, but crawlers, uptime probes and
+Lighthouse read the status and treat the page as broken. The fallback needs to
+be a `200` rewrite; which console setting is responsible has not been traced
+beyond the symptom, and `DEPLOYMENT.md` has the check that proves it fixed.
 
 === CloudFront — HTTPS for the API
 
@@ -534,9 +579,30 @@ an administrator can grant the role later; the sign-up does not fail.
 
 === CloudWatch — logs and metrics
 
-Request logs are emitted as structured JSON lines, one per request, so they are
-queryable in Logs Insights rather than needing to be parsed out of free text.
-Secrets are kept out of log output by construction.
+CloudWatch is used for logs only. The API writes one JSON line per request —
+method, route, status, duration and the caller's role — plus structured
+application events, to stdout and stderr. On the instance, systemd stores both
+streams in the journal. The CloudWatch agent cannot read the journal, so a
+small companion unit tails it into a file that the agent ships to the log group
+`/learncode/api`; `deploy/setup-cloudwatch.sh` installs the pieces without
+touching the API process. Lambda and Amplify ship their own logs without
+configuration.
+
+As of 2026-09-13 that setup has been prepared but not run on the live
+instance, so the API logs exist only in the host's journal; `DEPLOYMENT.md`
+section 7 has the steps and the checklist item.
+
+Request bodies, query strings, tokens and the `authorization` header are never
+logged: bodies carry learner source code, and the rest would put secrets in a
+log group.
+
+Because the lines are JSON, Logs Insights queries fields directly instead of
+parsing free text. The per-route latency query in `DEPLOYMENT.md` is how NFR3
+is checked.
+
+What is not there: no custom metrics, no alarms and no dashboards. The alarms
+worth adding first are API 5xx rate, Lambda errors and throttles, and DynamoDB
+throttled requests.
 
 === IAM
 
@@ -600,7 +666,7 @@ Pushing to `dev` is the whole deployment process.
 push to dev
    ├─ GitHub Actions
    │    ├─ Server — lint & test        ┐ both must pass
-   │    ├─ Client — lint & build       ┘
+   │    ├─ Client — lint, test & build ┘
    │    └─ Deploy API to EC2
    │         ├─ assume IAM role via GitHub OIDC (no stored keys)
    │         └─ SSM Run Command → deploy script on the instance
@@ -623,13 +689,38 @@ Three traps are documented in `DEPLOYMENT.md` and worth repeating:
   new commit live. `/health` reports the running commit; that is the ground
   truth, and it is the first thing to check.
 
+=== Test suites
+
+Both workspaces run Jest, and CI runs both suites before the deploy job may
+start.
+
+[cols="1,1,3",options="header"]
+|===
+| Suite | Size | Scope
+
+| Server
+| 342 tests, 21 files
+| Services, routes and middleware. Mongoose and the AWS SDK are mocked, so the
+suite asserts behaviour rather than persistence and needs no live
+infrastructure.
+
+| Client
+| 20 tests, 4 files
+| The display helpers, the `BadgeIcon` fallback logic and the `useTimeOnTask`
+hook, run in jsdom with React Testing Library. Babel is configured inline in
+`client/jest.config.cjs` so it cannot reach the Vite build, which runs its own.
+No page-level component is tested yet; the production build is the regression
+signal for those.
+|===
+
 == Observability
 
 `GET /health` returns liveness, Mongo connectivity, uptime, and the deployed
 commit and timestamp. Comparing its `commit` against the branch is the fastest
 way to establish what is actually running.
 
-Application logs are structured JSON in CloudWatch. Uptime for the pilot is
+Application logs are structured JSON in CloudWatch. There are no alarms yet, so
+an outage is noticed by a person rather than paged. Uptime for the pilot is
 targeted at 99.5%.
 
 == Environments and configuration
@@ -653,6 +744,56 @@ Splitting out a separate development database is the obvious hardening step and
 has not been done.
 ====
 
+== Evaluation metrics
+
+The pilot is evaluated with the System Usability Scale plus engagement metrics
+drawn from the progress table. The thesis names five engagement metrics. This
+is what the platform produces for each, checked against the code rather than
+the design.
+
+[cols="2,1,3",options="header"]
+|===
+| Thesis metric | Status | Where it comes from
+
+| Lesson-completion rate
+| Reported
+| `passRate` per lesson and `overallCompletionRate` per course from
+`GET /api/instructor/courses/:id/analytics`; `completionRate` on the student
+dashboard and profile.
+
+| Mean code submissions per exercise
+| Derivable
+| `totalAttempts` and `uniqueLearners` per lesson are returned; the mean is
+their ratio. The per-submission transcript is in the research export.
+
+| Hint usage frequency
+| Reported
+| `avgHintsUsed` per lesson. Each stored submission also carries
+`hintsUsedAtSubmit`, so attempts before and after a hint can be compared.
+
+| Badge acquisition rate
+| Partial
+| Badges are awarded server-side and counted per user (`badgeCount` and
+`badgeTotal`), but `users.badges[]` holds IDs without an award timestamp. The
+rate can be computed per cohort at export time; it cannot be plotted over time.
+
+| Average session duration
+| Not as sessions
+| There is no session record. What exists is `timeSpent` per lesson — active
+time on task from `useTimeOnTask`, exposed as `avgTimeSpentSec` — and
+`lastActiveAt` per user, which drives the weekly-active-users chart. The honest
+label is "average time on task per lesson".
+|===
+
+Beyond the five, the table records `runs` (unvalidated executions),
+`questionsAsked` and `noteUpdatedAt`, and the admin panel reports user totals
+by role and users active per week.
+
+The offline dataset for the analysis comes from
+`server/scripts/exportSubmissions.js`. It replaces the Mongo user ID with a
+stable `learner-NN` token and writes no names, emails or Cognito IDs; the
+re-identification key is opt-in and written to a separate file.
+
 == Requirements traceability
 
 [cols="1,2,2",options="header"]
@@ -664,15 +805,15 @@ has not been done.
 | FR3 | Course → module → lesson hierarchy | `courseService`, Mongo
 | FR4 | Scaffolded hints and formative error messages | `lessons` collection, reveal endpoint
 | FR5 | XP, badges, streaks, progress | `gamificationService`
-| FR6 | Analytics dashboard | `progressService.getCourseAnalytics`, Recharts
+| FR6 | Analytics dashboard | `progressService.getCourseAnalytics`, Recharts; metric coverage in the evaluation-metrics section
 | FR7 | Instructor course creation | `/api/instructor`
 | FR8 | Admin tools | `/api/admin`
 | NFR1 | Responsive desktop and mobile | Tailwind breakpoints; panes stack on narrow screens
 | NFR2 | Horizontally scalable | Stateless API; session lives in the JWT
 | NFR3 | Primary interactions under 3 s | Aggregated endpoints; warm Lambda invocations measured in tens of milliseconds
 | NFR4 | HTTPS/TLS everywhere | CloudFront and Amplify
-| NFR5 | WCAG 2.1 AA | Partially — see gaps below
-| NFR6 | 99.5% uptime during the pilot | systemd restart, CloudWatch
+| NFR5 | WCAG 2.1 AA | Designed toward AA and validated with automated tooling (Lighthouse 97–98 on the public pages); conformance not claimed — see gaps below
+| NFR6 | 99.5% uptime during the pilot | systemd restart; CloudWatch logs, no alarms yet
 |===
 
 == Known gaps
@@ -684,14 +825,25 @@ less useful than one that says where the system falls short.
 |===
 | Gap | Detail
 
-| No client test suite
-| CI lints and builds the frontend but runs no tests. The backend has full
-unit and integration coverage; the frontend has none.
+| Thin client test suite
+| The client has 20 tests over its display helpers, one component and the
+time-on-task hook. No page-level component is tested; the production build in
+CI is the regression signal for those. The backend has full unit and
+integration coverage.
 
-| WCAG 2.1 AA unaudited
-| NFR5 has never been formally audited. Individual measures are in place —
+| WCAG 2.1 AA: designed toward, validated with automated tooling, not formally audited
+| Lighthouse scores the public pages 97–98 (2026-09-13) with one automated
+failure, a missing `main` landmark. The authenticated screens have not been
+measured, and the manual checks that make up most of the standard have not been
+done, so conformance is not claimed. Individual measures are in place —
 `prefers-reduced-motion` is honoured, status regions are announced, controls
-are labelled — but no audit has been run against the standard.
+are labelled.
+
+| Deep links return a 404 status
+| On Amplify, `/login` is a 301 to `/login/`, which is a 404 carrying the
+`index.html` body. The page renders, so no user has noticed, but any client
+that reads the status sees a broken page. Traced to the symptom only; see the
+Amplify section.
 
 | Shared development database
 | See the warning above.
@@ -699,6 +851,30 @@ are labelled — but no audit has been run against the standard.
 | Analytics scan
 | Course analytics use a filtered `Scan`, which is fine at pilot scale and not
 beyond it.
+
+| API logs not yet in CloudWatch
+| The Lambda runners and Amplify log to CloudWatch automatically; the API does
+not. Its structured logs sit in the instance's journal until
+`deploy/setup-cloudwatch.sh` is run with `CloudWatchAgentServerPolicy` on the
+instance role. Prepared, not applied, as of 2026-09-13.
+
+| No CloudWatch alarms
+| CloudWatch holds logs only. No alarms, dashboards or custom metrics are
+configured, so a 5xx spike or a throttled Lambda is found by reading logs, not
+by being told.
+
+| Session duration not measured
+| The thesis lists average session duration; the platform records active time
+on task per lesson and a last-seen timestamp per user. Either the thesis
+wording changes to time on task, or session tracking is added.
+
+| Badges not timestamped
+| `users.badges[]` is a list of IDs. Acquisition can be counted but not placed
+in time, so a badge-acquisition curve cannot be drawn from the current data.
+
+| Progress table outside infrastructure-as-code
+| The DynamoDB table was created in the console and its schema lives only there.
+Recreating the environment means recreating it by hand.
 
 | No admin activity log
 | Administrative actions are not recorded to an audit trail.

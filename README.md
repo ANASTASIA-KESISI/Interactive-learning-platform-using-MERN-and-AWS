@@ -9,7 +9,7 @@
 [![CI](https://github.com/ANASTASIA-KESISI/Interactive-learning-platform-using-MERN-and-AWS/actions/workflows/ci.yml/badge.svg?branch=dev)](https://github.com/ANASTASIA-KESISI/Interactive-learning-platform-using-MERN-and-AWS/actions/workflows/ci.yml)
 ![Node](https://img.shields.io/badge/node-%E2%89%A518-3c873a)
 ![Stack](https://img.shields.io/badge/stack-MERN%20%2B%20AWS-2563eb)
-![Tests](https://img.shields.io/badge/server%20tests-342-4c1)
+![Tests](https://img.shields.io/badge/tests-342%20server%20%2B%2020%20client-4c1)
 ![Region](https://img.shields.io/badge/region-eu--west--1-ff9900)
 
 </div>
@@ -73,7 +73,13 @@ endpoints.
 **Polyglot persistence, on purpose.** Content goes to Mongo — read often,
 written rarely. Events go to DynamoDB — written on every click, submission and
 hint reveal. Collapsing them into one store would trade away either the query
-shape or the write throughput.
+shape or the write throughput. The progress table is keyed on `userId`
+(partition) and `lessonId` (sort), so one learner's history and one learner's
+lesson are each a single round-trip.
+
+**Client-rendered, on purpose.** One HTML shell, every route declared in the
+browser, and a static bundle on Amplify with a 404 → `index.html` rewrite so
+deep links survive a refresh. Nothing is server-rendered.
 
 <div align="center">
   <img src="docs/aws-topology.png" alt="AWS deployment topology" width="92%">
@@ -134,7 +140,9 @@ npm run dev:client        # client on :5173
 ```bash
 npm run dev:server        # API with hot reload
 npm run dev:client        # Vite dev server
+npm test                  # both suites
 npm run test:server       # Jest — 342 tests
+npm run test:client       # Jest + React Testing Library — 20 tests
 npm run lint              # ESLint across both workspaces
 
 # from server/
@@ -149,6 +157,7 @@ node scripts/seedUniversities.js  # the institutional tree
 client/          React SPA
   public/badges/   badge artwork, one SVG per badge
   src/features/    one directory per feature area
+  tests/           Jest + React Testing Library
 server/
   src/routes/      thin handlers — parse, call a service, format
   src/services/    all business logic
@@ -163,15 +172,21 @@ deploy/          systemd unit, nginx site, EC2 setup script
 ## Testing
 
 ```bash
+npm test                  # both workspaces
 npm run test:server
+npm run test:client
 ```
 
-342 Jest tests covering services, routes and middleware. Mongoose and the AWS
-SDK are mocked, so the suite asserts behaviour rather than persistence and needs
-no live infrastructure.
+**Server:** 342 Jest tests covering services, routes and middleware. Mongoose
+and the AWS SDK are mocked, so the suite asserts behaviour rather than
+persistence and needs no live infrastructure.
 
-There is **no client test suite yet** — CI lints and builds the frontend but
-runs no tests against it.
+**Client:** 20 Jest + React Testing Library tests under `client/tests/`, run in
+a jsdom environment with Babel transforming JSX (config in
+`client/jest.config.cjs`, kept out of the Vite build). They cover the display
+helpers, the `BadgeIcon` fallback logic and the time-on-task hook, which is the
+input to the `timeSpent` metric the pilot reports. Page-level components are
+not tested yet; the production build remains the regression signal for those.
 
 ## Deployment
 
@@ -185,12 +200,35 @@ into it.
 
 📗 **[Deployment runbook →](DEPLOYMENT.md)**
 
+## What the pilot can measure
+
+The thesis names five engagement metrics. Checked against the code, this is
+what the platform produces for each:
+
+| Thesis metric | Status | Source |
+|---|---|---|
+| Lesson-completion rate | Reported | `passRate` per lesson and `overallCompletionRate` per course in the instructor analytics; `completionRate` on the student dashboard |
+| Mean code submissions per exercise | Derivable | `totalAttempts` ÷ `uniqueLearners` per lesson; the full transcript is in the research export |
+| Hint usage frequency | Reported | `avgHintsUsed` per lesson, plus `hintsUsedAtSubmit` on every stored submission |
+| Badge acquisition rate | Partial | Badges are awarded and counted, but carry no award timestamp, so the rate cannot be plotted over time |
+| Average session duration | Not as sessions | The platform records active **time on task per lesson** (`avgTimeSpentSec`) and a last-seen timestamp per user, not sessions |
+
+Also recorded: unvalidated runs, questions asked and note activity per lesson,
+and users active per week. The anonymised dataset comes from
+`server/scripts/exportSubmissions.js`.
+
+The API emits structured JSON request logs. Shipping them to CloudWatch is
+prepared in `deploy/` but, as of 2026-09-13, not yet applied on the instance
+(runbook §7); Lambda and Amplify logs are there already. No alarms,
+dashboards or custom metrics yet.
+
 ## Documentation
 
 | Document | Contents |
 |---|---|
 | [`docs/ARCHITECTURE.adoc`](docs/ARCHITECTURE.adoc) | Layers, data model, AWS configuration, security, CI/CD, and the requirements traceability table |
 | [`DEPLOYMENT.md`](DEPLOYMENT.md) | Runbook, IAM policies, environment variables, pre-pilot checklist |
+| [`docs/lighthouse/`](docs/lighthouse/) | Lighthouse accessibility reports for the public pages, 2026-09-13 |
 | [`CHALLENGES.md`](CHALLENGES.md) | Problems hit during construction and how they were resolved — including a sandbox escape found by testing the deployed runner that static review had missed |
 | [`REFACTOR.md`](REFACTOR.md) | The pre-deployment hardening review and its implementation record |
 | [`SOLUTION_SKETCH.md`](SOLUTION_SKETCH.md) | Original design sketch and sprint roadmap |
@@ -200,10 +238,22 @@ into it.
 Feature-complete and deployed, ahead of a time-bound pilot with MSc students
 evaluated by the System Usability Scale plus engagement metrics from DynamoDB.
 
-Known gaps, stated plainly: no client test suite; WCAG 2.1 AA has not been
-formally audited; local development currently shares the production database;
+**Accessibility.** The platform is designed toward WCAG 2.1 AA and validated
+with automated tooling: Lighthouse scores the public pages 97–98 (login,
+student signup, instructor signup; 2026-09-13, reports in
+[`docs/lighthouse/`](docs/lighthouse/)). The one automated failure is a
+missing `main` landmark. Authenticated screens have not been measured and the
+manual WCAG checks have not been done, so conformance is not claimed.
+
+Known gaps, stated plainly: the client test suite is thin (helpers, one
+component and one hook; no page-level tests); WCAG 2.1 AA is designed toward
+and validated with automated tooling, not formally audited; local development currently shares the production database;
 course analytics use a filtered `Scan`, which is fine at pilot scale and not
-beyond it.
+beyond it; the API logs are not yet shipped to CloudWatch and there are no
+alarms; session duration is approximated by
+per-lesson time on task; badge awards are not timestamped; the DynamoDB table
+was created in the console rather than in code; live deep links render but
+return a 404 status.
 
 > **Note.** Active development happens on `dev`, which is what is deployed.
 > `main` is behind.

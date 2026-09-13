@@ -263,6 +263,16 @@ stored on disk. If you keep the static keys, set `AWS_ACCESS_KEY_ID` and
 output to `client/dist`, add the variables above under Environment variables.
 Because this is a client-rendered SPA, add a rewrite rule sending `404` to
 `/index.html` (200) or deep links like `/admin/users` will 404 on refresh.
+Verify the status, not just that the page renders:
+
+```bash
+curl -s -o /dev/null -L -w "%{url_effective} %{http_code}\n" https://<client>/login
+```
+
+It must end in `200`. On 2026-09-13 the live app ended in `404` (via a 301 to
+`/login/`) while still serving `index.html`: the page works, the status is
+wrong, and any client that reads the status — crawlers, uptime probes,
+Lighthouse — treats the page as broken.
 
 **S3 + CloudFront** works equally well and is cheaper; same SPA fallback applies
 (custom error response 403/404 → `/index.html`, status 200).
@@ -297,11 +307,73 @@ fields @timestamp, path, durationMs
 
 The second query is the NFR3 check (primary interactions under 3s).
 
-To get stdout into CloudWatch from EC2, install the CloudWatch agent or run the
-API under systemd with `StandardOutput=journal` plus the journald→CloudWatch
-integration. Amplify and Lambda ship logs automatically.
+Lambda and Amplify ship their logs automatically (`/aws/lambda/learncode-runner-js`,
+`/aws/lambda/learncode-runner-py`, and the Amplify console's build logs). The
+API's logs do **not** get there on their own: systemd stores them in the
+journal, and the CloudWatch agent reads files, not the journal.
 
-Worth adding alarms for: API 5xx rate, Lambda error rate and throttles, and
+### Shipping the API logs
+
+**State as of 2026-09-13: not yet done on the live instance.** The API logs
+exist only in the journal on the host. The pieces below are in `deploy/` and
+ready to apply; nothing about the API itself changes and the API is not
+restarted.
+
+How it fits together:
+
+```
+learncode-api ──stdout──> journal ──learncode-journal-export.service──> /var/log/learncode/api.log
+                                                                              │
+                                                       amazon-cloudwatch-agent ┘──> log group /learncode/api
+```
+
+| File | Role |
+|---|---|
+| `deploy/learncode-journal-export.service` | `journalctl -u learncode-api -f -o cat` into the log file, with a cursor file so a restart resumes rather than repeats |
+| `deploy/cloudwatch-agent.json` | Agent config: that one file → log group `/learncode/api`, stream = instance id, 90-day retention |
+| `deploy/logrotate-learncode` | Daily rotation with `copytruncate`, since both writer and agent hold the file open |
+| `deploy/setup-cloudwatch.sh` | Installs all of the above, idempotent |
+
+Steps:
+
+1. **IAM.** Console → IAM → Roles → `learncode-ec2-role` → Add permissions →
+   Attach policies → `CloudWatchAgentServerPolicy`. This is the managed policy
+   for exactly this job (create log groups and streams, put events, set
+   retention). No inline JSON needed. **Already attached to the live role as
+   of 2026-09-13**; only a fresh instance needs this step.
+2. **Get the files onto the instance.** Push to `dev` and let CI deploy, or from
+   a Session Manager shell `sudo git -C /opt/learncode pull`.
+3. **Run the setup** from Session Manager:
+   ```bash
+   sudo bash /opt/learncode/deploy/setup-cloudwatch.sh
+   ```
+   It installs the agent, `jq` and `logrotate`, starts the export unit, starts
+   the agent from the repo's config, makes one health request and prints the
+   last exported line plus the status of both services.
+4. **Verify in AWS**, allowing about a minute: CloudWatch → Log groups →
+   `/learncode/api` → a stream named after the instance. Then run the first
+   Insights query above against that group.
+5. **Tick the checklist item** in §8.
+
+If the log group never appears, look for `AccessDenied` in
+`/opt/aws/amazon-cloudwatch-agent/logs/amazon-cloudwatch-agent.log`; that means
+step 1 has not taken effect.
+
+**Reading the logs on the host** stays available regardless, and is quicker
+for a live tail:
+
+```bash
+journalctl -u learncode-api -f -o cat                                  # live
+journalctl -u learncode-api --since today -o cat | jq -c 'select(.level=="error")'
+journalctl -u learncode-api --since today -o cat | jq -c 'select(.message=="request" and .durationMs>3000)'
+```
+
+### Alarms
+
+None are configured. Once the group exists, the first alarm worth adding is a
+metric filter on `/learncode/api` for `{ $.status >= 500 }` with an alarm on
+its count, so a 5xx spike during the pilot is noticed by a person being told
+rather than by a student. After that: Lambda error rate and throttles, and
 DynamoDB throttled requests.
 
 ---
@@ -339,7 +411,19 @@ Run in order once the platform is live:
 - [ ] Confirm in DevTools that the lesson response contains **no**
       `expectedOutput` and no unrevealed hint text (S5.5 B1)
 - [ ] Confirm a draft course 404s for a student account (S5.5 B4)
-- [ ] Verify request logs are arriving in CloudWatch as JSON
+- [ ] Ship the API logs to CloudWatch (§7: `CloudWatchAgentServerPolicy` is
+  already on `learncode-ec2-role`; run `sudo bash /opt/learncode/deploy/setup-cloudwatch.sh`).
+  **Not done as of 2026-09-13**; until then the API logs exist only in the
+  instance's journal.
+- [ ] Verify request logs are arriving in CloudWatch as JSON: log group
+  `/learncode/api`, Insights query in §7 returns rows
+- [ ] Deep links return `200`, not `404` (§5 curl check). The live app fails
+  this as of 2026-09-13.
+- [ ] Lighthouse accessibility on the authenticated screens. The public pages
+  score 97–98 (2026-09-13, reports in `docs/lighthouse/`); the dashboard,
+  lesson, notes, profile and admin screens need a logged-in run, e.g. Chrome
+  started with `--remote-debugging-port=9222` while signed in, then
+  `npx lighthouse <url> --port=9222 --only-categories=accessibility`.
 - [ ] Atlas backups enabled; DynamoDB point-in-time recovery on
 - [ ] Decide the pilot end date and diary the export: `node
       scripts/exportSubmissions.js` (anonymous by default)

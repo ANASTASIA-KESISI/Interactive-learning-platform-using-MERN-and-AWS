@@ -8,6 +8,7 @@
 | `*.svg` | Generated. Vector figures, one per diagram page. |
 | `*.png` | Generated. 2× raster of each figure, for Word or anywhere SVG is awkward. |
 | `ARCHITECTURE.html`, `ARCHITECTURE.pdf` | Generated. Gitignored (HTML) — see below. |
+| `lighthouse/` | Lighthouse accessibility reports (HTML) for the public pages, 2026-09-13. Evidence for NFR5; see below to re-run. |
 
 ## Regenerating
 
@@ -56,6 +57,28 @@ no Ruby here.
 > converted to a static block. Without it Chrome prints the TOC on top of the
 > body text and drops every admonition tint. Re-running plain `asciidoctor`
 > discards those rules, so re-inject them before printing.
+
+### Accessibility reports
+
+Lighthouse's own Chrome launcher fails on Windows when it cleans up its
+temporary profile, and Amplify answers deep links with a 404 status that makes
+Lighthouse refuse the URL. So: start Chrome yourself and serve the built client
+locally.
+
+```bash
+# terminal 1 — a dedicated headless Chrome
+"C:\Program Files (x86)\Google\Chrome\Application\chrome.exe" --headless=new \
+  --remote-debugging-port=9222 --user-data-dir=%TEMP%\lh-profile about:blank
+
+# terminal 2 — the production build, served with SPA fallback
+npm run build --workspace client && npm run preview --workspace client -- --port 4173
+
+# terminal 3 — one run per page
+npx lighthouse http://localhost:4173/login --port=9222 \
+  --only-categories=accessibility --output=html --output-path=docs/lighthouse/login
+```
+
+Run the pages one at a time; parallel runs against one Chrome interfere.
 
 ## Why the outputs are committed
 
