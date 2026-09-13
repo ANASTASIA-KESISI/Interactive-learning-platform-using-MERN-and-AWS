@@ -18,8 +18,15 @@ export const setUserRole = (userId, role) =>
 
 export const listAllCourses = () => api.get('/admin/courses').then(unwrap);
 
+// Publishing is refused with a 409 that names the missing module or lesson
+// (S8 D1); unpublishing always succeeds.
 export const setCoursePublished = (courseId, isPublished) =>
   api.patch(`/admin/courses/${courseId}/publish`, { isPublished }).then(unwrap);
+
+// Unpublished courses only (409 otherwise). Cascades in Mongo; learner
+// progress records are retained (S8 D2).
+export const deleteCourse = (courseId) =>
+  api.delete(`/admin/courses/${courseId}`).then(unwrap);
 
 export const listBadges = () => api.get('/admin/badges').then(unwrap);
 

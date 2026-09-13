@@ -5,8 +5,9 @@ const { Badge, CRITERIA_TYPES } = require('../models/Badge');
 const { requireAuth } = require('../middleware/requireAuth');
 const { requireRole } = require('../middleware/requireRole');
 const { attachUser } = require('../middleware/attachUser');
-const { badRequest, notFound } = require('../utils/httpError');
+const { badRequest } = require('../utils/httpError');
 const authService = require('../services/authService');
+const courseService = require('../services/courseService');
 const universityService = require('../services/universityService');
 
 const router = express.Router();
@@ -149,16 +150,28 @@ router.post('/badges', ...adminAuth, async (req, res, next) => {
 });
 
 // PATCH /api/admin/courses/:id/publish
+// Delegates to the service so the admin toggle honours the same publish rule
+// as the instructor's publish endpoint (S8 D1): 409 when the course has no
+// module or a module has no lesson. Unpublishing has no precondition.
 router.patch('/courses/:id/publish', ...adminAuth, async (req, res, next) => {
   try {
     const { isPublished } = req.body;
-    const course = await Course.findByIdAndUpdate(
-      req.params.id,
-      { $set: { isPublished: Boolean(isPublished) } },
-      { new: true },
-    );
-    if (!course) throw notFound('Course not found');
+    const course = await courseService.setCoursePublished(req.params.id, Boolean(isPublished));
     res.json({ data: course });
+  } catch (err) {
+    next(err);
+  }
+});
+
+// DELETE /api/admin/courses/:id — unpublished courses only (409 otherwise).
+// Cascades in Mongo; learner progress records are retained (S8 D2).
+router.delete('/courses/:id', ...adminAuth, async (req, res, next) => {
+  try {
+    const result = await courseService.deleteCourse(req.params.id, {
+      id: req.dbUser._id,
+      role: req.dbUser.role,
+    });
+    res.json({ data: result });
   } catch (err) {
     next(err);
   }

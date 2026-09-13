@@ -73,7 +73,7 @@ Service modules under `server/src/services/`, each exposing a clean interface to
 | Service | Responsibility |
 |---|---|
 | **Auth Service** | Delegates to AWS Cognito (user pools, MFA, identity federation). Never implement custom password hashing or token issuance. Owns role changes, which are Cognito group moves. |
-| **Course Service** | CRUD for courses → modules → lessons hierarchy. Persists to MongoDB. |
+| **Course Service** | CRUD for courses → modules → lessons hierarchy. Persists to MongoDB. A course is publishable only if it has at least one module and every module has at least one lesson (`assertPublishable`, enforced on both the instructor publish and the admin toggle). A course can be deleted only while unpublished, by its owner or an admin; the delete cascades in Mongo (lessons, modules, notes, messages, enrolments) but never touches DynamoDB progress records, which are the pilot's research record. |
 | **Progress Service** | Tracks learner interactions (completion, time-on-task, code submissions, hints used, runs, questions, note activity). Writes to DynamoDB. |
 | **Gamification Service** | XP accrual, badge award rules, streak tracking, and the derived level/rank functions. Reads/writes user gamification state in MongoDB and listens to Progress Service events. |
 | **Code Runner Service** | Sandboxed execution of learner code and validation against `expectedOutput`. Must be isolated — never `eval` or execute untrusted code in the main Node process. Implemented as a thin orchestrator over two adapters: `isolated-vm` for dev, AWS Lambda (per-language functions, e.g. `runner-js`) for prod. Exposes `run` (validating) and `execute` (no validation, for the Run button). |

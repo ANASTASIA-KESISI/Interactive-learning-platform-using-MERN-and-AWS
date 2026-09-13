@@ -233,7 +233,13 @@ moves. No password ever reaches this codebase.
 
 | `courseService`
 | The course → module → lesson hierarchy, and the two lesson projections: the
-authoring view, and the learner view that withholds the answers.
+authoring view, and the learner view that withholds the answers. A course is
+publishable only if it has at least one module and every module has at least
+one lesson — one rule, enforced on both the instructor's publish and the
+admin's toggle. A course can be deleted only while unpublished, by its owner
+or an admin; the delete cascades in Mongo (lessons, modules, notes, messages,
+enrolments) but leaves DynamoDB progress records in place as the pilot's
+research record.
 
 | `progressService`
 | Every learner interaction: completion, attempts, hints, runs, submissions,

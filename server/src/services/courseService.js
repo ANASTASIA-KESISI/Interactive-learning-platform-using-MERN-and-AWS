@@ -2,7 +2,9 @@ const { Course } = require('../models/Course');
 const { Module } = require('../models/Module');
 const { Lesson } = require('../models/Lesson');
 const { User } = require('../models/User');
-const { badRequest, notFound, forbidden } = require('../utils/httpError');
+const { Note } = require('../models/Note');
+const { Message } = require('../models/Message');
+const { badRequest, notFound, forbidden, conflict } = require('../utils/httpError');
 const quizService = require('./quizService');
 
 // Client-writable fields, per resource. Everything else on the document is
@@ -257,13 +259,90 @@ const getEnrolledCourseSummaries = (courseIds) =>
     })
     .lean();
 
+// Publish rule (S8 D1): a course is publishable only if it has at least one
+// module and every module has at least one lesson. An empty module is not
+// teachable, and a learner who enrols into one has nowhere to go. Both paths
+// that flip `isPublished` — the instructor's publish and the admin's toggle —
+// go through this one function, so the rule cannot be enforced on one and
+// forgotten on the other.
+const assertPublishable = async (course) => {
+  const moduleIds = course.modules || [];
+  if (moduleIds.length === 0) throw conflict('Add at least one module before publishing');
+
+  const modules = await Module.find({ _id: { $in: moduleIds } })
+    .select('title lessons order')
+    .sort({ order: 1 })
+    .lean();
+  if (modules.length === 0) throw conflict('Add at least one module before publishing');
+
+  const empty = modules.find((module) => !module.lessons || module.lessons.length === 0);
+  if (empty) {
+    throw conflict(
+      `Every module needs at least one lesson before publishing (“${empty.title}” is empty)`,
+      { moduleId: empty._id, moduleTitle: empty.title },
+    );
+  }
+};
+
 const publishCourse = async (courseId, instructorId) => {
   const course = await Course.findById(courseId);
   if (!course) throw notFound('Course not found');
   if (course.instructor.toString() !== instructorId.toString())
     throw forbidden('Only the course instructor can publish this course');
+  await assertPublishable(course);
   course.isPublished = true;
   return course.save();
+};
+
+// Admin path for the publish toggle. Publishing honours the same rule as the
+// instructor path; unpublishing has no precondition, because taking a course
+// off the catalogue is exactly what an admin needs to do when it is broken.
+const setCoursePublished = async (courseId, isPublished) => {
+  const course = await Course.findById(courseId);
+  if (!course) throw notFound('Course not found');
+  if (isPublished === true) await assertPublishable(course);
+  course.isPublished = Boolean(isPublished);
+  return course.save();
+};
+
+// Deleting a course (S8 D2) is allowed only while it is unpublished, for its
+// owning instructor or an admin: a published course may have learners
+// mid-way, so "unpublish, then delete" is the deliberate two-step. The
+// cascade removes everything in Mongo that hangs off the course — lessons,
+// modules, notes, message threads — and the course from every enrolment.
+//
+// DynamoDB progress records are deliberately left in place, for the same
+// reason `deleteModule` keeps them: they are the pilot's research record, and
+// rewriting history to match a later content edit would falsify it.
+const deleteCourse = async (courseId, actor) => {
+  const course = await Course.findById(courseId);
+  if (!course) throw notFound('Course not found');
+
+  const isOwner = Boolean(actor?.id) && course.instructor.toString() === actor.id.toString();
+  if (actor?.role !== 'admin' && !isOwner) {
+    throw forbidden('Only the course instructor or an admin can delete this course');
+  }
+  if (course.isPublished) throw conflict('Unpublish the course before deleting it');
+
+  const moduleIds = course.modules || [];
+  const lessons = await Lesson.deleteMany({ moduleId: { $in: moduleIds } });
+  const modules = await Module.deleteMany({ courseId: course._id });
+  const notes = await Note.deleteMany({ courseId: course._id });
+  const messages = await Message.deleteMany({ courseId: course._id });
+  const enrolments = await User.updateMany(
+    { enrolledCourses: course._id },
+    { $pull: { enrolledCourses: course._id } },
+  );
+  await Course.deleteOne({ _id: course._id });
+
+  return {
+    deletedCourseId: course._id,
+    deletedModules: modules?.deletedCount ?? 0,
+    deletedLessons: lessons?.deletedCount ?? 0,
+    deletedNotes: notes?.deletedCount ?? 0,
+    deletedMessages: messages?.deletedCount ?? 0,
+    unenrolledUsers: enrolments?.modifiedCount ?? 0,
+  };
 };
 
 const updateCourse = async (courseId, instructorId, updates) => {
@@ -563,7 +642,10 @@ module.exports = {
   getCourseDetail,
   isCourseInstructor,
   getEnrolledCourseSummaries,
+  assertPublishable,
   publishCourse,
+  setCoursePublished,
+  deleteCourse,
   updateCourse,
   addModule,
   getModuleById,

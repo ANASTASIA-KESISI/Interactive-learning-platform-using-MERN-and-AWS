@@ -1,10 +1,11 @@
 import { useCallback, useEffect, useState } from 'react';
-import { Link, useParams } from 'react-router-dom';
+import { Link, useNavigate, useParams } from 'react-router-dom';
 
 import {
   getCourse,
   publishCourse,
   updateCourse,
+  deleteCourse,
   addModule,
   addLesson,
   updateModule,
@@ -12,7 +13,9 @@ import {
   deleteLesson,
 } from '../../services/courses.js';
 import { Spinner, ErrorBanner } from '../../components/Spinner.jsx';
+import { Modal } from '../../components/ui/index.js';
 import { titleCase } from '../../lib/labels.js';
+import { publishBlocker } from '../../lib/publishRule.js';
 // The institutional pair is authored identically on both course forms; the
 // fields live with the creation page rather than being duplicated here.
 import { DepartmentSemesterFields, useDepartments } from './NewCoursePage.jsx';
@@ -20,11 +23,36 @@ import { DepartmentSemesterFields, useDepartments } from './NewCoursePage.jsx';
 const LESSON_TYPES = ['tutorial', 'exercise', 'quiz'];
 const DIFFICULTIES = ['beginner', 'intermediate', 'advanced'];
 
+// One confirmation dialog for every destructive action on this page (D9: no
+// native confirm). The title repeats the thing being deleted so the instructor
+// cannot mistake which row they clicked.
+const ConfirmDeleteModal = ({ title, body, busy, onCancel, onConfirm }) => (
+  <Modal title={title} onClose={onCancel}>
+    <p className="text-sm text-slate-600">{body}</p>
+    <div className="mt-5 flex justify-end gap-2">
+      <button type="button" className="btn-ghost" onClick={onCancel} disabled={busy}>
+        Cancel
+      </button>
+      <button
+        type="button"
+        className="btn bg-red-600 text-white hover:bg-red-700"
+        onClick={onConfirm}
+        disabled={busy}
+      >
+        {busy ? 'Deleting…' : 'Delete'}
+      </button>
+    </div>
+  </Modal>
+);
+
 export const CourseEditorPage = () => {
   const { id } = useParams();
+  const navigate = useNavigate();
   const [course, setCourse] = useState(null);
   const [error, setError] = useState(null);
   const [saving, setSaving] = useState(false);
+  const [confirmDelete, setConfirmDelete] = useState(false);
+  const [deleting, setDeleting] = useState(false);
 
   const reload = useCallback(() => {
     return getCourse(id)
@@ -88,16 +116,36 @@ export const CourseEditorPage = () => {
   };
 
   const handlePublish = async () => {
+    setError(null);
     try {
       await publishCourse(id);
       await reload();
     } catch (err) {
+      // A 409 here means the server's rule disagrees with what the page shows
+      // (e.g. a lesson was deleted in another tab); its message is specific.
       setError(err.response?.data?.error?.message || err.message);
+    }
+  };
+
+  // Only while unpublished: a published course may have learners mid-way, so
+  // the server refuses (409) and the page does not offer the action at all.
+  const handleDeleteCourse = async () => {
+    setDeleting(true);
+    setError(null);
+    try {
+      await deleteCourse(id);
+      navigate('/instructor', { replace: true });
+    } catch (err) {
+      setError(err.response?.data?.error?.message || err.message);
+      setConfirmDelete(false);
+      setDeleting(false);
     }
   };
 
   if (error && !course) return <ErrorBanner message={error} />;
   if (!course) return <Spinner />;
+
+  const blocker = publishBlocker(course);
 
   return (
     <div className="space-y-8">
@@ -116,15 +164,45 @@ export const CourseEditorPage = () => {
                 Published
               </span>
             ) : (
-              <button type="button" onClick={handlePublish} className="btn-primary">
-                Publish
-              </button>
+              <>
+                <button
+                  type="button"
+                  onClick={() => setConfirmDelete(true)}
+                  className="rounded-md border border-red-200 px-3 py-1.5 text-sm font-medium text-red-700 transition-colors hover:bg-red-50 focus:outline-none focus:ring-2 focus:ring-red-500"
+                >
+                  Delete course
+                </button>
+                <button
+                  type="button"
+                  onClick={handlePublish}
+                  className="btn-primary"
+                  disabled={Boolean(blocker)}
+                  aria-describedby={blocker ? 'publish-blocker' : undefined}
+                >
+                  Publish
+                </button>
+              </>
             )}
           </div>
         </div>
+        {!course.isPublished && blocker && (
+          <p id="publish-blocker" className="mt-2 text-right text-sm text-amber-700">
+            {blocker}
+          </p>
+        )}
       </div>
 
       {error && <ErrorBanner message={error} />}
+
+      {confirmDelete && (
+        <ConfirmDeleteModal
+          title={`Delete “${course.title}”?`}
+          body="This removes the course with all of its modules, lessons, notes and messages, and unenrols every learner. It cannot be undone."
+          busy={deleting}
+          onCancel={() => setConfirmDelete(false)}
+          onConfirm={handleDeleteCourse}
+        />
+      )}
 
       <form onSubmit={handleSaveMeta} className="space-y-4 rounded-lg border border-slate-200 bg-white p-6 shadow-sm">
         <h2 className="text-xl font-semibold text-slate-900">Details</h2>
@@ -259,6 +337,8 @@ const ModuleCard = ({ module, index, onChange, setError }) => {
   const [renaming, setRenaming] = useState(false);
   const [title, setTitle] = useState(module.title);
   const [busy, setBusy] = useState(false);
+  // { kind: 'module' } or { kind: 'lesson', lesson } while a confirmation is open.
+  const [confirm, setConfirm] = useState(null);
 
   const handleAddLesson = async (e) => {
     e.preventDefault();
@@ -298,31 +378,25 @@ const ModuleCard = ({ module, index, onChange, setError }) => {
 
   // Deleting a module takes its lessons with it, so the count goes in the
   // prompt — an instructor should not discover that after the fact.
-  const handleDeleteModule = async () => {
-    const lessonCount = module.lessons?.length || 0;
-    const detail = lessonCount
-      ? ` and its ${lessonCount} lesson${lessonCount === 1 ? '' : 's'}`
-      : '';
-    if (!window.confirm(`Delete "${module.title}"${detail}? This cannot be undone.`)) return;
+  const lessonCount = module.lessons?.length || 0;
+  const moduleDetail = lessonCount
+    ? ` and its ${lessonCount} lesson${lessonCount === 1 ? '' : 's'}`
+    : '';
 
+  const runDelete = async () => {
+    if (!confirm) return;
     setBusy(true);
     try {
-      await deleteModule(module._id);
+      if (confirm.kind === 'module') {
+        await deleteModule(module._id);
+      } else {
+        await deleteLesson(confirm.lesson._id);
+      }
+      setConfirm(null);
       await onChange();
     } catch (err) {
       setError(err.response?.data?.error?.message || err.message);
-      setBusy(false);
-    }
-  };
-
-  const handleDeleteLesson = async (lesson) => {
-    if (!window.confirm(`Delete lesson "${lesson.title}"? This cannot be undone.`)) return;
-    setBusy(true);
-    try {
-      await deleteLesson(lesson._id);
-      await onChange();
-    } catch (err) {
-      setError(err.response?.data?.error?.message || err.message);
+      setConfirm(null);
     } finally {
       setBusy(false);
     }
@@ -389,7 +463,7 @@ const ModuleCard = ({ module, index, onChange, setError }) => {
               <button
                 type="button"
                 className="rounded-md border border-red-200 px-3 py-1.5 text-sm font-medium text-red-700 transition-colors hover:bg-red-50 focus:outline-none focus:ring-2 focus:ring-red-500 disabled:opacity-50"
-                onClick={handleDeleteModule}
+                onClick={() => setConfirm({ kind: 'module' })}
                 disabled={busy}
               >
                 Delete
@@ -427,7 +501,7 @@ const ModuleCard = ({ module, index, onChange, setError }) => {
                 <button
                   type="button"
                   className="rounded-md border border-transparent px-2 py-1.5 text-sm font-medium text-red-700 transition-colors hover:bg-red-50 disabled:opacity-50"
-                  onClick={() => handleDeleteLesson(lesson)}
+                  onClick={() => setConfirm({ kind: 'lesson', lesson })}
                   disabled={busy}
                   aria-label={`Delete lesson ${lesson.title}`}
                 >
@@ -477,6 +551,20 @@ const ModuleCard = ({ module, index, onChange, setError }) => {
           {adding ? 'Adding…' : 'Add'}
         </button>
       </form>
+
+      {confirm && (
+        <ConfirmDeleteModal
+          title={
+            confirm.kind === 'module'
+              ? `Delete “${module.title}”${moduleDetail}?`
+              : `Delete lesson “${confirm.lesson.title}”?`
+          }
+          body="This cannot be undone. Learner progress records are kept for the pilot's evaluation."
+          busy={busy}
+          onCancel={() => setConfirm(null)}
+          onConfirm={runDelete}
+        />
+      )}
     </li>
   );
 };

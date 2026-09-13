@@ -28,8 +28,16 @@ export const createCourse = (payload) =>
 export const updateCourse = (courseId, payload) =>
   api.patch(`/instructor/courses/${courseId}`, payload).then(unwrap);
 
+// 409 when the course has no module or a module has no lesson (S8 D1); the
+// message names the missing piece.
 export const publishCourse = (courseId) =>
   api.post(`/instructor/courses/${courseId}/publish`).then(unwrap);
+
+// Unpublished courses only (409 otherwise). Removes the course's modules,
+// lessons, notes, message threads and enrolments; learner progress records
+// are retained server-side as pilot research data (S8 D2).
+export const deleteCourse = (courseId) =>
+  api.delete(`/instructor/courses/${courseId}`).then(unwrap);
 
 export const addModule = (courseId, payload) =>
   api.post(`/instructor/courses/${courseId}/modules`, payload).then(unwrap);

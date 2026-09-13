@@ -50,6 +50,22 @@ router.post('/courses/:id/publish', ...auth, async (req, res, next) => {
   }
 });
 
+// DELETE /api/instructor/courses/:id — the owner (or an admin) may delete a
+// course while it is unpublished; a published course must be unpublished
+// first (409). Modules, lessons, notes, messages and enrolments cascade in
+// Mongo; learner progress records are retained (see courseService.deleteCourse).
+router.delete('/courses/:id', ...auth, async (req, res, next) => {
+  try {
+    const result = await courseService.deleteCourse(req.params.id, {
+      id: req.dbUser._id,
+      role: req.dbUser.role,
+    });
+    res.json({ data: result });
+  } catch (err) {
+    next(err);
+  }
+});
+
 // POST /api/instructor/courses/:id/modules
 router.post('/courses/:id/modules', ...auth, async (req, res, next) => {
   try {

@@ -4,10 +4,17 @@
 // own filtering logic, not persistence.
 
 jest.mock('../../src/models/Course', () => ({
-  Course: { findById: jest.fn(), create: jest.fn(), find: jest.fn() },
+  Course: { findById: jest.fn(), create: jest.fn(), find: jest.fn(), deleteOne: jest.fn() },
 }));
 jest.mock('../../src/models/Module', () => ({
-  Module: { findById: jest.fn(), create: jest.fn(), deleteOne: jest.fn(), updateOne: jest.fn() },
+  Module: {
+    findById: jest.fn(),
+    find: jest.fn(),
+    create: jest.fn(),
+    deleteOne: jest.fn(),
+    deleteMany: jest.fn(),
+    updateOne: jest.fn(),
+  },
 }));
 jest.mock('../../src/models/Lesson', () => ({
   Lesson: {
@@ -18,11 +25,18 @@ jest.mock('../../src/models/Lesson', () => ({
     updateOne: jest.fn(),
   },
 }));
-jest.mock('../../src/models/User', () => ({ User: { findById: jest.fn() } }));
+jest.mock('../../src/models/User', () => ({
+  User: { findById: jest.fn(), updateMany: jest.fn() },
+}));
+jest.mock('../../src/models/Note', () => ({ Note: { deleteMany: jest.fn() } }));
+jest.mock('../../src/models/Message', () => ({ Message: { deleteMany: jest.fn() } }));
 
 const { Course } = require('../../src/models/Course');
 const { Module } = require('../../src/models/Module');
 const { Lesson } = require('../../src/models/Lesson');
+const { User } = require('../../src/models/User');
+const { Note } = require('../../src/models/Note');
+const { Message } = require('../../src/models/Message');
 const courseService = require('../../src/services/courseService');
 
 // Mongoose query builders are chainable and thenable; this fakes just enough of
@@ -721,5 +735,219 @@ describe('getLessonForStudent — quiz answers stay server-side', () => {
 
     expect(result.questions).toEqual([]);
     expect(result.questionCount).toBe(0);
+  });
+});
+
+// S8 D1: a course is publishable only if it has at least one module and every
+// module has at least one lesson. One rule, two callers — the instructor's
+// publish and the admin's toggle — so both are pinned here.
+describe('publish rule (S8 D1)', () => {
+  const draft = (modules = ['m1']) => {
+    const course = {
+      _id: 'course1',
+      instructor: { toString: () => 'owner1' },
+      isPublished: false,
+      modules,
+      save: jest.fn().mockResolvedValue(true),
+    };
+    Course.findById.mockReturnValue(query(course));
+    return course;
+  };
+
+  test('refuses a course with no modules', async () => {
+    draft([]);
+
+    await expect(courseService.publishCourse('course1', 'owner1')).rejects.toMatchObject({
+      status: 409,
+      message: 'Add at least one module before publishing',
+    });
+    expect(Module.find).not.toHaveBeenCalled();
+  });
+
+  test('refuses a course whose module has no lessons, naming the module', async () => {
+    const course = draft(['m1', 'm2']);
+    Module.find.mockReturnValue(
+      query([
+        { _id: 'm1', title: 'Basics', lessons: ['l1'] },
+        { _id: 'm2', title: 'Empty module', lessons: [] },
+      ]),
+    );
+
+    await expect(courseService.publishCourse('course1', 'owner1')).rejects.toMatchObject({
+      status: 409,
+      message: expect.stringMatching(/Every module needs at least one lesson/),
+      details: { moduleTitle: 'Empty module' },
+    });
+    expect(course.isPublished).toBe(false);
+    expect(course.save).not.toHaveBeenCalled();
+  });
+
+  test('publishes when every module has a lesson', async () => {
+    const course = draft(['m1']);
+    Module.find.mockReturnValue(query([{ _id: 'm1', title: 'Basics', lessons: ['l1'] }]));
+
+    await courseService.publishCourse('course1', 'owner1');
+
+    expect(course.isPublished).toBe(true);
+    expect(course.save).toHaveBeenCalled();
+  });
+
+  test('still requires ownership before checking the rule', async () => {
+    draft([]);
+
+    await expect(courseService.publishCourse('course1', 'intruder')).rejects.toMatchObject({
+      status: 403,
+    });
+  });
+
+  test('the admin path honours the same rule', async () => {
+    const course = draft(['m1']);
+    Module.find.mockReturnValue(query([{ _id: 'm1', title: 'Empty', lessons: [] }]));
+
+    await expect(courseService.setCoursePublished('course1', true)).rejects.toMatchObject({
+      status: 409,
+    });
+    expect(course.isPublished).toBe(false);
+    expect(course.save).not.toHaveBeenCalled();
+  });
+
+  test('the admin path publishes a well-formed course', async () => {
+    const course = draft(['m1']);
+    Module.find.mockReturnValue(query([{ _id: 'm1', title: 'Basics', lessons: ['l1'] }]));
+
+    await courseService.setCoursePublished('course1', true);
+
+    expect(course.isPublished).toBe(true);
+  });
+
+  test('unpublishing has no precondition', async () => {
+    const course = draft([]);
+    course.isPublished = true;
+
+    await courseService.setCoursePublished('course1', false);
+
+    expect(course.isPublished).toBe(false);
+    expect(course.save).toHaveBeenCalled();
+    expect(Module.find).not.toHaveBeenCalled();
+  });
+
+  test('404 for an unknown course', async () => {
+    Course.findById.mockReturnValue(query(null));
+
+    await expect(courseService.setCoursePublished('nope', true)).rejects.toMatchObject({
+      status: 404,
+    });
+  });
+});
+
+// S8 D2: unpublished courses only, owner or admin, Mongo cascade in a fixed
+// order, enrolments pulled — and DynamoDB untouched (nothing here mocks it, so
+// a stray call would throw).
+describe('deleteCourse (S8 D2)', () => {
+  const draft = (overrides = {}) => {
+    const course = {
+      _id: 'course1',
+      instructor: { toString: () => 'owner1' },
+      isPublished: false,
+      modules: ['m1', 'm2'],
+      ...overrides,
+    };
+    Course.findById.mockReturnValue(query(course));
+    return course;
+  };
+
+  const deleted = (n) => ({ deletedCount: n });
+
+  const primeCascade = () => {
+    Lesson.deleteMany.mockResolvedValue(deleted(5));
+    Module.deleteMany.mockResolvedValue(deleted(2));
+    Note.deleteMany.mockResolvedValue(deleted(3));
+    Message.deleteMany.mockResolvedValue(deleted(4));
+    User.updateMany.mockResolvedValue({ modifiedCount: 6 });
+    Course.deleteOne.mockResolvedValue(deleted(1));
+  };
+
+  test('404 when the course does not exist', async () => {
+    Course.findById.mockReturnValue(query(null));
+
+    await expect(
+      courseService.deleteCourse('nope', { id: 'owner1', role: 'instructor' }),
+    ).rejects.toMatchObject({ status: 404 });
+  });
+
+  test('403 for an instructor who does not own the course', async () => {
+    draft();
+
+    await expect(
+      courseService.deleteCourse('course1', { id: 'intruder', role: 'instructor' }),
+    ).rejects.toMatchObject({ status: 403 });
+    expect(Course.deleteOne).not.toHaveBeenCalled();
+    expect(Lesson.deleteMany).not.toHaveBeenCalled();
+  });
+
+  test('409 while the course is published', async () => {
+    draft({ isPublished: true });
+
+    await expect(
+      courseService.deleteCourse('course1', { id: 'owner1', role: 'instructor' }),
+    ).rejects.toMatchObject({ status: 409, message: 'Unpublish the course before deleting it' });
+    expect(Course.deleteOne).not.toHaveBeenCalled();
+  });
+
+  test('a published course is refused even for an admin', async () => {
+    draft({ isPublished: true });
+
+    await expect(
+      courseService.deleteCourse('course1', { id: 'admin1', role: 'admin' }),
+    ).rejects.toMatchObject({ status: 409 });
+  });
+
+  test('an admin may delete a draft they do not own', async () => {
+    draft();
+    primeCascade();
+
+    const result = await courseService.deleteCourse('course1', { id: 'admin1', role: 'admin' });
+
+    expect(Course.deleteOne).toHaveBeenCalledWith({ _id: 'course1' });
+    expect(result.deletedCourseId).toBe('course1');
+  });
+
+  test('cascades in order and pulls the course from every enrolment', async () => {
+    draft();
+    const order = [];
+    const step = (name, value) => async () => {
+      order.push(name);
+      return value;
+    };
+    Lesson.deleteMany.mockImplementation(step('lessons', deleted(5)));
+    Module.deleteMany.mockImplementation(step('modules', deleted(2)));
+    Note.deleteMany.mockImplementation(step('notes', deleted(3)));
+    Message.deleteMany.mockImplementation(step('messages', deleted(4)));
+    User.updateMany.mockImplementation(step('users', { modifiedCount: 6 }));
+    Course.deleteOne.mockImplementation(step('course', deleted(1)));
+
+    const result = await courseService.deleteCourse('course1', {
+      id: 'owner1',
+      role: 'instructor',
+    });
+
+    expect(order).toEqual(['lessons', 'modules', 'notes', 'messages', 'users', 'course']);
+    expect(Lesson.deleteMany).toHaveBeenCalledWith({ moduleId: { $in: ['m1', 'm2'] } });
+    expect(Module.deleteMany).toHaveBeenCalledWith({ courseId: 'course1' });
+    expect(Note.deleteMany).toHaveBeenCalledWith({ courseId: 'course1' });
+    expect(Message.deleteMany).toHaveBeenCalledWith({ courseId: 'course1' });
+    expect(User.updateMany).toHaveBeenCalledWith(
+      { enrolledCourses: 'course1' },
+      { $pull: { enrolledCourses: 'course1' } },
+    );
+    expect(Course.deleteOne).toHaveBeenCalledWith({ _id: 'course1' });
+    expect(result).toEqual({
+      deletedCourseId: 'course1',
+      deletedModules: 2,
+      deletedLessons: 5,
+      deletedNotes: 3,
+      deletedMessages: 4,
+      unenrolledUsers: 6,
+    });
   });
 });
