@@ -131,6 +131,13 @@ const formatDuration = (seconds) => {
   return `${m}m`;
 };
 
+// The two S8 columns are per-learner rates, so they mean nothing until someone
+// has opened the lesson: a row with no learners shows a dash, the way "Avg
+// time" does. Once there are learners a zero is a real reading (nobody has
+// needed a hint yet) and is shown as one.
+const formatRatio = (value, learners) => (learners > 0 ? String(value) : '—');
+const formatPercent = (value, learners) => (learners > 0 ? `${value}%` : '—');
+
 const LessonTable = ({ lessons }) => (
   <section className="rounded-lg border border-slate-200 bg-white shadow-sm">
     <h2 className="border-b border-slate-200 p-4 text-lg font-semibold text-slate-900">
@@ -144,8 +151,10 @@ const LessonTable = ({ lessons }) => (
             <th className="px-4 py-2">Type</th>
             <th className="px-4 py-2 text-right">Learners</th>
             <th className="px-4 py-2 text-right">Attempts</th>
+            <th className="px-4 py-2 text-right">Attempts / learner</th>
             <th className="px-4 py-2 text-right">Pass rate</th>
             <th className="px-4 py-2 text-right">Avg hints</th>
+            <th className="px-4 py-2 text-right">Used a hint</th>
             <th className="px-4 py-2 text-right">Avg time</th>
           </tr>
         </thead>
@@ -161,8 +170,14 @@ const LessonTable = ({ lessons }) => (
               </td>
               <td className="px-4 py-2 text-right">{l.uniqueLearners}</td>
               <td className="px-4 py-2 text-right">{l.totalAttempts}</td>
+              <td className="px-4 py-2 text-right">
+                {formatRatio(l.avgAttemptsPerLearner, l.uniqueLearners)}
+              </td>
               <td className="px-4 py-2 text-right">{l.passRate}%</td>
               <td className="px-4 py-2 text-right">{l.avgHintsUsed}</td>
+              <td className="px-4 py-2 text-right">
+                {formatPercent(l.hintRevealRate, l.uniqueLearners)}
+              </td>
               <td className="px-4 py-2 text-right">{formatDuration(l.avgTimeSpentSec)}</td>
             </tr>
           ))}

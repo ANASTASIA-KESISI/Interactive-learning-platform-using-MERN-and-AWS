@@ -147,6 +147,7 @@ const getCourseAnalytics = async (lessonIds) => {
     totalAttempts: 0,
     completions: 0,
     totalHintsUsed: 0,
+    learnersWithHints: 0,
     totalTimeSpent: 0,
   });
 
@@ -159,6 +160,7 @@ const getCourseAnalytics = async (lessonIds) => {
     agg.totalAttempts += r.attempts || 0;
     if (r.status === 'completed') agg.completions += 1;
     agg.totalHintsUsed += r.hintsUsed || 0;
+    if ((r.hintsUsed || 0) > 0) agg.learnersWithHints += 1;
     agg.totalTimeSpent += r.timeSpent || 0;
   }
 
@@ -171,7 +173,14 @@ const getCourseAnalytics = async (lessonIds) => {
       totalAttempts: a.totalAttempts,
       completions: a.completions,
       passRate: learners > 0 ? Math.round((a.completions / learners) * 100) : 0,
+      // The thesis's "mean code submissions per exercise" (S8 D8). Only a
+      // submit is an attempt, so Run-button experiments cannot inflate it.
+      avgAttemptsPerLearner: learners > 0 ? Number((a.totalAttempts / learners).toFixed(1)) : 0,
       avgHintsUsed: learners > 0 ? Number((a.totalHintsUsed / learners).toFixed(1)) : 0,
+      // Share of learners who revealed at least one hint, as a percentage.
+      // `avgHintsUsed` alone cannot separate "everyone opened one hint" from
+      // "one learner opened them all" — H1 needs the reach as well as the depth.
+      hintRevealRate: learners > 0 ? Math.round((a.learnersWithHints / learners) * 100) : 0,
       avgTimeSpentSec: learners > 0 ? Math.round(a.totalTimeSpent / learners) : 0,
     };
   });

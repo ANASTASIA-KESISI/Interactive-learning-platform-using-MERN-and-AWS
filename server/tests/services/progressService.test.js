@@ -215,7 +215,9 @@ describe('progressService.getCourseAnalytics', () => {
       totalAttempts: 0,
       completions: 0,
       passRate: 0,
+      avgAttemptsPerLearner: 0,
       avgHintsUsed: 0,
+      hintRevealRate: 0,
       avgTimeSpentSec: 0,
     });
   });
@@ -235,9 +237,52 @@ describe('progressService.getCourseAnalytics', () => {
       totalAttempts: 6,
       completions: 2,
       passRate: 67,
+      avgAttemptsPerLearner: 2,
       avgHintsUsed: 1,
+      hintRevealRate: 67,
       avgTimeSpentSec: 120,
     });
+  });
+
+  // S8 C1: the two metrics the thesis names that were only derivable before.
+  // `avgAttemptsPerLearner` is the mean submissions per exercise; `hintRevealRate`
+  // is the share of learners who opened at least one hint — reach, where
+  // `avgHintsUsed` is depth.
+  test('reports mean attempts per learner to one decimal', async () => {
+    progressTable.scanByLessonIds.mockResolvedValue([
+      { userId: 'u1', lessonId: 'l1', status: 'completed', attempts: 4 },
+      { userId: 'u2', lessonId: 'l1', status: 'in_progress', attempts: 1 },
+      { userId: 'u3', lessonId: 'l1', status: 'in_progress', attempts: 2 },
+    ]);
+
+    const [lesson] = await progressService.getCourseAnalytics(['l1']);
+
+    expect(lesson.avgAttemptsPerLearner).toBe(2.3);
+  });
+
+  test('hint reveal rate counts learners, not hints', async () => {
+    // One learner opened every hint; three never opened one. The mean hints
+    // figure alone (1.25) would read as "moderate hint use" — the rate says 25%.
+    progressTable.scanByLessonIds.mockResolvedValue([
+      { userId: 'u1', lessonId: 'l1', status: 'completed', attempts: 1, hintsUsed: 5 },
+      { userId: 'u2', lessonId: 'l1', status: 'completed', attempts: 1, hintsUsed: 0 },
+      { userId: 'u3', lessonId: 'l1', status: 'completed', attempts: 1 },
+      { userId: 'u4', lessonId: 'l1', status: 'in_progress', attempts: 0, hintsUsed: 0 },
+    ]);
+
+    const [lesson] = await progressService.getCourseAnalytics(['l1']);
+
+    expect(lesson.hintRevealRate).toBe(25);
+    expect(lesson.avgHintsUsed).toBe(1.3);
+  });
+
+  test('both new metrics are zero, not NaN, for a lesson nobody has opened', async () => {
+    progressTable.scanByLessonIds.mockResolvedValue([]);
+
+    const [lesson] = await progressService.getCourseAnalytics(['l1']);
+
+    expect(lesson.avgAttemptsPerLearner).toBe(0);
+    expect(lesson.hintRevealRate).toBe(0);
   });
 
   test('preserves order of requested lessonIds and ignores foreign records', async () => {
