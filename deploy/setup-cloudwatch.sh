@@ -36,11 +36,23 @@ echo "==> Installing CloudWatch agent, jq and logrotate"
 dnf install -y amazon-cloudwatch-agent jq logrotate
 
 echo "==> Installing journal export unit"
+# The unit declares LogsDirectory= and StateDirectory=, but systemd opens
+# StandardOutput=append: BEFORE it creates those directories, so on a fresh
+# host the unit dies with status 209/STDOUT before journalctl ever runs.
+# Create them here; the unit's declarations then only maintain ownership.
+install -d -m 0755 /var/log/learncode
+install -d -m 0700 /var/lib/learncode-journal
 cp "$APP_DIR/deploy/learncode-journal-export.service" /etc/systemd/system/
 systemctl daemon-reload
 systemctl enable --now learncode-journal-export
 # `enable --now` is a no-op for an already-running unit; pick up a changed file.
 systemctl restart learncode-journal-export
+sleep 2
+if ! systemctl is-active --quiet learncode-journal-export; then
+  echo "ERROR: learncode-journal-export is not running:" >&2
+  systemctl status learncode-journal-export --no-pager -l | head -12 >&2
+  exit 1
+fi
 
 echo "==> Installing log rotation"
 cp "$APP_DIR/deploy/logrotate-learncode" /etc/logrotate.d/learncode

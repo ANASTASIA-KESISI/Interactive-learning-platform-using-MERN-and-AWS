@@ -27,8 +27,11 @@ StandardError=journal
 Restart=always
 RestartSec=5
 
-# systemd creates these with the right ownership and lets us write to them
-# even under ProtectSystem=strict.
+# These make the two directories writable under ProtectSystem=strict and keep
+# their ownership right. They do NOT reliably create them: systemd opens the
+# append: target above before it creates LogsDirectory, and the unit fails with
+# status 209/STDOUT on a host where /var/log/learncode does not exist yet.
+# setup-cloudwatch.sh creates both directories before enabling this unit.
 LogsDirectory=learncode
 StateDirectory=learncode-journal
 
