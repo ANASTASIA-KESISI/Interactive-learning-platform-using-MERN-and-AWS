@@ -9,6 +9,12 @@ const userSchema = new mongoose.Schema(
     firstName: { type: String, trim: true },
     lastName: { type: String, trim: true },
     role: { type: String, enum: ROLES, default: 'student', index: true },
+    // Mirror of the Cognito user's enabled state (S8 D3). Cognito's
+    // AdminDisableUser only blocks NEW sign-ins — a token already issued stays
+    // valid until it expires — so `attachUser` checks this flag on every
+    // request to make the lockout immediate on the API. Written only by
+    // authService.setUserActive, alongside the Cognito call.
+    isActive: { type: Boolean, default: true, index: true },
     avatar: { type: String },
     // Institutional placement (S7 D3). Optional: accounts created before S7
     // have neither and are prompted once on Home.
@@ -60,6 +66,7 @@ userSchema.methods.toSafeJSON = function toSafeJSON() {
     firstName: this.firstName,
     lastName: this.lastName,
     role: this.role,
+    isActive: this.isActive,
     avatar: this.avatar,
     bio: this.bio,
     universityId: this.universityId,

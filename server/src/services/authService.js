@@ -2,6 +2,9 @@ const {
   AdminAddUserToGroupCommand,
   AdminRemoveUserFromGroupCommand,
   AdminListGroupsForUserCommand,
+  AdminDisableUserCommand,
+  AdminEnableUserCommand,
+  AdminUserGlobalSignOutCommand,
 } = require('@aws-sdk/client-cognito-identity-provider');
 
 const { User, ROLES } = require('../models/User');
@@ -103,4 +106,71 @@ const setUserRole = async (userId, role) => {
   return user;
 };
 
-module.exports = { syncUserFromClaims, getByCognitoId, setUserRole };
+// Every `cognito-idp` action deactivation needs on the `learncode-runtime`
+// policy (DEPLOYMENT.md §3). Named in the 503 so whoever sees it knows what to
+// attach, the way the missing-group 503 above names the group.
+const DEACTIVATION_ACTIONS = Object.freeze([
+  'cognito-idp:AdminDisableUser',
+  'cognito-idp:AdminEnableUser',
+  'cognito-idp:AdminUserGlobalSignOut',
+]);
+
+// Deactivation is a Cognito disable plus a Mongo mirror (S8 D3). Cognito's
+// disable only stops NEW sign-ins; the global sign-out revokes the refresh
+// tokens so the session cannot be renewed; and `attachUser` rejects the
+// still-valid access token on its next request via the Mongo flag, which is
+// what makes the lockout immediate on the API rather than an hour later.
+//
+// Cognito is written before Mongo, deliberately: if the Cognito call fails the
+// account is left exactly as it was, and the mirror never claims a state that
+// identity does not hold.
+const setUserActive = async (userId, isActive, actorId) => {
+  if (typeof isActive !== 'boolean') throw badRequest('isActive must be a boolean');
+  if (actorId !== undefined && String(userId) === String(actorId)) {
+    throw badRequest('You cannot deactivate your own account');
+  }
+
+  const user = await User.findById(userId);
+  if (!user) throw notFound('User not found');
+  // Accounts created before S8 have no flag at all; absent means active.
+  const currentlyActive = user.isActive !== false;
+  if (currentlyActive === isActive) return user;
+
+  env.assertCognitoConfigured();
+  const client = getCognitoClient();
+  const UserPoolId = env.aws.cognito.userPoolId;
+  const Username = user.cognitoId;
+
+  try {
+    if (isActive) {
+      await client.send(new AdminEnableUserCommand({ UserPoolId, Username }));
+    } else {
+      await client.send(new AdminDisableUserCommand({ UserPoolId, Username }));
+      await client.send(new AdminUserGlobalSignOutCommand({ UserPoolId, Username }));
+    }
+  } catch (err) {
+    // Same trap as the runner Lambda and the role groups (S6 A3): a Console
+    // test passes while the API's identity lacks the action. Name the fix.
+    if (err.name === 'AccessDeniedException') {
+      throw serviceUnavailable(
+        'The API is not allowed to change this account in Cognito, so it cannot be ' +
+          `${isActive ? 'reactivated' : 'deactivated'}. Add ${DEACTIVATION_ACTIONS.join(', ')} ` +
+          `for pool ${UserPoolId} to the learncode-runtime IAM policy on both the ` +
+          'learncode-backend user and the learncode-ec2-role role (DEPLOYMENT.md §3), then retry.',
+      );
+    }
+    throw err;
+  }
+
+  user.isActive = isActive;
+  await user.save();
+  return user;
+};
+
+module.exports = {
+  syncUserFromClaims,
+  getByCognitoId,
+  setUserRole,
+  setUserActive,
+  DEACTIVATION_ACTIONS,
+};

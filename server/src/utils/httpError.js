@@ -9,7 +9,10 @@ class HttpError extends Error {
 
 const badRequest = (message, details) => new HttpError(400, message, details);
 const unauthorized = (message = 'Unauthorized') => new HttpError(401, message);
-const forbidden = (message = 'Forbidden') => new HttpError(403, message);
+// `details` lets a 403 carry a machine-readable `code` — the client tells a
+// deactivated account (sign out, show a notice) apart from an ordinary role
+// refusal by that code, never by matching the message text.
+const forbidden = (message = 'Forbidden', details) => new HttpError(403, message, details);
 const notFound = (message = 'Not found') => new HttpError(404, message);
 const conflict = (message, details) => new HttpError(409, message, details);
 

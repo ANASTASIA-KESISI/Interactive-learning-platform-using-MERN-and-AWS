@@ -176,9 +176,9 @@ required for S6:
 }
 ```
 
-**Manage Cognito group membership** (needed by the admin panel's role control —
-without it, `PATCH /api/admin/users/:id/role` returns an AWS authorization
-error):
+**Manage Cognito users** (the first three are needed by the admin panel's role
+control — without them, `PATCH /api/admin/users/:id/role` returns an AWS
+authorization error; the last three by account deactivation, S8 D3/D4):
 
 ```json
 {
@@ -186,11 +186,19 @@ error):
   "Action": [
     "cognito-idp:AdminAddUserToGroup",
     "cognito-idp:AdminRemoveUserFromGroup",
-    "cognito-idp:AdminListGroupsForUser"
+    "cognito-idp:AdminListGroupsForUser",
+    "cognito-idp:AdminDisableUser",
+    "cognito-idp:AdminEnableUser",
+    "cognito-idp:AdminUserGlobalSignOut"
   ],
   "Resource": "arn:aws:cognito-idp:eu-west-1:901864772557:userpool/<USER_POOL_ID>"
 }
 ```
+
+Until `AdminDisableUser`, `AdminEnableUser` and `AdminUserGlobalSignOut` are
+attached, `PATCH /api/admin/users/:id/active` returns a 503 that names them;
+nothing is written to Mongo in that case, so the mirror never drifts from
+Cognito.
 
 Attach both, as the inline policy `learncode-runtime`, to **two identities**,
 and remember that updating one does not touch the other:

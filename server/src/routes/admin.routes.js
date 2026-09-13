@@ -108,6 +108,23 @@ router.patch('/users/:id/role', ...adminAuth, async (req, res, next) => {
   }
 });
 
+// PATCH /api/admin/users/:id/active — body { isActive: boolean }
+// Delegates to authService, which disables or enables the user in Cognito,
+// revokes their refresh tokens on deactivate, and mirrors the flag into Mongo
+// so `attachUser` locks them out on their very next request (S8 D3). The
+// acting admin's id is passed so the service can refuse self-deactivation.
+router.patch('/users/:id/active', ...adminAuth, async (req, res, next) => {
+  try {
+    const { isActive } = req.body;
+    if (typeof isActive !== 'boolean') throw badRequest('isActive must be a boolean');
+
+    const user = await authService.setUserActive(req.params.id, isActive, req.dbUser._id);
+    res.json({ data: user });
+  } catch (err) {
+    next(err);
+  }
+});
+
 // GET /api/admin/courses
 router.get('/courses', ...adminAuth, async (req, res, next) => {
   try {
