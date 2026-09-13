@@ -251,8 +251,7 @@ and validated with automated tooling, not formally audited; local development cu
 course analytics use a filtered `Scan`, which is fine at pilot scale and not
 beyond it; CloudWatch has no alarms; session duration is approximated by
 per-lesson time on task; badge awards are not timestamped; the DynamoDB table
-was created in the console rather than in code; live deep links render but
-return a 404 status.
+was created in the console rather than in code.
 
 > **Note.** Active development happens on `dev`, which is what is deployed.
 > `main` is behind.

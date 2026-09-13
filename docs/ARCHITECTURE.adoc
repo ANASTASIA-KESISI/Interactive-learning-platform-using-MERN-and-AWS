@@ -468,13 +468,13 @@ Two configuration points that are easy to get wrong:
 * `VITE_*` variables are inlined at *build* time, not read at runtime, so
   changing one requires a rebuild.
 
-The default redirect rule serves `index.html` for unknown paths, so deep links
-render. Measured on 2026-09-13, though, the status codes are wrong: `/login`
-answers 301 to `/login/`, and that answers 404 with the `index.html` body.
-Browsers render it and users never notice, but crawlers, uptime probes and
-Lighthouse read the status and treat the page as broken. The fallback needs to
-be a `200` rewrite; which console setting is responsible has not been traced
-beyond the symptom, and `DEPLOYMENT.md` has the check that proves it fixed.
+The SPA fallback is a `200` rewrite: any path without a file extension is
+served `index.html`, while real assets pass through. This replaced Amplify's
+default `/<*>` rule of type `404-200` on 2026-09-13. That default did serve
+`index.html` for deep links, so users never noticed, but it answered a 301 to
+a trailing-slash URL and then a 404 status, which crawlers, uptime probes and
+Lighthouse all read as a broken page. `DEPLOYMENT.md` has the rule and the
+curl check.
 
 === CloudFront — HTTPS for the API
 
@@ -839,12 +839,6 @@ measured, and the manual checks that make up most of the standard have not been
 done, so conformance is not claimed. Individual measures are in place —
 `prefers-reduced-motion` is honoured, status regions are announced, controls
 are labelled.
-
-| Deep links return a 404 status
-| On Amplify, `/login` is a 301 to `/login/`, which is a 404 carrying the
-`index.html` body. The page renders, so no user has noticed, but any client
-that reads the status sees a broken page. Traced to the symptom only; see the
-Amplify section.
 
 | Shared development database
 | See the warning above.

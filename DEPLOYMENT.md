@@ -261,18 +261,32 @@ stored on disk. If you keep the static keys, set `AWS_ACCESS_KEY_ID` and
 
 **Amplify Hosting** is the lower-friction option: connect the repo, set build
 output to `client/dist`, add the variables above under Environment variables.
-Because this is a client-rendered SPA, add a rewrite rule sending `404` to
-`/index.html` (200) or deep links like `/admin/users` will 404 on refresh.
-Verify the status, not just that the page renders:
+Because this is a client-rendered SPA, deep links like `/admin/users` need a
+rewrite to `/index.html`. Do **not** keep Amplify's default `/<*>` rule of
+type `404-200`: it serves the page but with a 301 to a trailing slash and then
+a 404 status, so crawlers, uptime probes and Lighthouse treat every deep link
+as broken. Use Amplify's documented SPA rule instead (Hosting → Rewrites and
+redirects → Manage → JSON editor):
+
+```json
+[
+  {
+    "source": "</^[^.]+$|\\.(?!(css|gif|ico|jpg|js|png|txt|svg|woff|woff2|ttf|map|json|webp)$)([^.]+$)/>",
+    "status": "200",
+    "target": "/index.html"
+  }
+]
+```
+
+Paths without a file extension get `index.html` with a 200; real assets pass
+through. Takes effect immediately, no rebuild. Verify the status, not just
+that the page renders:
 
 ```bash
 curl -s -o /dev/null -L -w "%{url_effective} %{http_code}\n" https://<client>/login
 ```
 
-It must end in `200`. On 2026-09-13 the live app ended in `404` (via a 301 to
-`/login/`) while still serving `index.html`: the page works, the status is
-wrong, and any client that reads the status — crawlers, uptime probes,
-Lighthouse — treats the page as broken.
+It must end in `200` with no redirect. Applied to the live app on 2026-09-13.
 
 **S3 + CloudFront** works equally well and is cheaper; same SPA fallback applies
 (custom error response 403/404 → `/index.html`, status 200).
@@ -420,8 +434,8 @@ Run in order once the platform is live:
 - [x] Ship the API logs to CloudWatch (§7) — done 2026-09-13.
 - [x] Verify request logs are arriving in CloudWatch as JSON — log group
   `/learncode/api` visible with the instance stream, 2026-09-13.
-- [ ] Deep links return `200`, not `404` (§5 curl check). The live app fails
-  this as of 2026-09-13.
+- [x] Deep links return `200`, not `404` (§5 curl check) — rule replaced and
+  verified 2026-09-13.
 - [ ] Lighthouse accessibility on the authenticated screens. The public pages
   score 100 (2026-09-13, reports in `docs/lighthouse/`); the dashboard,
   lesson, notes, profile and admin screens need a logged-in run, e.g. Chrome
