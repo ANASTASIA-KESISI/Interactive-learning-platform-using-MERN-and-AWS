@@ -426,6 +426,22 @@ experimenting with the Run button cannot dilute the pass-rate denominator.
 All three are optional, and every reader tolerates their absence, so records
 written before they existed remain valid.
 
+Since S8 the table also holds *session items*, one per browser tab a student
+opens, under the learner's partition with sort key `session#<sessionId>`.
+They carry `type: 'session'`, `startedAt`, `lastSeenAt`, `durationSec` and
+`heartbeats`. The client posts a heartbeat on load, every 60 seconds while the
+tab is visible and once more as it goes hidden; each heartbeat adds the gap
+since the previous one, capped at 120 seconds, so `durationSec` is active time
+and a tab left open over lunch adds nothing. Keeping sessions in this table
+honours the events-to-DynamoDB rule without a second table to create by hand,
+at the cost of one discipline: every reader of a learner's partition or of the
+whole table must skip session items, or a session would land in the
+dashboard's completion denominator as a lesson nobody can name.
+`progressService.isSessionItem` is that filter, applied in
+`getStudentProgress` (which every learner-facing screen reads through) and in
+the research export. Only students record sessions, as with every other
+progress signal.
+
 === Answers never leave the server
 
 `expectedOutput`, hint text, and a quiz question's `correctIndex` and
@@ -775,27 +791,36 @@ the design.
 dashboard and profile.
 
 | Mean code submissions per exercise
-| Derivable
-| `totalAttempts` and `uniqueLearners` per lesson are returned; the mean is
-their ratio. The per-submission transcript is in the research export.
+| Reported
+| `avgAttemptsPerLearner` per lesson (`totalAttempts` over `uniqueLearners`,
+one decimal), in the instructor breakdown. Only a submit is an attempt, so
+Run-button experiments do not inflate it. The per-submission transcript is in
+the research export.
 
 | Hint usage frequency
 | Reported
-| `avgHintsUsed` per lesson. Each stored submission also carries
-`hintsUsedAtSubmit`, so attempts before and after a hint can be compared.
+| `avgHintsUsed` per lesson (depth) and `hintRevealRate` per lesson (reach:
+the share of learners who revealed at least one hint). Each stored submission
+also carries `hintsUsedAtSubmit`, so attempts before and after a hint can be
+compared.
 
 | Badge acquisition rate
-| Partial
-| Badges are awarded server-side and counted per user (`badgeCount` and
-`badgeTotal`), but `users.badges[]` holds IDs without an award timestamp. The
-rate can be computed per cohort at export time; it cannot be plotted over time.
+| Reported, dated since S8
+| Every award writes a dated entry to `users.badgeAwards[]` alongside the id
+in `badges[]`. The admin KPIs report `badgesAwardedTotal` and
+`badgesAwardedByWeek` over the same window as the weekly-active series, and
+the profile shows the date under each earned badge. Awards made before S8
+carry no timestamp: they still count on the learner's profile but are absent
+from the dated series.
 
 | Average session duration
-| Not as sessions
-| There is no session record. What exists is `timeSpent` per lesson — active
-time on task from `useTimeOnTask`, exposed as `avgTimeSpentSec` — and
-`lastActiveAt` per user, which drives the weekly-active-users chart. The honest
-label is "average time on task per lesson".
+| Reported as active session duration, heartbeat-based
+| Session items in the progress table (see "The progress table"). The admin
+KPIs report `sessions`, `avgSessionDurationSec` and
+`medianSessionDurationSec` over the window; a session's duration is the sum
+of heartbeat gaps capped at 120 seconds, so it is active time in the app, not
+wall-clock time between first and last request. `timeSpent` per lesson
+(`avgTimeSpentSec`) remains the per-lesson time-on-task figure.
 |===
 
 Beyond the five, the table records `runs` (unvalidated executions),
@@ -863,15 +888,6 @@ beyond it.
 | The API 5xx alarm is the only one. A throttled or failing Lambda runner, or
 DynamoDB throttling, is still found by reading logs rather than by being told.
 No dashboards.
-
-| Session duration not measured
-| The thesis lists average session duration; the platform records active time
-on task per lesson and a last-seen timestamp per user. Either the thesis
-wording changes to time on task, or session tracking is added.
-
-| Badges not timestamped
-| `users.badges[]` is a list of IDs. Acquisition can be counted but not placed
-in time, so a badge-acquisition curve cannot be drawn from the current data.
 
 | Progress table outside infrastructure-as-code
 | The DynamoDB table was created in the console and its schema lives only there.

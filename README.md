@@ -208,14 +208,15 @@ what the platform produces for each:
 | Thesis metric | Status | Source |
 |---|---|---|
 | Lesson-completion rate | Reported | `passRate` per lesson and `overallCompletionRate` per course in the instructor analytics; `completionRate` on the student dashboard |
-| Mean code submissions per exercise | Derivable | `totalAttempts` ÷ `uniqueLearners` per lesson; the full transcript is in the research export |
-| Hint usage frequency | Reported | `avgHintsUsed` per lesson, plus `hintsUsedAtSubmit` on every stored submission |
-| Badge acquisition rate | Partial | Badges are awarded and counted, but carry no award timestamp, so the rate cannot be plotted over time |
-| Average session duration | Not as sessions | The platform records active **time on task per lesson** (`avgTimeSpentSec`) and a last-seen timestamp per user, not sessions |
+| Mean code submissions per exercise | Reported | `avgAttemptsPerLearner` per lesson in the instructor analytics; the full transcript is in the research export |
+| Hint usage frequency | Reported | `avgHintsUsed` (depth) and `hintRevealRate` (share of learners who revealed a hint) per lesson, plus `hintsUsedAtSubmit` on every stored submission |
+| Badge acquisition rate | Reported, dated since S8 | Every award is timestamped in `users.badgeAwards`; the admin KPIs plot `badgesAwardedByWeek`. Awards made before S8 are undated and absent from the series |
+| Average session duration | Reported as active session duration, heartbeat-based | Session items in the progress table; the admin KPIs report the count, mean and median. Duration is the sum of heartbeat gaps capped at 120 s — active time in the app, not wall-clock |
 
-Also recorded: unvalidated runs, questions asked and note activity per lesson,
-and users active per week. The anonymised dataset comes from
-`server/scripts/exportSubmissions.js`.
+Also recorded: active time on task per lesson (`avgTimeSpentSec`),
+unvalidated runs, questions asked and note activity per lesson, and users
+active per week. The anonymised dataset comes from
+`server/scripts/exportSubmissions.js`; session items are excluded from it.
 
 The API's structured JSON request logs ship to the CloudWatch log group
 `/learncode/api` (runbook §7); Lambda and Amplify logs are there too. One
