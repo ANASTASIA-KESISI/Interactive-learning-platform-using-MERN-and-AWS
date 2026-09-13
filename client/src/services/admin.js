@@ -58,3 +58,14 @@ export const updateDepartment = (departmentId, payload) =>
 
 export const deleteDepartment = (departmentId) =>
   api.delete(`/admin/departments/${departmentId}`).then(unwrap);
+
+// ── Platform settings (S9) ────────────────────────────────────────────────────
+// The instructor invite code lives in Mongo, seeded from INSTRUCTOR_INVITE_CODE
+// on a fresh deployment. `source` is 'database' | 'environment' | 'unset'.
+// Saving an empty code disables instructor self-signup.
+
+export const getInstructorInviteCode = () =>
+  api.get('/admin/settings/instructor-invite-code').then(unwrap);
+
+export const setInstructorInviteCode = (code) =>
+  api.put('/admin/settings/instructor-invite-code', { code }).then(unwrap);

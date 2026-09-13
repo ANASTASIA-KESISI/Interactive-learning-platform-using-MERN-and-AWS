@@ -9,6 +9,7 @@ const { badRequest } = require('../utils/httpError');
 const authService = require('../services/authService');
 const courseService = require('../services/courseService');
 const progressService = require('../services/progressService');
+const settingsService = require('../services/settingsService');
 const universityService = require('../services/universityService');
 
 const router = express.Router();
@@ -180,6 +181,31 @@ router.patch('/users/:id/active', ...adminAuth, async (req, res, next) => {
 
     const user = await authService.setUserActive(req.params.id, isActive, req.dbUser._id);
     res.json({ data: user });
+  } catch (err) {
+    next(err);
+  }
+});
+
+// GET /api/admin/settings/instructor-invite-code
+// The code is a shared secret, but the admin is the one who hands it to
+// teaching staff, so it is returned in clear — `source` tells the panel
+// whether it is the environment seed or a value an admin saved.
+router.get('/settings/instructor-invite-code', ...adminAuth, async (_req, res, next) => {
+  try {
+    res.json({ data: await settingsService.readInstructorInviteCode() });
+  } catch (err) {
+    next(err);
+  }
+});
+
+// PUT /api/admin/settings/instructor-invite-code — body { code: string }
+// Takes effect on the next claim: the compare reads Mongo per request, and
+// accounts already promoted keep their Cognito group. An empty code disables
+// instructor self-signup.
+router.put('/settings/instructor-invite-code', ...adminAuth, async (req, res, next) => {
+  try {
+    const { code } = req.body || {};
+    res.json({ data: await settingsService.setInstructorInviteCode(code, req.dbUser._id) });
   } catch (err) {
     next(err);
   }

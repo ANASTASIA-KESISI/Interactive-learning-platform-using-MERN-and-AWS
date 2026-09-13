@@ -23,6 +23,7 @@ import { AdminOverviewPage } from '../features/admin/AdminOverviewPage.jsx';
 import { AdminUsersPage } from '../features/admin/AdminUsersPage.jsx';
 import { AdminCoursesPage } from '../features/admin/AdminCoursesPage.jsx';
 import { AdminUniversitiesPage } from '../features/admin/AdminUniversitiesPage.jsx';
+import { AdminSettingsPage } from '../features/admin/AdminSettingsPage.jsx';
 
 const App = () => (
   <ApiBinding>
@@ -112,6 +113,7 @@ const App = () => (
           <Route path="users" element={<AdminUsersPage />} />
           <Route path="courses" element={<AdminCoursesPage />} />
           <Route path="universities" element={<AdminUniversitiesPage />} />
+          <Route path="settings" element={<AdminSettingsPage />} />
         </Route>
       </Route>
 

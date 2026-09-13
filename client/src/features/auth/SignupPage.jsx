@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 
 import { Logo } from '../../components/Logo.jsx';
+import { PasswordField } from '../../components/PasswordField.jsx';
 import { signUp, confirmSignUp, resendConfirmationCode } from '../../services/cognito.js';
 import {
   InstitutionFields,
@@ -121,11 +122,16 @@ export const SignupPage = () => {
               <input id="email" type="email" autoComplete="email" value={form.email} onChange={update('email')} required className="field" />
             </div>
 
-            <div>
-              <label htmlFor="password" className="label">Password</label>
-              <input id="password" type="password" autoComplete="new-password" value={form.password} onChange={update('password')} required minLength={8} className="field" />
-              <p className="mt-1 text-xs text-slate-500">At least 8 characters.</p>
-            </div>
+            <PasswordField
+              id="password"
+              label="Password"
+              autoComplete="new-password"
+              value={form.password}
+              onChange={update('password')}
+              required
+              minLength={8}
+              hint={<p className="mt-1 text-xs text-slate-500">At least 8 characters.</p>}
+            />
 
             {error && (
               <p role="alert" className="rounded-md bg-red-50 px-3 py-2 text-sm text-red-700">{error}</p>

@@ -251,7 +251,7 @@ deploy, so host-side edits are overwritten. Change them in the repo instead.
 | **`CODE_RUNNER_ADAPTER`** | **`lambda`** | See below |
 | `LAMBDA_RUNNER_JS_FUNCTION` | `learncode-runner-js` | |
 | `LAMBDA_RUNNER_PY_FUNCTION` | `learncode-runner-py` | **Required for Python lessons.** Unlike the JS one this has no built-in default: the adapter registers Python only when it is named, so an environment without the runner deployed rejects a Python submission at dispatch with a 503 naming this variable, rather than failing inside AWS. Both functions are deployed in `eu-west-1`; leaving this unset makes every Python lesson unrunnable even though the Lambda exists. |
-| `INSTRUCTOR_INVITE_CODE` | long random secret (keep in `secrets.env`, beside `MONGODB_URI`) | Lets a signed-in student claim the `instructor` role via `POST /api/auth/claim-instructor`. Unset/empty disables the endpoint (503) and instructor signup silently creates an ordinary student account. Generate with `node -e "console.log(require('crypto').randomBytes(24).toString('base64url'))"`. Rotate by editing `secrets.env` and restarting the service — already-promoted accounts keep their role, which lives in Cognito. |
+| `INSTRUCTOR_INVITE_CODE` | long random secret (keep in `secrets.env`, beside `MONGODB_URI`) | **Seed only since S9.** Lets a signed-in student claim the `instructor` role via `POST /api/auth/claim-instructor`. The live code is read from the Mongo `settings` collection and falls back to this variable only until an admin saves one from **Admin → Settings** — from then on the variable is ignored, and rotation is a panel action with no restart. Unset/empty with nothing saved disables the endpoint (503) and instructor signup silently creates an ordinary student account. Generate with `node -e "console.log(require('crypto').randomBytes(24).toString('base64url'))"` or the panel's Generate button. Already-promoted accounts keep their role, which lives in Cognito. |
 
 **On `CODE_RUNNER_ADAPTER`:** the in-process dev runner executes untrusted
 student code inside the API process and is not a sandbox. Since S5.5 it must be
@@ -457,10 +457,11 @@ Run in order once the platform is live:
       Idempotent (upserts by `code`). Without it the signup form has no
       university or department to offer and the Courses screen cannot group by
       semester
-- [ ] `INSTRUCTOR_INVITE_CODE` set in the platform environment (§4). Leaving it
-      unset is safe — `POST /api/auth/claim-instructor` returns 503 and instructor
-      signup degrades to a student account — but no one can self-serve the
-      instructor role until it is set
+- [ ] Instructor invite code set — either `INSTRUCTOR_INVITE_CODE` in the
+      platform environment (§4) or saved from Admin → Settings once an admin
+      account exists. Leaving both unset is safe — `POST /api/auth/claim-instructor`
+      returns 503 and instructor signup degrades to a student account — but no
+      one can self-serve the instructor role until one is set
 - [x] `node scripts/resetStreaks.js` — **required once.** Pre-S5.5 streak values
       are meaningless; run `--dry-run` first to see the count. Done 2026-09-13:
       4 users, 2 non-zero streaks cleared, second dry run reports 0 left.

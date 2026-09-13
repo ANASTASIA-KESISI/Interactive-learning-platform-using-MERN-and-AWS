@@ -3,6 +3,7 @@ import { Link, useLocation, useNavigate } from 'react-router-dom';
 
 import { useAuth } from '../../hooks/useAuth.js';
 import { Logo } from '../../components/Logo.jsx';
+import { PasswordField } from '../../components/PasswordField.jsx';
 import { claimInstructor } from '../../services/auth.js';
 import { updateMe } from '../../services/me.js';
 import {
@@ -168,18 +169,14 @@ export const LoginPage = () => {
               />
             </div>
 
-            <div>
-              <label htmlFor="password" className="label">Password</label>
-              <input
-                id="password"
-                type="password"
-                autoComplete="current-password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                required
-                className="field"
-              />
-            </div>
+            <PasswordField
+              id="password"
+              label="Password"
+              autoComplete="current-password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              required
+            />
 
             {error && (
               <p role="alert" className="rounded-md bg-red-50 px-3 py-2 text-sm text-red-700">{error}</p>

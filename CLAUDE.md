@@ -95,6 +95,7 @@ Route handlers are thin: they parse/validate input, call one or more services, a
 - `universities` / `departments` — the institutional tree. A student belongs to one department; a course belongs to one department and one `semester` (a plain integer bounded by `departments.semesterCount`, not a document).
 - `notes` — learner-authored notes, one per (user, lesson) or (user, module). Plain text, never rendered as Markdown or HTML.
 - `messages` — one thread per (student, course) between a learner and that course's instructor. Plain text.
+- `settings` — platform-wide key/value pairs an admin edits at runtime (S9). Currently only `instructorInviteCode`; read through `settingsService`, which falls back to `INSTRUCTOR_INVITE_CODE` until an admin saves one. Keys are a closed enum on the `Setting` model.
 
 **Level and rank are derived, never stored** — `gamificationService.levelFromXp` computes them from `xpPoints` on every read. Do not add columns for them; a second source of truth drifts the moment XP is adjusted.
 

@@ -64,8 +64,8 @@ role, and nothing about a session is held on the server (NFR2).
 - *Role changes*: `server/src/services/authService.js` moves a user between
   groups with `AdminAddUserToGroup` and `AdminRemoveUserFromGroup`, clearing
   stale groups first. This is the only write the API ever makes to Cognito.
-- *Instructor sign-up*: gated by an invite code held in the API's environment,
-  not in Cognito. A wrong code produces an ordinary student account rather
+- *Instructor sign-up*: gated by an invite code held in MongoDB (seeded from
+  the API's environment, managed from Admin → Settings), not in Cognito. A wrong code produces an ordinary student account rather
   than a failure.
 
 **Worth knowing.**

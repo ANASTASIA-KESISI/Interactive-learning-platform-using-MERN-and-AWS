@@ -3,7 +3,7 @@ const express = require('express');
 const rateLimit = require('express-rate-limit');
 
 const authService = require('../services/authService');
-const { env } = require('../config/env');
+const settingsService = require('../services/settingsService');
 const { requireAuth } = require('../middleware/requireAuth');
 const { requireRole } = require('../middleware/requireRole');
 const { attachUser } = require('../middleware/attachUser');
@@ -38,6 +38,8 @@ const codeMatches = (candidate, expected) => {
 // Roles live in Cognito groups, so this delegates to authService.setUserRole —
 // the same AdminAddUserToGroup path the admin panel uses. The caller's current
 // token keeps the old claim until they refresh their session, hence the note.
+// The code itself comes from settingsService (Mongo, seeded from the
+// environment) so an admin can view and rotate it from the panel.
 router.post(
   '/claim-instructor',
   claimLimiter,
@@ -46,7 +48,7 @@ router.post(
   attachUser,
   async (req, res, next) => {
     try {
-      const expected = env.instructorInviteCode;
+      const expected = await settingsService.getInstructorInviteCode();
       if (!expected) {
         throw new HttpError(503, 'Instructor self-signup is not enabled on this deployment');
       }

@@ -5,6 +5,7 @@ const SECTIONS = [
   { to: '/admin/users', label: 'Users', hint: 'Roles and accounts' },
   { to: '/admin/courses', label: 'Courses', hint: 'Publish and review' },
   { to: '/admin/universities', label: 'Universities', hint: 'Departments and semesters' },
+  { to: '/admin/settings', label: 'Settings', hint: 'Instructor invite code' },
 ];
 
 const linkClass = ({ isActive }) =>

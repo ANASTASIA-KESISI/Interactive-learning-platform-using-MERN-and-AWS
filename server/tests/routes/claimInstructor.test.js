@@ -3,7 +3,9 @@
 // authService — these assert the gate, not the Cognito call.
 //
 // `requireAuth` is mocked to skip JWKS verification and `attachUser` to skip
-// Mongo, the same shape as the rest of the route suites.
+// Mongo, the same shape as the rest of the route suites. The invite code is
+// read through settingsService (Mongo-backed since S9), mocked here so each
+// test can pick the effective code without a database.
 
 jest.mock('../../src/middleware/requireAuth', () => ({
   requireAuth: (req, _res, next) => {
@@ -30,25 +32,27 @@ jest.mock('../../src/services/authService', () => ({
   setUserRole: jest.fn().mockResolvedValue({ _id: 'user1', role: 'instructor' }),
 }));
 
+jest.mock('../../src/services/settingsService', () => ({
+  getInstructorInviteCode: jest.fn(),
+}));
+
 const request = require('supertest');
 const authService = require('../../src/services/authService');
-const { env } = require('../../src/config/env');
+const settingsService = require('../../src/services/settingsService');
 const { createApp } = require('../../src/app');
 
 const app = createApp();
 const INVITE_CODE = 'a-long-random-invite-code';
 
-// The route reads env at request time, so the value can be swapped per test.
-const originalCode = env.instructorInviteCode;
-afterEach(() => {
-  env.instructorInviteCode = originalCode;
+beforeEach(() => {
+  jest.clearAllMocks();
 });
 
 // The endpoint is rate-limited to 5 requests / 15 min / IP, and supertest
 // always presents 127.0.0.1 — keep this suite under that budget.
 describe('POST /api/auth/claim-instructor', () => {
   test('503 when no invite code is configured for the deployment', async () => {
-    env.instructorInviteCode = '';
+    settingsService.getInstructorInviteCode.mockResolvedValue('');
 
     const res = await request(app).post('/api/auth/claim-instructor').send({ code: 'anything' });
 
@@ -57,7 +61,7 @@ describe('POST /api/auth/claim-instructor', () => {
   });
 
   test('400 when the body carries no code', async () => {
-    env.instructorInviteCode = INVITE_CODE;
+    settingsService.getInstructorInviteCode.mockResolvedValue(INVITE_CODE);
 
     const res = await request(app).post('/api/auth/claim-instructor').send({});
 
@@ -66,7 +70,7 @@ describe('POST /api/auth/claim-instructor', () => {
   });
 
   test('403 on a wrong code, without saying why', async () => {
-    env.instructorInviteCode = INVITE_CODE;
+    settingsService.getInstructorInviteCode.mockResolvedValue(INVITE_CODE);
 
     const res = await request(app)
       .post('/api/auth/claim-instructor')
@@ -78,7 +82,7 @@ describe('POST /api/auth/claim-instructor', () => {
   });
 
   test('promotes the caller to instructor on the right code', async () => {
-    env.instructorInviteCode = INVITE_CODE;
+    settingsService.getInstructorInviteCode.mockResolvedValue(INVITE_CODE);
 
     const res = await request(app)
       .post('/api/auth/claim-instructor')
