@@ -99,7 +99,7 @@ deep links survive a refresh. Nothing is server-rendered.
 | **Databases** | MongoDB Atlas (content) · DynamoDB (events) |
 | **Identity** | AWS Cognito user pools, groups mapped to roles |
 | **Compute** | EC2 (API, behind nginx) · Lambda (code runners, one per language) |
-| **Delivery** | Amplify (client) · CloudFront (HTTPS for the API) · S3 (media) |
+| **Delivery** | Amplify (client) · CloudFront (HTTPS for the API) · S3 (media bucket, reserved and unused so far) |
 | **Ops** | CloudWatch · GitHub Actions with OIDC · SSM Run Command |
 
 ## Getting started
@@ -227,6 +227,7 @@ alarm, on API 5xx responses, emails a person; no dashboards yet.
 |---|---|
 | [`docs/ARCHITECTURE.adoc`](docs/ARCHITECTURE.adoc) | Layers, data model, AWS configuration, security, CI/CD, and the requirements traceability table |
 | [`DEPLOYMENT.md`](DEPLOYMENT.md) | Runbook, IAM policies, environment variables, pre-pilot checklist |
+| [`docs/AWS-SERVICES.md`](docs/AWS-SERVICES.md) | Every AWS service used: why, what was created on it, how the code touches it, and what it cost in time to get right |
 | [`docs/lighthouse/`](docs/lighthouse/) | Lighthouse accessibility reports for the public pages, 2026-09-13 |
 | [`CHALLENGES.md`](CHALLENGES.md) | Problems hit during construction and how they were resolved — including a sandbox escape found by testing the deployed runner that static review had missed |
 | [`REFACTOR.md`](REFACTOR.md) | The pre-deployment hardening review and its implementation record |

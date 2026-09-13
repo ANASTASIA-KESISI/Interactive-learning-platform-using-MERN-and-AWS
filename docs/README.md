@@ -3,6 +3,7 @@
 | File | What it is |
 |---|---|
 | `ARCHITECTURE.adoc` | The architecture reference. **Source of truth** — edit this. |
+| `AWS-SERVICES.md` | Service-by-service companion: what each AWS service does for the platform, what was created on it, how the code uses it, and the gotchas. Plain Markdown, no build step. |
 | `generate-diagrams.js` | Emits the `.drawio` and the three `.svg` files from one layout description. **Source of truth for the diagrams** — edit this, not the outputs. |
 | `learncode-architecture.drawio` | Generated. Editable in draw.io; three pages. |
 | `*.svg` | Generated. Vector figures, one per diagram page. |
