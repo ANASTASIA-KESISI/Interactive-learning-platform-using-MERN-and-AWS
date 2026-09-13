@@ -8,6 +8,7 @@ const { attachUser } = require('../middleware/attachUser');
 const { badRequest } = require('../utils/httpError');
 const authService = require('../services/authService');
 const courseService = require('../services/courseService');
+const progressService = require('../services/progressService');
 const universityService = require('../services/universityService');
 
 const router = express.Router();
@@ -102,6 +103,12 @@ router.get('/kpis', ...adminAuth, async (req, res, next) => {
     const activeByWeek = await activeUsersByWeek(weeks);
     const { badgesAwardedTotal, badgesAwardedByWeek: badgesByWeek } =
       await badgesAwardedByWeek(weeks);
+    // Session items live in the DynamoDB progress table (S8 D6). Same `weeks`
+    // window as the two weekly series, so the three figures describe one
+    // period.
+    const sessionStats = await progressService.getSessionStats(
+      new Date(Date.now() - weeks * WEEK_MS).toISOString(),
+    );
 
     res.json({
       data: {
@@ -113,6 +120,9 @@ router.get('/kpis', ...adminAuth, async (req, res, next) => {
         activeByWeek,
         badgesAwardedTotal,
         badgesAwardedByWeek: badgesByWeek,
+        sessions: sessionStats.sessions,
+        avgSessionDurationSec: sessionStats.avgSessionDurationSec,
+        medianSessionDurationSec: sessionStats.medianSessionDurationSec,
       },
     });
   } catch (err) {

@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { Link, NavLink, Outlet, useLocation } from 'react-router-dom';
 
 import { useAuth } from '../hooks/useAuth.js';
+import { useSessionHeartbeat } from '../hooks/useSessionHeartbeat.js';
 import { LogoMark } from '../components/Logo.jsx';
 import { Avatar, Chip } from '../components/ui/index.js';
 import { formatXp, levelProgressPct } from '../lib/gamification.js';
@@ -53,6 +54,11 @@ export const AppShell = () => {
 
   const canAuthor = user?.role === 'instructor' || user?.role === 'admin';
   const isAdmin = user?.role === 'admin';
+
+  // Session heartbeat for the pilot's session-duration metric (S8 D6). Mounted
+  // once here, above every page, and only for students — the server would
+  // refuse to record any other role anyway, so this saves the requests.
+  useSessionHeartbeat({ enabled: user?.role === 'student' });
   const profile = user?.profile || null;
   const unread = profile?.unreadMessages || 0;
   const displayName =

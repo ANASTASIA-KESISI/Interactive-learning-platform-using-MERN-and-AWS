@@ -125,13 +125,23 @@ const recordHintReveal = async (userId, lessonId, hintIndex) => {
 const getLessonProgress = (userId, lessonId) =>
   progressTable.getProgress(userId, lessonId);
 
+// A session item shares the learner's partition with their lesson records
+// (S8 D6) and is told apart by its sort key. Every reader of the partition
+// must apply this — a session has no `status`, so left in it would land in
+// the dashboard's completion denominator as a lesson nobody can name.
+const isSessionItem = (item) =>
+  typeof item.lessonId === 'string' && item.lessonId.startsWith(progressTable.SESSION_PREFIX);
+
 // Per-lesson status list for the learner's own screens (course tree ticks,
 // dashboard rollups). The submission transcript is deliberately dropped: it is
 // the bulkiest part of the record and now carries the learner's source code,
-// none of which any consumer of this list renders.
+// none of which any consumer of this list renders. Session items are dropped
+// too: nothing downstream of this list is about a session.
 const getStudentProgress = async (userId) => {
   const records = await progressTable.queryByUser(userId);
-  return records.map(({ codeSubmissions, ...summary }) => summary);
+  return records
+    .filter((item) => !isSessionItem(item))
+    .map(({ codeSubmissions, ...summary }) => summary);
 };
 
 // Aggregates DynamoDB progress records for a known set of lesson IDs into the
@@ -255,6 +265,77 @@ const recordNoteActivity = async (userId, lessonId, now = new Date()) => {
   return { noteUpdatedAt: updates.noteUpdatedAt };
 };
 
+// ── Sessions (S8 D6) ─────────────────────────────────────────────────────────
+// The thesis lists "average session duration"; time on task per lesson existed
+// but a session — one visit to the app — was the missing unit. A session is an
+// item in the progress table keyed `session#<sessionId>`, where the client
+// mints the id once per browser tab and posts a heartbeat while visible.
+//
+// `durationSec` is ACTIVE time. Each heartbeat adds the gap since the previous
+// one, capped at MAX_HEARTBEAT_GAP_SEC: the client beats every 60 s while the
+// tab is visible and once more as it goes hidden, so a gap of minutes or hours
+// means the tab was hidden, the laptop was shut, or the request was replayed —
+// none of which is time spent learning. The cap makes the number honest
+// without a session-timeout heuristic, and it bounds what a tampered client
+// can add per request the same way MAX_TIME_REPORT_SEC does for time on task.
+const MAX_HEARTBEAT_GAP_SEC = 120;
+
+const sessionKey = (sessionId) => `${progressTable.SESSION_PREFIX}${sessionId}`;
+
+const recordSessionHeartbeat = async (userId, sessionId, now = new Date()) => {
+  const lessonId = sessionKey(sessionId);
+  const existing = await progressTable.getProgress(userId, lessonId);
+  const nowIso = now.toISOString();
+
+  if (!existing) {
+    const item = {
+      userId,
+      lessonId,
+      type: 'session',
+      startedAt: nowIso,
+      lastSeenAt: nowIso,
+      durationSec: 0,
+      heartbeats: 1,
+    };
+    await progressTable.putProgress(item);
+    return { durationSec: 0 };
+  }
+
+  const lastSeen = Date.parse(existing.lastSeenAt);
+  const gapSec = Number.isFinite(lastSeen) ? (now.getTime() - lastSeen) / 1000 : 0;
+  // A clock that went backwards contributes nothing rather than a negative.
+  const delta = Math.min(Math.max(gapSec, 0), MAX_HEARTBEAT_GAP_SEC);
+  const durationSec = (existing.durationSec || 0) + delta;
+
+  await progressTable.updateProgress(userId, lessonId, {
+    durationSec,
+    lastSeenAt: nowIso,
+    heartbeats: (existing.heartbeats || 0) + 1,
+  });
+  return { durationSec };
+};
+
+const median = (sorted) => {
+  if (sorted.length === 0) return 0;
+  const mid = Math.floor(sorted.length / 2);
+  return sorted.length % 2 ? sorted[mid] : (sorted[mid - 1] + sorted[mid]) / 2;
+};
+
+// Platform-wide session figures for the admin KPIs, over sessions that began
+// at or after `sinceIso`. Both the mean and the median are reported: a few
+// long sessions pull the mean up, and the pilot writeup should be able to say
+// which it is quoting.
+const getSessionStats = async (sinceIso) => {
+  const items = await progressTable.scanSessionsSince(sinceIso);
+  const durations = items.map((s) => Number(s.durationSec) || 0).sort((a, b) => a - b);
+  const total = durations.reduce((sum, d) => sum + d, 0);
+  return {
+    sessions: durations.length,
+    avgSessionDurationSec: durations.length ? Math.round(total / durations.length) : 0,
+    medianSessionDurationSec: Math.round(median(durations)),
+  };
+};
+
 module.exports = {
   recordLessonStart,
   recordSubmission,
@@ -263,8 +344,12 @@ module.exports = {
   recordQuestionAsked,
   recordNoteActivity,
   recordTimeSpent,
+  recordSessionHeartbeat,
   MAX_TIME_REPORT_SEC,
+  MAX_HEARTBEAT_GAP_SEC,
+  isSessionItem,
   getLessonProgress,
   getStudentProgress,
   getCourseAnalytics,
+  getSessionStats,
 };

@@ -25,6 +25,9 @@
 // Lesson titles are resolved from MongoDB so the dataset is readable without a
 // second join. No learner names, emails or Cognito IDs are ever written.
 //
+// Session items (sort key `session#<id>`, S8 D6) share the table and are
+// excluded here: they carry no submissions, and a session id is not a lesson.
+//
 // Usage (from /server):
 //   node scripts/exportSubmissions.js                  # -> ./exports/, anonymous
 //   node scripts/exportSubmissions.js --out ./somewhere
@@ -39,6 +42,7 @@ const { env } = require('../src/config/env');
 const { maskMongoUri } = require('../src/utils/maskUri');
 const { Lesson } = require('../src/models/Lesson');
 const progressTable = require('../src/dynamo/progressTable');
+const progressService = require('../src/services/progressService');
 
 const argValue = (flag) => {
   const i = process.argv.indexOf(flag);
@@ -62,7 +66,8 @@ const run = async () => {
   await mongoose.connect(env.mongoUri);
   console.log(`Connected to ${maskMongoUri(env.mongoUri)}`);
 
-  const all = await progressTable.scanAll();
+  // Every reader of the whole table skips session items (D7).
+  const all = (await progressTable.scanAll()).filter((r) => !progressService.isSessionItem(r));
   const records = lessonFilter ? all.filter((r) => r.lessonId === lessonFilter) : all;
   console.log(`Read ${all.length} progress record(s); ${records.length} in scope.`);
 

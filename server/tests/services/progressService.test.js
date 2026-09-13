@@ -1,5 +1,7 @@
 jest.mock('../../src/dynamo/progressTable', () => ({
+  SESSION_PREFIX: 'session#',
   scanByLessonIds: jest.fn(),
+  scanSessionsSince: jest.fn(),
   getProgress: jest.fn(),
   putProgress: jest.fn(),
   updateProgress: jest.fn(),
@@ -440,5 +442,158 @@ describe('progressService.recordTimeSpent', () => {
     await progressService.recordTimeSpent('u1', 'l1', 30.9);
 
     expect(progressTable.updateProgress).toHaveBeenCalledWith('u1', 'l1', { timeSpent: 40 });
+  });
+});
+
+// ── Sessions (S8 D6) ─────────────────────────────────────────────────────────
+// A session is an item in the progress table keyed `session#<id>`. Its
+// `durationSec` is ACTIVE time: each heartbeat adds the gap since the last
+// one, capped, so a hidden tab or a shut laptop adds nothing. Both the cap and
+// the shared partition are what these tests pin down — the second because a
+// session item leaking into the learner's lesson list would be counted as a
+// lesson nobody can name.
+describe('progressService.recordSessionHeartbeat', () => {
+  beforeEach(() => jest.clearAllMocks());
+
+  const t0 = new Date('2026-09-13T10:00:00.000Z');
+  const at = (seconds) => new Date(t0.getTime() + seconds * 1000);
+
+  test('the first heartbeat creates the item under the session# sort key', async () => {
+    progressTable.getProgress.mockResolvedValue(null);
+
+    const result = await progressService.recordSessionHeartbeat('u1', 'abc12345', t0);
+
+    expect(progressTable.getProgress).toHaveBeenCalledWith('u1', 'session#abc12345');
+    expect(progressTable.putProgress).toHaveBeenCalledWith({
+      userId: 'u1',
+      lessonId: 'session#abc12345',
+      type: 'session',
+      startedAt: t0.toISOString(),
+      lastSeenAt: t0.toISOString(),
+      durationSec: 0,
+      heartbeats: 1,
+    });
+    expect(progressTable.updateProgress).not.toHaveBeenCalled();
+    expect(result).toEqual({ durationSec: 0 });
+  });
+
+  test('a later heartbeat adds the gap since the previous one', async () => {
+    progressTable.getProgress.mockResolvedValue({
+      type: 'session',
+      startedAt: t0.toISOString(),
+      lastSeenAt: t0.toISOString(),
+      durationSec: 0,
+      heartbeats: 1,
+    });
+
+    const result = await progressService.recordSessionHeartbeat('u1', 'abc12345', at(60));
+
+    expect(progressTable.putProgress).not.toHaveBeenCalled();
+    expect(progressTable.updateProgress).toHaveBeenCalledWith('u1', 'session#abc12345', {
+      durationSec: 60,
+      lastSeenAt: at(60).toISOString(),
+      heartbeats: 2,
+    });
+    expect(result).toEqual({ durationSec: 60 });
+  });
+
+  test('accumulates across heartbeats', async () => {
+    progressTable.getProgress.mockResolvedValue({
+      lastSeenAt: at(120).toISOString(),
+      durationSec: 120,
+      heartbeats: 3,
+    });
+
+    const result = await progressService.recordSessionHeartbeat('u1', 'abc12345', at(165));
+
+    expect(result.durationSec).toBe(165);
+    expect(progressTable.updateProgress.mock.calls[0][2].heartbeats).toBe(4);
+  });
+
+  test('caps a long gap at 120 s so a hidden tab adds nothing beyond it', async () => {
+    // Last seen an hour ago: the tab was hidden or the laptop shut. Only the
+    // cap is credited, not the hour.
+    progressTable.getProgress.mockResolvedValue({
+      lastSeenAt: t0.toISOString(),
+      durationSec: 30,
+      heartbeats: 2,
+    });
+
+    const result = await progressService.recordSessionHeartbeat('u1', 'abc12345', at(3600));
+
+    expect(result.durationSec).toBe(30 + progressService.MAX_HEARTBEAT_GAP_SEC);
+    expect(progressService.MAX_HEARTBEAT_GAP_SEC).toBe(120);
+  });
+
+  test('a clock that went backwards contributes nothing rather than a negative', async () => {
+    progressTable.getProgress.mockResolvedValue({
+      lastSeenAt: at(100).toISOString(),
+      durationSec: 100,
+      heartbeats: 2,
+    });
+
+    const result = await progressService.recordSessionHeartbeat('u1', 'abc12345', at(40));
+
+    expect(result.durationSec).toBe(100);
+  });
+});
+
+describe('progressService session items and the learner partition', () => {
+  beforeEach(() => jest.clearAllMocks());
+
+  test('isSessionItem keys on the sort-key prefix', () => {
+    expect(progressService.isSessionItem({ lessonId: 'session#abc' })).toBe(true);
+    expect(progressService.isSessionItem({ lessonId: '64f0c0ffee' })).toBe(false);
+    expect(progressService.isSessionItem({})).toBe(false);
+  });
+
+  test('getStudentProgress drops session items from the lesson list', async () => {
+    progressTable.queryByUser.mockResolvedValue([
+      { userId: 'u1', lessonId: 'l1', status: 'completed', attempts: 1 },
+      { userId: 'u1', lessonId: 'session#abc12345', type: 'session', durationSec: 300 },
+      { userId: 'u1', lessonId: 'l2', status: 'in_progress', attempts: 2 },
+    ]);
+
+    const records = await progressService.getStudentProgress('u1');
+
+    expect(records.map((r) => r.lessonId)).toEqual(['l1', 'l2']);
+  });
+});
+
+describe('progressService.getSessionStats', () => {
+  beforeEach(() => jest.clearAllMocks());
+
+  test('passes the window start through and reports count, mean and median', async () => {
+    progressTable.scanSessionsSince.mockResolvedValue([
+      { lessonId: 'session#a', durationSec: 100 },
+      { lessonId: 'session#b', durationSec: 200 },
+      { lessonId: 'session#c', durationSec: 900 },
+    ]);
+
+    const stats = await progressService.getSessionStats('2026-09-01T00:00:00.000Z');
+
+    expect(progressTable.scanSessionsSince).toHaveBeenCalledWith('2026-09-01T00:00:00.000Z');
+    expect(stats).toEqual({ sessions: 3, avgSessionDurationSec: 400, medianSessionDurationSec: 200 });
+  });
+
+  test('median of an even count is the mean of the middle pair', async () => {
+    progressTable.scanSessionsSince.mockResolvedValue([
+      { durationSec: 10 },
+      { durationSec: 30 },
+      { durationSec: 20 },
+      { durationSec: 40 },
+    ]);
+
+    const stats = await progressService.getSessionStats('2026-09-01T00:00:00.000Z');
+
+    expect(stats.medianSessionDurationSec).toBe(25);
+  });
+
+  test('zeros, not NaN, when no session fell in the window', async () => {
+    progressTable.scanSessionsSince.mockResolvedValue([]);
+
+    const stats = await progressService.getSessionStats('2026-09-01T00:00:00.000Z');
+
+    expect(stats).toEqual({ sessions: 0, avgSessionDurationSec: 0, medianSessionDurationSec: 0 });
   });
 });

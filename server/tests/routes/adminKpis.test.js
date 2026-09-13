@@ -24,10 +24,13 @@ jest.mock('../../src/models/User', () => ({
   ROLES: ['student', 'instructor', 'admin'],
 }));
 jest.mock('../../src/models/Course', () => ({ Course: { countDocuments: jest.fn() } }));
+// Session figures come from the DynamoDB progress table via the service.
+jest.mock('../../src/services/progressService', () => ({ getSessionStats: jest.fn() }));
 
 const request = require('supertest');
 const { User } = require('../../src/models/User');
 const { Course } = require('../../src/models/Course');
+const progressService = require('../../src/services/progressService');
 const { createApp } = require('../../src/app');
 
 const app = createApp();
@@ -49,6 +52,38 @@ beforeEach(() => {
   User.countDocuments.mockResolvedValue(0);
   Course.countDocuments.mockResolvedValue(0);
   answerAggregates();
+  progressService.getSessionStats.mockResolvedValue({
+    sessions: 0,
+    avgSessionDurationSec: 0,
+    medianSessionDurationSec: 0,
+  });
+});
+
+describe('GET /api/admin/kpis — sessions', () => {
+  test('reports the session figures over the same window as the weekly series', async () => {
+    progressService.getSessionStats.mockResolvedValue({
+      sessions: 12,
+      avgSessionDurationSec: 742,
+      medianSessionDurationSec: 610,
+    });
+    const before = Date.now();
+
+    const res = await request(app).get('/api/admin/kpis?weeks=4');
+
+    expect(res.status).toBe(200);
+    expect(res.body.data).toEqual(
+      expect.objectContaining({
+        sessions: 12,
+        avgSessionDurationSec: 742,
+        medianSessionDurationSec: 610,
+      }),
+    );
+    // `since` is now − 4 weeks, computed a few ms after `before`.
+    const [sinceIso] = progressService.getSessionStats.mock.calls[0];
+    const since = Date.parse(sinceIso);
+    expect(since).toBeGreaterThanOrEqual(before - 4 * WEEK_MS);
+    expect(since).toBeLessThan(before - 4 * WEEK_MS + 5_000);
+  });
 });
 
 describe('GET /api/admin/kpis — badges awarded', () => {

@@ -4,6 +4,15 @@ const { env } = require('../config/env');
 
 const TABLE = env.aws.dynamo.progressTable;
 
+// Session items share the progress table (S8 D6): partition key `userId`,
+// sort key `session#<sessionId>`. Keeping them here honours the events→Dynamo
+// rule without a second table to create by hand in the console, at the cost
+// of one discipline: every reader of a learner's partition (`queryByUser`) or
+// of the whole table (`scanAll`) must skip items whose sort key carries this
+// prefix. `scanByLessonIds` is exempt only because its IN-list is real lesson
+// ids, which a `session#` key can never equal.
+const SESSION_PREFIX = 'session#';
+
 const getProgress = async (userId, lessonId) => {
   const client = getDynamoDocClient();
   const result = await client.send(
@@ -91,14 +100,28 @@ const scanByLessonIds = async (lessonIds) => {
 };
 
 // Whole-table read for the offline research export. Not used by any request
-// path — see scripts/exportSubmissions.js.
+// path — see scripts/exportSubmissions.js. Returns session items too; the
+// caller filters (D7).
 const scanAll = () => scanAllPages({ TableName: TABLE });
 
+// Every session item started at or after `sinceIso`, across all learners, for
+// the admin KPIs. Same Scan-at-pilot-scale caveat as `scanByLessonIds`; the
+// filter keys on `startedAt` rather than `lastSeenAt` so a session belongs to
+// the window it began in and is never counted in two.
+const scanSessionsSince = (sinceIso) =>
+  scanAllPages({
+    TableName: TABLE,
+    FilterExpression: 'begins_with(lessonId, :p) AND startedAt >= :since',
+    ExpressionAttributeValues: { ':p': SESSION_PREFIX, ':since': sinceIso },
+  });
+
 module.exports = {
+  SESSION_PREFIX,
   getProgress,
   putProgress,
   updateProgress,
   queryByUser,
   scanByLessonIds,
   scanAll,
+  scanSessionsSince,
 };

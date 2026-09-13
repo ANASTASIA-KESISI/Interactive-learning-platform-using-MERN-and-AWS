@@ -51,6 +51,11 @@ export const AdminOverviewPage = () => {
           value={data.badgesAwardedTotal ?? 0}
           hint="Dated awards, all time"
         />
+        <KpiCard
+          label="Avg active session"
+          value={formatMinutes(data.avgSessionDurationSec)}
+          hint={sessionHint(data)}
+        />
       </div>
 
       <div className="grid gap-6 lg:grid-cols-2">
@@ -87,6 +92,24 @@ const KpiCard = ({ label, value, hint }) => (
 
 const formatWeek = (iso) =>
   new Date(iso).toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
+
+// `m:ss` — a session is minutes long, and the seconds column keeps a short
+// pilot's numbers from all rounding to the same minute.
+const formatMinutes = (seconds) => {
+  const total = Math.max(0, Math.round(Number(seconds) || 0));
+  const m = Math.floor(total / 60);
+  const s = total % 60;
+  return `${m}:${String(s).padStart(2, '0')}`;
+};
+
+// The count is the honesty check on the average, and the median says whether
+// a few long sessions are carrying it. Both sit under the tile rather than
+// beside it.
+const sessionHint = ({ sessions = 0, medianSessionDurationSec = 0 }) => {
+  if (!sessions) return 'No sessions in the last 8 weeks';
+  const noun = sessions === 1 ? 'session' : 'sessions';
+  return `${sessions} ${noun} in 8 weeks · median ${formatMinutes(medianSessionDurationSec)}`;
+};
 
 // Bars rather than a line: the API buckets each event by the week it fell in
 // (a user by the week they were LAST seen, a badge by the week it was earned),
