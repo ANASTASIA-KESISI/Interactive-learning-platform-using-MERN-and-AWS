@@ -7,4 +7,10 @@ module.exports = {
   rules: {
     'no-unused-vars': ['warn', { argsIgnorePattern: '^_' }],
   },
+  overrides: [
+    {
+      files: ['tests/**'],
+      env: { jest: true },
+    },
+  ],
 };

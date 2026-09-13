@@ -142,7 +142,7 @@ From Chapter 3.2 of the thesis. Treat these as acceptance criteria when implemen
 ## Testing
 
 - **Jest** for backend unit + integration tests
-- **React Testing Library** (on Jest) for frontend component tests
+- **React Testing Library** (on Jest) for frontend component tests — specs live in `client/tests/`, run in jsdom; the Jest/Babel config is `client/jest.config.cjs`, kept separate from the Vite build
 - **Postman** collections for manual API validation — keep them in `/server/postman/` if they're added
 - Run a single test: `npm test -- path/to/file.test.js` or `npm test -- -t "test name pattern"`
 

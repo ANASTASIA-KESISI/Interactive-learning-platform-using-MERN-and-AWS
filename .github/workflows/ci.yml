@@ -57,9 +57,9 @@ jobs:
       - name: Lint
         run: npm run lint --workspace client
 
-      # No client test step yet — React Testing Library is planned but no specs
-      # exist, so `npm test --workspace client` would fail on a missing runner.
-      # The production build is the current regression signal.
+      - name: Test
+        run: npm test --workspace client
+
       - name: Build
         run: npm run build --workspace client
         env:
