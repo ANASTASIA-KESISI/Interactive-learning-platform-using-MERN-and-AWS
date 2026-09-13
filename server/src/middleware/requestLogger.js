@@ -7,8 +7,11 @@ const logger = require('../utils/logger');
 //
 // Deliberately logged: method, route path, status, duration, and the
 // authenticated caller's role. Deliberately NOT logged: request bodies (they
-// carry learner source code), query strings, tokens, or the `authorization`
-// header.
+// carry learner source code), query strings, tokens, the `authorization`
+// header, or the client IP. The IP was logged until S7; it left the instance
+// for a 90-day CloudWatch log group once shipping went live, and an IP is
+// personal data under GDPR while no metric the pilot reports needs it.
+// Rate limiting still sees it in-process; it just never reaches a log line.
 const requestLogger = (req, res, next) => {
   const start = process.hrtime.bigint();
 
@@ -24,7 +27,6 @@ const requestLogger = (req, res, next) => {
       status: res.statusCode,
       durationMs: Number(durationMs.toFixed(1)),
       role: req.user?.role,
-      ip: req.ip,
     });
   });
 
