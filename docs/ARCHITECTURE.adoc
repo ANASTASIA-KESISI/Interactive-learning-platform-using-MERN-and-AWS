@@ -152,14 +152,15 @@ exactly. The reports are in `docs/lighthouse/`.
 |===
 | Page | Score | Automated failures
 
-| Login (live and local) | 97 | No `main` landmark
-| Student signup | 98 | No `main` landmark
-| Instructor signup | 98 | No `main` landmark
+| Login | 100 | None
+| Student signup | 100 | None
+| Instructor signup | 100 | None
 |===
 
-The one failure is shared: the app shell renders content without a `<main>`
-element, so assistive technology has no landmark to jump to. It is a
-one-element fix in the layout.
+The first run scored 97–98 with one failure shared by all three pages: no
+`<main>` landmark, so assistive technology had nothing to jump to. The app
+shell already wrapped signed-in pages in `<main>`; the public pages did not.
+Fixed the same day and re-measured at 100.
 
 Two limits on what the number means. Only the public pages were measured,
 because every other screen sits behind Cognito and no test account exists for
@@ -812,7 +813,7 @@ re-identification key is opt-in and written to a separate file.
 | NFR2 | Horizontally scalable | Stateless API; session lives in the JWT
 | NFR3 | Primary interactions under 3 s | Aggregated endpoints; warm Lambda invocations measured in tens of milliseconds
 | NFR4 | HTTPS/TLS everywhere | CloudFront and Amplify
-| NFR5 | WCAG 2.1 AA | Designed toward AA and validated with automated tooling (Lighthouse 97–98 on the public pages); conformance not claimed — see gaps below
+| NFR5 | WCAG 2.1 AA | Designed toward AA and validated with automated tooling (Lighthouse 100 on the public pages); conformance not claimed — see gaps below
 | NFR6 | 99.5% uptime during the pilot | systemd restart; CloudWatch logs, no alarms yet
 |===
 
@@ -832,8 +833,8 @@ CI is the regression signal for those. The backend has full unit and
 integration coverage.
 
 | WCAG 2.1 AA: designed toward, validated with automated tooling, not formally audited
-| Lighthouse scores the public pages 97–98 (2026-09-13) with one automated
-failure, a missing `main` landmark. The authenticated screens have not been
+| Lighthouse scores the public pages 100 (2026-09-13, after the missing
+`main` landmark was fixed). The authenticated screens have not been
 measured, and the manual checks that make up most of the standard have not been
 done, so conformance is not claimed. Individual measures are in place —
 `prefers-reduced-motion` is honoured, status regions are announced, controls

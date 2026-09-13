@@ -68,7 +68,8 @@ locally.
 ```bash
 # terminal 1 — a dedicated headless Chrome
 "C:\Program Files (x86)\Google\Chrome\Application\chrome.exe" --headless=new \
-  --remote-debugging-port=9222 --user-data-dir=%TEMP%\lh-profile about:blank
+  --remote-debugging-port=9222 --user-data-dir=%TEMP%\lh-profile \
+  --window-size=1350,940 about:blank
 
 # terminal 2 — the production build, served with SPA fallback
 npm run build --workspace client && npm run preview --workspace client -- --port 4173
@@ -78,7 +79,9 @@ npx lighthouse http://localhost:4173/login --port=9222 \
   --only-categories=accessibility --output=html --output-path=docs/lighthouse/login
 ```
 
-Run the pages one at a time; parallel runs against one Chrome interfere.
+Run the pages one at a time; parallel runs against one Chrome interfere. Keep
+the `--window-size`: without it a page can fail with `NO_FCP` ("did not paint
+any content") even though it renders fine in a normal browser.
 
 ## Why the outputs are committed
 

@@ -238,11 +238,12 @@ Feature-complete and deployed, ahead of a time-bound pilot with MSc students
 evaluated by the System Usability Scale plus engagement metrics from DynamoDB.
 
 **Accessibility.** The platform is designed toward WCAG 2.1 AA and validated
-with automated tooling: Lighthouse scores the public pages 97–98 (login,
+with automated tooling: Lighthouse scores the public pages 100 (login,
 student signup, instructor signup; 2026-09-13, reports in
-[`docs/lighthouse/`](docs/lighthouse/)). The one automated failure is a
-missing `main` landmark. Authenticated screens have not been measured and the
-manual WCAG checks have not been done, so conformance is not claimed.
+[`docs/lighthouse/`](docs/lighthouse/)), after the one automated failure on
+the first run, a missing `main` landmark, was fixed. Authenticated screens
+have not been measured and the manual WCAG checks have not been done, so
+conformance is not claimed.
 
 Known gaps, stated plainly: the client test suite is thin (helpers, one
 component and one hook; no page-level tests); WCAG 2.1 AA is designed toward

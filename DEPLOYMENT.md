@@ -423,7 +423,7 @@ Run in order once the platform is live:
 - [ ] Deep links return `200`, not `404` (§5 curl check). The live app fails
   this as of 2026-09-13.
 - [ ] Lighthouse accessibility on the authenticated screens. The public pages
-  score 97–98 (2026-09-13, reports in `docs/lighthouse/`); the dashboard,
+  score 100 (2026-09-13, reports in `docs/lighthouse/`); the dashboard,
   lesson, notes, profile and admin screens need a logged-in run, e.g. Chrome
   started with `--remote-debugging-port=9222` while signed in, then
   `npx lighthouse <url> --port=9222 --only-categories=accessibility`.
