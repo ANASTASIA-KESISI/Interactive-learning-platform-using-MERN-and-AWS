@@ -112,4 +112,11 @@ cat <<'NEXT'
      A boot failure mentioning CODE_RUNNER_ADAPTER means the unit file did not
      apply — that guard exists to stop untrusted code running in this process.
 
+  5. Ship the API logs to CloudWatch. Attach the managed policy
+     CloudWatchAgentServerPolicy to the instance role, then:
+
+       sudo bash /opt/learncode/deploy/setup-cloudwatch.sh
+
+     No API restart involved; see DEPLOYMENT.md §7 for what to expect.
+
 NEXT

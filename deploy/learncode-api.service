@@ -49,8 +49,10 @@ ExecStart=/usr/bin/node src/server.js
 Restart=always
 RestartSec=5
 
-# Structured JSON logs go to the journal, where the CloudWatch agent collects
-# them. Do not add a prefix here — it would corrupt the JSON.
+# Structured JSON logs go to the journal. learncode-journal-export.service
+# tails the journal into /var/log/learncode/api.log for the CloudWatch agent
+# (see deploy/setup-cloudwatch.sh). Do not add a prefix here — it would corrupt
+# the JSON.
 StandardOutput=journal
 StandardError=journal
 SyslogIdentifier=learncode-api

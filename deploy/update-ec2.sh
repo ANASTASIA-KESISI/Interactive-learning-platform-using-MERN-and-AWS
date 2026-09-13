@@ -48,6 +48,14 @@ chown -R "$SERVICE_USER":"$SERVICE_USER" "$APP_DIR"
 echo "==> Refreshing systemd unit and nginx site"
 cp "$APP_DIR/deploy/learncode-api.service" /etc/systemd/system/
 
+# The CloudWatch log shipping pieces, so a host-side edit does not outlive the
+# next deploy. Only refreshed where setup-cloudwatch.sh has installed them;
+# a host without log shipping is left alone.
+if [[ -f /etc/systemd/system/learncode-journal-export.service ]]; then
+  cp "$APP_DIR/deploy/learncode-journal-export.service" /etc/systemd/system/
+  cp "$APP_DIR/deploy/logrotate-learncode" /etc/logrotate.d/learncode
+fi
+
 # Validate the nginx site the moment it lands, and put the old one back if it
 # does not pass. An invalid file left on disk is worse than a failed deploy:
 # the running nginx keeps serving from memory and looks fine, then fails to
@@ -74,6 +82,8 @@ if [[ -n "$NGINX_BACKUP" ]]; then
 fi
 
 systemctl daemon-reload
+# Picks up a changed export unit; does nothing where the unit is not running.
+systemctl try-restart learncode-journal-export 2>/dev/null || true
 
 echo "==> Restarting API"
 systemctl restart learncode-api

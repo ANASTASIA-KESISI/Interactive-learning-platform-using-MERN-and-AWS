@@ -1,0 +1,18 @@
+# Rotation for the journal export the CloudWatch agent tails.
+#
+# copytruncate, because two processes hold the file open — journalctl appending
+# and the agent reading — and neither reopens on a rename. Truncating in place
+# is understood by both: the agent detects the size drop and starts over from
+# the top. The journal itself remains the durable copy on the host.
+#
+# Installed to /etc/logrotate.d/learncode by deploy/setup-cloudwatch.sh.
+
+/var/log/learncode/api.log {
+    daily
+    rotate 7
+    compress
+    delaycompress
+    missingok
+    notifempty
+    copytruncate
+}
