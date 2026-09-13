@@ -1,12 +1,19 @@
 import { useCallback, useEffect, useState } from 'react';
 
-import { listUsers, setUserRole } from '../../services/admin.js';
+import { listUsers, setUserRole, setUserActive } from '../../services/admin.js';
 import { Spinner, ErrorBanner } from '../../components/Spinner.jsx';
+import { Modal } from '../../components/ui/index.js';
 import { titleCase } from '../../lib/labels.js';
 import { useAuth } from '../../hooks/useAuth.js';
 
 const ROLES = ['student', 'instructor', 'admin'];
 const PAGE_SIZE = 20;
+
+const errorMessage = (err) => err.response?.data?.error?.message || err.message;
+const displayName = (u) => [u.firstName, u.lastName].filter(Boolean).join(' ') || u.email;
+
+// Accounts created before S8 have no flag at all; absent means active.
+const isActive = (u) => u.isActive !== false;
 
 export const AdminUsersPage = () => {
   const { user: currentUser } = useAuth();
@@ -18,6 +25,10 @@ export const AdminUsersPage = () => {
   const [error, setError] = useState(null);
   const [notice, setNotice] = useState(null);
   const [savingId, setSavingId] = useState(null);
+  // The user awaiting a deactivate/reactivate confirmation (D9: Modal, not
+  // window.confirm).
+  const [confirm, setConfirm] = useState(null);
+  const [toggling, setToggling] = useState(false);
 
   const load = useCallback(() => {
     setError(null);
@@ -26,7 +37,7 @@ export const AdminUsersPage = () => {
         setUsers(rows);
         setMeta(m);
       })
-      .catch((err) => setError(err.response?.data?.error?.message || err.message));
+      .catch((err) => setError(errorMessage(err)));
   }, [page, roleFilter]);
 
   useEffect(() => {
@@ -44,9 +55,35 @@ export const AdminUsersPage = () => {
       );
       await load();
     } catch (err) {
-      setError(err.response?.data?.error?.message || err.message);
+      setError(errorMessage(err));
     } finally {
       setSavingId(null);
+    }
+  };
+
+  // Deactivation is immediate: the server disables the Cognito user, revokes
+  // their refresh tokens and refuses their next API call (S8 D3). The button
+  // is disabled on the admin's own row and the server refuses it regardless.
+  const runToggleActive = async () => {
+    if (!confirm) return;
+    const nextActive = !isActive(confirm);
+    setToggling(true);
+    setError(null);
+    setNotice(null);
+    try {
+      await setUserActive(confirm._id, nextActive);
+      setConfirm(null);
+      await load();
+      setNotice(
+        nextActive
+          ? `Reactivated ${displayName(confirm)}. They can sign in again.`
+          : `Deactivated ${displayName(confirm)}. They have been signed out and cannot sign in until reactivated.`,
+      );
+    } catch (err) {
+      setError(errorMessage(err));
+      setConfirm(null);
+    } finally {
+      setToggling(false);
     }
   };
 
@@ -81,7 +118,9 @@ export const AdminUsersPage = () => {
 
       {error && <ErrorBanner message={error} />}
       {notice && (
-        <div className="rounded-md bg-sky-50 px-4 py-3 text-sm text-sky-800">{notice}</div>
+        <div role="status" className="rounded-md bg-sky-50 px-4 py-3 text-sm text-sky-800">
+          {notice}
+        </div>
       )}
 
       {!users ? (
@@ -100,14 +139,17 @@ export const AdminUsersPage = () => {
                 <th scope="col" className="px-4 py-2 text-right">XP</th>
                 <th scope="col" className="px-4 py-2">Last active</th>
                 <th scope="col" className="px-4 py-2">Role</th>
+                <th scope="col" className="px-4 py-2">Active</th>
+                <th scope="col" className="px-4 py-2 text-right">Actions</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
               {users.map((u) => {
                 const isSelf = u._id === currentUser?.dbId;
+                const active = isActive(u);
                 return (
-                  <tr key={u._id}>
-                    <td className="px-4 py-2 font-medium text-slate-900">
+                  <tr key={u._id} className={active ? undefined : 'bg-slate-50 text-slate-400'}>
+                    <td className={`px-4 py-2 font-medium ${active ? 'text-slate-900' : ''}`}>
                       {[u.firstName, u.lastName].filter(Boolean).join(' ') || '—'}
                       {isSelf && (
                         <span className="ml-2 rounded bg-slate-100 px-2 py-0.5 text-xs text-slate-600">
@@ -115,9 +157,9 @@ export const AdminUsersPage = () => {
                         </span>
                       )}
                     </td>
-                    <td className="px-4 py-2 text-slate-600">{u.email}</td>
+                    <td className={`px-4 py-2 ${active ? 'text-slate-600' : ''}`}>{u.email}</td>
                     <td className="px-4 py-2 text-right tabular-nums">{u.xpPoints ?? 0}</td>
-                    <td className="px-4 py-2 text-slate-600">
+                    <td className={`px-4 py-2 ${active ? 'text-slate-600' : ''}`}>
                       {u.lastActiveAt ? new Date(u.lastActiveAt).toLocaleDateString() : '—'}
                     </td>
                     <td className="px-4 py-2">
@@ -134,6 +176,28 @@ export const AdminUsersPage = () => {
                       >
                         {ROLES.map((r) => <option key={r} value={r}>{titleCase(r)}</option>)}
                       </select>
+                    </td>
+                    <td className="px-4 py-2">
+                      {active ? (
+                        <span className="rounded bg-green-100 px-2 py-0.5 text-xs font-medium text-green-800">
+                          Active
+                        </span>
+                      ) : (
+                        <span className="rounded bg-slate-200 px-2 py-0.5 text-xs font-medium text-slate-700">
+                          Deactivated
+                        </span>
+                      )}
+                    </td>
+                    <td className="px-4 py-2 text-right">
+                      <button
+                        type="button"
+                        className={`btn-ghost text-sm ${active ? 'text-red-700 hover:bg-red-50' : ''}`}
+                        disabled={isSelf || savingId === u._id}
+                        title={isSelf ? 'You cannot deactivate your own account' : undefined}
+                        onClick={() => setConfirm(u)}
+                      >
+                        {active ? 'Deactivate' : 'Reactivate'}
+                      </button>
                     </td>
                   </tr>
                 );
@@ -163,6 +227,55 @@ export const AdminUsersPage = () => {
             Next →
           </button>
         </div>
+      )}
+
+      {confirm && (
+        <Modal
+          title={`${isActive(confirm) ? 'Deactivate' : 'Reactivate'} ${displayName(confirm)}?`}
+          onClose={() => setConfirm(null)}
+        >
+          <p className="text-sm text-slate-600">
+            {isActive(confirm) ? (
+              <>
+                <span className="font-medium text-slate-900">{confirm.email}</span> will be
+                signed out everywhere immediately and cannot sign in again until an
+                administrator reactivates the account. Their progress, notes and messages are
+                kept.
+              </>
+            ) : (
+              <>
+                <span className="font-medium text-slate-900">{confirm.email}</span> will be
+                able to sign in again with their existing password.
+              </>
+            )}
+          </p>
+          <div className="mt-5 flex justify-end gap-2">
+            <button
+              type="button"
+              className="btn-ghost"
+              onClick={() => setConfirm(null)}
+              disabled={toggling}
+            >
+              Cancel
+            </button>
+            <button
+              type="button"
+              className={
+                isActive(confirm)
+                  ? 'btn bg-red-600 text-white hover:bg-red-700'
+                  : 'btn-primary'
+              }
+              onClick={runToggleActive}
+              disabled={toggling}
+            >
+              {toggling
+                ? 'Saving…'
+                : isActive(confirm)
+                  ? 'Deactivate'
+                  : 'Reactivate'}
+            </button>
+          </div>
+        </Modal>
       )}
     </section>
   );

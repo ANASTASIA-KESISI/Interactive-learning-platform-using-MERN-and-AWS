@@ -16,6 +16,13 @@ export const listUsers = (params = {}) =>
 export const setUserRole = (userId, role) =>
   api.patch(`/admin/users/${userId}/role`, { role }).then(unwrap);
 
+// Disables (or re-enables) the user in Cognito and mirrors the flag into Mongo
+// (S8 D3). Deactivation also revokes their refresh tokens, and the API refuses
+// their next request, so it is immediate. 400 for the admin's own account;
+// 503 until the Cognito actions are attached to the runtime IAM policy.
+export const setUserActive = (userId, isActive) =>
+  api.patch(`/admin/users/${userId}/active`, { isActive }).then(unwrap);
+
 export const listAllCourses = () => api.get('/admin/courses').then(unwrap);
 
 // Publishing is refused with a 409 that names the missing module or lesson
