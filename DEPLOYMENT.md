@@ -455,6 +455,14 @@ Run in order once the platform is live:
   started with `--remote-debugging-port=9222` while signed in, then
   `npx lighthouse <url> --port=9222 --only-categories=accessibility`.
 - [ ] Atlas backups enabled; DynamoDB point-in-time recovery on
+- [ ] Rotate the Atlas database password. The current one was printed into
+  session transcripts twice before the seed scripts were changed to log only
+  the host. **Deliberately deferred on 2026-09-13**: the transcripts are local
+  files and Atlas Network Access limits connections to allow-listed IPs, so
+  the exposure is judged low. Revisit if Network Access ever contains
+  `0.0.0.0/0`, or before any wider rollout. Procedure: Atlas → Database Access
+  → Edit Password; update `MONGODB_URI` in `/etc/learncode/secrets.env` and
+  restart `learncode-api`; update local `server/.env`.
 - [ ] Decide the pilot end date and diary the export: `node
       scripts/exportSubmissions.js` (anonymous by default)
 
