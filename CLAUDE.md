@@ -52,8 +52,12 @@ The platform follows a **four-layer cloud-native architecture**. Each layer has 
 
 Key screens (see Chapter 4.4 of the thesis for wireframes):
 1. **Student Dashboard** — XP, streak, completion rate, badges, enrolled-course cards with progress bars, recent activity feed
-2. **Tutorial / Code Exercise page** — split-pane layout: instructional Markdown + progressive hints on the left, code editor + output/test-result console on the right
-3. **Admin Panel** — sidebar navigation, platform KPIs, weekly active users chart, user management, activity log
+2. **Tutorial / Code Exercise page** — three panes since S7: a tabbed left panel (Lesson / Challenge / Notes), the code editor with a test-results panel in the middle, and the output console on the right. Stacks vertically on narrow screens. Non-exercise lessons keep the reading layout plus a notes section.
+3. **Admin Panel** — sidebar navigation, platform KPIs, weekly active users chart, user management, universities and departments, activity log
+4. **Notes** — every note the learner has saved, with its course/module/lesson context, opening into an editable detail view *(S7)*
+5. **Profile** — identity and edit form, level and rank, stats, full badge gallery, a year-long learning-activity heatmap, and enrolled or authored courses *(S7)*
+
+Primary navigation is Home · Courses · Notes · Profile, with Authoring added for instructors and Admin for admins.
 
 ### Layer 2 — API (Node.js / Express)
 - RESTful endpoints, stateless
@@ -64,15 +68,17 @@ Key screens (see Chapter 4.4 of the thesis for wireframes):
 API endpoints are designed **user-centrically** — organized around what a user role needs to accomplish, not around internal data models. For example, `GET /api/student/dashboard` returns the aggregated view the student screen needs, rather than forcing the client to compose it from five resource endpoints.
 
 ### Layer 3 — Services (business logic)
-Five core service modules. Each has its own folder under `server/src/services/` and exposes a clean interface to the route handlers:
+Service modules under `server/src/services/`, each exposing a clean interface to the route handlers. The five core services:
 
 | Service | Responsibility |
 |---|---|
-| **Auth Service** | Delegates to AWS Cognito (user pools, MFA, identity federation). Never implement custom password hashing or token issuance. |
-| **Course Service** | CRUD for courses → modules → lessons hierarchy. Persists to MongoDB. |
-| **Progress Service** | Tracks learner interactions (completion, time-on-task, code submissions, hints used). Writes to DynamoDB. |
-| **Gamification Service** | XP accrual, badge award rules, streak tracking. Reads/writes user gamification state in MongoDB and listens to Progress Service events. |
-| **Code Runner Service** | Sandboxed execution of learner code and validation against `expectedOutput`. Must be isolated — never `eval` or execute untrusted code in the main Node process. |
+| **Auth Service** | Delegates to AWS Cognito (user pools, MFA, identity federation). Never implement custom password hashing or token issuance. Owns role changes, which are Cognito group moves. Owns account deactivation (S8): a Cognito `AdminDisableUser` plus `AdminUserGlobalSignOut`, mirrored into `users.isActive`, which `attachUser` checks on every request so a still-valid token is refused immediately (403, code `ACCOUNT_DEACTIVATED`). |
+| **Course Service** | CRUD for courses → modules → lessons hierarchy. Persists to MongoDB. A course is publishable only if it has at least one module and every module has at least one lesson (`assertPublishable`, enforced on both the instructor publish and the admin toggle). A course can be deleted only while unpublished, by its owner or an admin; the delete cascades in Mongo (lessons, modules, notes, messages, enrolments) but never touches DynamoDB progress records, which are the pilot's research record. |
+| **Progress Service** | Tracks learner interactions (completion, time-on-task, code submissions, hints used, runs, questions, note activity, session heartbeats). Writes to DynamoDB. |
+| **Gamification Service** | XP accrual, badge award rules, streak tracking, and the derived level/rank functions. Reads/writes user gamification state in MongoDB and listens to Progress Service events. |
+| **Code Runner Service** | Sandboxed execution of learner code and validation against `expectedOutput`. Must be isolated — never `eval` or execute untrusted code in the main Node process. Implemented as a thin orchestrator over two adapters: `isolated-vm` for dev, AWS Lambda (per-language functions, e.g. `runner-js`) for prod. Exposes `run` (validating) and `execute` (no validation, for the Run button). |
+
+Added in S7, same rules: **Profile Service** (the `/api/me` aggregate), **University Service** (institutional tree + admin CRUD), **Note Service**, **Message Service**, **Leaderboard Service** (per-course completion ranking over a time window).
 
 Route handlers are thin: they parse/validate input, call one or more services, and format the response. Business logic belongs in services, not routes.
 
@@ -81,14 +87,22 @@ Route handlers are thin: they parse/validate input, call one or more services, a
 **Two databases, intentionally chosen for different workloads** — do not collapse them into one without a very strong reason.
 
 **MongoDB Atlas** (document store, via Mongoose) — structured content and user state:
-- `users` — profile, `cognitoId`, `role` (student/instructor/admin), `xpPoints`, `badges[]`, `streak`, `enrolledCourses[]`
-- `courses` — metadata, instructor ref, `modules[]`
+- `users` — profile, `cognitoId`, `role` (student/instructor/admin), `xpPoints`, `badges[]`, `badgeAwards[{ badge, awardedAt }]` (the parallel dated record of every award since S8; `badges[]` keeps its id-only shape for existing readers, and awards made before S8 have no entry and are reported as undated), `streak`, `enrolledCourses[]`, `universityId`, `departmentId`, `bio`
+- `courses` — metadata, instructor ref, `modules[]`, `departmentId`, `semester`, `about` (Markdown), `icon`
 - `modules` — ordered within a course, `lessons[]`
-- `lessons` — **the scaffolding lives here**: Markdown `content`, `codeTemplate`, `expectedOutput`, ordered `hints[]`, `xpReward`, `type`
+- `lessons` — **the scaffolding lives here**: Markdown `content`, `task` (the Challenge brief), `codeTemplate`, `expectedOutput`, ordered `hints[]`, `xpReward`, `type`, plus `questions[]` and `passMark` for a quiz. A quiz is a lesson with `type: 'quiz'`, never a separate collection — it is ordered among its siblings and produces one progress record like any other lesson. `correctIndex` and `explanation` are answers: grade server-side and never send them to the browser first.
 - `badges` — achievement criteria and XP values
+- `universities` / `departments` — the institutional tree. A student belongs to one department; a course belongs to one department and one `semester` (a plain integer bounded by `departments.semesterCount`, not a document).
+- `notes` — learner-authored notes, one per (user, lesson) or (user, module). Plain text, never rendered as Markdown or HTML.
+- `messages` — one thread per (student, course) between a learner and that course's instructor. Plain text.
+- `settings` — platform-wide key/value pairs an admin edits at runtime (S9). Currently only `instructorInviteCode`; read through `settingsService`, which falls back to `INSTRUCTOR_INVITE_CODE` until an admin saves one. Keys are a closed enum on the `Setting` model.
+
+**Level and rank are derived, never stored** — `gamificationService.levelFromXp` computes them from `xpPoints` on every read. Do not add columns for them; a second source of truth drifts the moment XP is adjusted.
 
 **AWS DynamoDB** (key-value) — high-throughput analytics writes:
-- `progress` table — partition key `userId`, sort key `lessonId`. Tracks `status`, `attempts`, `score`, `timeSpent`, `hintsUsed`, `codeSubmissions[]`, `completedAt`. This composite key enables both "one learner's full history" and "one learner's progress on one lesson" queries in a single round-trip.
+- `progress` table — partition key `userId`, sort key `lessonId`. Tracks `status`, `attempts`, `score`, `timeSpent`, `hintsUsed`, `codeSubmissions[]`, `completedAt`, plus the S7 engagement signals `runs` (unvalidated executions), `questionsAsked` and `noteUpdatedAt`. This composite key enables both "one learner's full history" and "one learner's progress on one lesson" queries in a single round-trip.
+- **Session items share the same table** (S8 D6): sort key `session#<sessionId>`, fields `type: 'session'`, `startedAt`, `lastSeenAt`, `durationSec`, `heartbeats`. The client (`useSessionHeartbeat`, mounted once in the shell for students) posts to `POST /api/me/session` on load, every 60 s while the tab is visible and once as it goes hidden; each heartbeat adds the gap since the previous one, capped at 120 s, so `durationSec` is *active* time. **Every reader of a learner's partition (`queryByUser`) or of the whole table (`scanAll`) must skip session items** — use `progressService.isSessionItem`; `getStudentProgress` and `scripts/exportSubmissions.js` already do. `scanByLessonIds` is exempt only because its IN-list is real lesson ids.
+- The S7 counters are deliberately **not** folded into `attempts`: only a submit is an attempt, so experimenting with Run cannot dilute the pass-rate denominator the pilot reports.
 
 Rule of thumb: **content goes to Mongo, events go to Dynamo.** A new piece of data that is read often and written rarely belongs in Mongo; data that is written on every interaction (click, submission, hint reveal) belongs in Dynamo.
 
@@ -119,7 +133,7 @@ From Chapter 3.2 of the thesis. Treat these as acceptance criteria when implemen
 - Rate limiting on all public endpoints
 - Encryption at rest (Mongo Atlas + DynamoDB default) and in transit
 - Follow OWASP Top 10 — if a change touches auth, input handling, or code execution, re-check against OWASP before merging
-- The Code Runner Service handles untrusted user code — it must run in a sandbox (container, Lambda, or vm2 at minimum), never in the main API process
+- The Code Runner Service handles untrusted user code — it must run in a sandbox, **never in the main API process**. Use **AWS Lambda** in production (one function per language, isolated by AWS) and **`isolated-vm`** for local dev (V8 isolates, no Docker required). Do **not** use `vm2` — it was deprecated in 2023 after repeated sandbox-escape CVEs. The two adapters live behind the `CodeRunnerService` interface and are picked by env var at boot.
 
 ## Deployment
 
@@ -130,7 +144,7 @@ From Chapter 3.2 of the thesis. Treat these as acceptance criteria when implemen
 ## Testing
 
 - **Jest** for backend unit + integration tests
-- **React Testing Library** (on Jest) for frontend component tests
+- **React Testing Library** (on Jest) for frontend component tests — specs live in `client/tests/`, run in jsdom; the Jest/Babel config is `client/jest.config.cjs`, kept separate from the Vite build
 - **Postman** collections for manual API validation — keep them in `/server/postman/` if they're added
 - Run a single test: `npm test -- path/to/file.test.js` or `npm test -- -t "test name pattern"`
 

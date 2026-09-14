@@ -1,0 +1,96 @@
+# systemd unit for the LearnCode API on Amazon Linux 2023.
+#
+# Install:
+#   sudo cp deploy/learncode-api.service /etc/systemd/system/
+#   sudo systemctl daemon-reload
+#   sudo systemctl enable --now learncode-api
+#
+# Configuration lives here, NOT in a .env file on the host. Since S5.5 the env
+# loader treats the real process environment as authoritative, and copying
+# server/.env from a laptop would drag NODE_ENV=development onto the server —
+# which in turn would stop the code-runner boot guard from firing.
+#
+# Secrets are read from /etc/learncode/secrets.env, which is root-owned and
+# chmod 600 so they never appear in `systemctl show` output or in this file.
+# Create it with:
+#   sudo mkdir -p /etc/learncode
+#   sudo tee /etc/learncode/secrets.env >/dev/null <<'EOF'
+#   MONGODB_URI=mongodb+srv://USER:PASS@host/learncode?retryWrites=true&w=majority
+#   INSTRUCTOR_INVITE_CODE=<long random value>
+#   EOF
+#   sudo chmod 600 /etc/learncode/secrets.env
+#
+# INSTRUCTOR_INVITE_CODE is the shared secret that lets a self-registered
+# account claim the `instructor` role (POST /api/auth/claim-instructor).
+# Leaving it out is SAFE but not silent-safe: the endpoint answers 503 and the
+# instructor signup page degrades to creating an ordinary student account, so
+# the first sign a code is missing is a lecturer wondering why they cannot
+# author. Generate one with:
+#   node -e "console.log(require('crypto').randomBytes(24).toString('base64url'))"
+# Rotating it is just an edit here plus `sudo systemctl restart learncode-api`;
+# nobody already promoted loses their role, because the role lives in Cognito.
+#
+# AWS credentials are deliberately absent: attach an EC2 instance role instead
+# and the SDK picks it up automatically, so no long-lived keys sit on disk.
+
+[Unit]
+Description=LearnCode API
+Documentation=https://github.com/ANASTASIA-KESISI/Interactive-learning-platform-using-MERN-and-AWS
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=learncode
+Group=learncode
+WorkingDirectory=/opt/learncode/server
+ExecStart=/usr/bin/node src/server.js
+
+Restart=always
+RestartSec=5
+
+# Structured JSON logs go to the journal. learncode-journal-export.service
+# tails the journal into /var/log/learncode/api.log for the CloudWatch agent
+# (see deploy/setup-cloudwatch.sh). Do not add a prefix here — it would corrupt
+# the JSON.
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=learncode-api
+
+EnvironmentFile=/etc/learncode/secrets.env
+
+Environment=NODE_ENV=production
+Environment=PORT=4000
+Environment=AWS_REGION=eu-west-1
+
+# Cognito — public identifiers, safe to keep in the unit file
+Environment=COGNITO_USER_POOL_ID=eu-west-1_Spm4bEWSk
+Environment=COGNITO_CLIENT_ID=1u36e3aa9ruk51v7eaetlpliqn
+Environment=COGNITO_ISSUER=https://cognito-idp.eu-west-1.amazonaws.com/eu-west-1_Spm4bEWSk
+
+Environment=DYNAMO_PROGRESS_TABLE=learncode_progress
+Environment=S3_MEDIA_BUCKET=learncode-media
+
+# Untrusted student code MUST run in Lambda, never in this process.
+Environment=CODE_RUNNER_ADAPTER=lambda
+Environment=LAMBDA_RUNNER_JS_FUNCTION=learncode-runner-js
+# Python is registered only when this is set, so an environment without the
+# function deployed rejects Python submissions at dispatch rather than failing
+# inside AWS. Comment it out to disable Python on a given host.
+Environment=LAMBDA_RUNNER_PY_FUNCTION=learncode-runner-py
+
+# CORS allowlist. Exact scheme + host, no trailing slash. This is the real
+# deployed frontend origin — it lives here (not edited on the host) so that
+# CI re-copying this unit on every deploy cannot reset it to a placeholder.
+# If the Amplify domain ever changes, change it HERE and redeploy.
+Environment=CLIENT_ORIGIN=https://dev.d35i2f5rxki35f.amplifyapp.com
+
+# Hardening — the API needs no write access outside its own tree.
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/opt/learncode
+
+[Install]
+WantedBy=multi-user.target

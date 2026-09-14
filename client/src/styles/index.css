@@ -1,0 +1,112 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Sign-in entrance. Both halves begin stacked on the page's centre line and
+   part outward: the logo travels left, the form right. The slide is
+   horizontal only where the two actually end up side by side — below md
+   they are stacked, so the same classes rise instead, since sliding a
+   stacked pair sideways reads as a jitter rather than as a parting. */
+@keyframes learncode-part-left {
+  from {
+    opacity: 0;
+    transform: translateX(4rem);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+@keyframes learncode-part-right {
+  from {
+    opacity: 0;
+    transform: translateX(-4rem);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+@keyframes learncode-rise {
+  from {
+    opacity: 0;
+    transform: translateY(0.75rem);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.auth-enter-left,
+.auth-enter-right {
+  animation: learncode-rise 750ms cubic-bezier(0.4, 0, 0.2, 1) both;
+}
+
+@media (min-width: 768px) {
+  .auth-enter-left {
+    animation-name: learncode-part-left;
+    animation-duration: 900ms;
+  }
+  .auth-enter-right {
+    animation-name: learncode-part-right;
+    animation-duration: 900ms;
+  }
+}
+
+/* `animation: none` drops the fill too, so the pair simply starts in place
+   rather than stranded at 0 opacity (NFR5 / WCAG 2.1 AA). */
+@media (prefers-reduced-motion: reduce) {
+  .auth-enter-left,
+  .auth-enter-right {
+    animation: none;
+  }
+}
+
+/* The loading state: the logo breathes rather than a generic ring spinning.
+   Shallow on purpose — the mark is detailed, and a big scale swing on it
+   reads as a glitch rather than as progress. */
+@keyframes learncode-breathe {
+  0%,
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.55;
+    transform: scale(0.94);
+  }
+}
+
+.logo-pulse {
+  animation: learncode-breathe 1.6s ease-in-out infinite;
+}
+
+/* Loading must not become a flicker for anyone who has asked motion to
+   stop (NFR5 / WCAG 2.1 AA, and the rule S7 D7 already set for confetti):
+   the mark simply holds. */
+@media (prefers-reduced-motion: reduce) {
+  .logo-pulse {
+    animation: none;
+  }
+}
+
+@layer components {
+  .btn {
+    @apply inline-flex items-center justify-center rounded-md px-4 py-2 text-sm font-medium transition-colors focus:outline-none focus:ring-2 focus:ring-brand-500 focus:ring-offset-2 disabled:opacity-50;
+  }
+  .btn-primary {
+    @apply btn bg-brand-600 text-white hover:bg-brand-700;
+  }
+  .btn-ghost {
+    @apply btn bg-transparent text-slate-700 hover:bg-slate-100;
+  }
+  .field {
+    @apply block w-full rounded-md border border-slate-300 px-3 py-2 text-sm shadow-sm focus:border-brand-500 focus:outline-none focus:ring-1 focus:ring-brand-500;
+  }
+  .label {
+    @apply block text-sm font-medium text-slate-700 mb-1;
+  }
+}

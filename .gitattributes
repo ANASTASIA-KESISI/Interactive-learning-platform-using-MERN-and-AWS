@@ -1,0 +1,15 @@
+# Normalise line endings so a Windows checkout cannot ship CRLF to a Linux host.
+* text=auto
+
+# These are consumed directly by Linux — bash, systemd and nginx. A CRLF here
+# fails obscurely: bash reports "$'\r': command not found" pointing at a line
+# that looks perfectly correct.
+*.sh            text eol=lf
+deploy/*.service text eol=lf
+deploy/*.conf   text eol=lf
+
+# Binary — never touch.
+*.png binary
+*.jpg binary
+*.zip binary
+*.pem binary

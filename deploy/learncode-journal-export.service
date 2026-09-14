@@ -1,0 +1,44 @@
+# Tails the API's journal into a plain file for the CloudWatch agent.
+#
+# The API logs one JSON line per event to stdout, which systemd stores in the
+# journal. The CloudWatch agent cannot read the journal, only files. Rather than
+# point the API's stdout at a file — which would need an API restart and would
+# blind `journalctl -u learncode-api`, which the deploy script relies on — this
+# unit copies the journal into /var/log/learncode/api.log as it grows.
+#
+# `--cursor-file` remembers where it got to, so a restart of this unit (or a
+# reboot) resumes from the last shipped line instead of dropping or repeating.
+# `-o cat` strips the journal prefix so each line stays valid JSON for the
+# agent and for Logs Insights.
+#
+# Installed by deploy/setup-cloudwatch.sh; refreshed by deploy/update-ec2.sh.
+
+[Unit]
+Description=LearnCode API journal -> /var/log/learncode/api.log
+After=systemd-journald.service learncode-api.service
+Wants=learncode-api.service
+
+[Service]
+Type=simple
+ExecStart=/usr/bin/journalctl -u learncode-api -f -o cat --no-pager \
+  --cursor-file=/var/lib/learncode-journal/cursor
+StandardOutput=append:/var/log/learncode/api.log
+StandardError=journal
+Restart=always
+RestartSec=5
+
+# These make the two directories writable under ProtectSystem=strict and keep
+# their ownership right. They do NOT reliably create them: systemd opens the
+# append: target above before it creates LogsDirectory, and the unit fails with
+# status 209/STDOUT on a host where /var/log/learncode does not exist yet.
+# setup-cloudwatch.sh creates both directories before enabling this unit.
+LogsDirectory=learncode
+StateDirectory=learncode-journal
+
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+
+[Install]
+WantedBy=multi-user.target

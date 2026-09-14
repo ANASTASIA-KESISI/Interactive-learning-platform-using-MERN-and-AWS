@@ -1,0 +1,44 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+Description: LearnCode code-runner Lambdas (per-language sandboxed execution)
+
+Globals:
+  Function:
+    Timeout: 10
+    MemorySize: 256
+    # Matches what is deployed in eu-west-1 (created via the Console, see
+    # DEPLOYMENT.md §2 Option B). The handler is plain CommonJS with no
+    # dependencies, so it is not sensitive to the Node major version — keep
+    # this in step with the live function so a later `sam deploy` cannot
+    # silently downgrade the runtime.
+    Runtime: nodejs24.x
+
+Resources:
+  RunnerJs:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: learncode-runner-js
+      CodeUri: server/runners/js/
+      Handler: index.handler
+      Description: Sandboxed JavaScript execution for student code submissions
+
+  RunnerPy:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: learncode-runner-py
+      CodeUri: server/runners/python/
+      Handler: index.handler
+      # Per-language runtimes are the point of the per-function topology
+      # (CHALLENGES.md Challenge 4) — this one overrides the Node default.
+      # Matches the deployed function; the handler uses only long-stable stdlib
+      # (contextlib, io, signal, os), so it is not sensitive to the minor version.
+      Runtime: python3.14
+      Description: Sandboxed Python execution for student code submissions
+
+Outputs:
+  RunnerJsArn:
+    Description: ARN of the JavaScript runner Lambda
+    Value: !GetAtt RunnerJs.Arn
+  RunnerPyArn:
+    Description: ARN of the Python runner Lambda
+    Value: !GetAtt RunnerPy.Arn

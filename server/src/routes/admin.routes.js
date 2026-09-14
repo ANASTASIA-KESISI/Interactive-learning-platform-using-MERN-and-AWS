@@ -1,0 +1,347 @@
+const express = require('express');
+const { User } = require('../models/User');
+const { Course } = require('../models/Course');
+const { Badge, CRITERIA_TYPES } = require('../models/Badge');
+const { requireAuth } = require('../middleware/requireAuth');
+const { requireRole } = require('../middleware/requireRole');
+const { attachUser } = require('../middleware/attachUser');
+const { badRequest } = require('../utils/httpError');
+const authService = require('../services/authService');
+const courseService = require('../services/courseService');
+const progressService = require('../services/progressService');
+const settingsService = require('../services/settingsService');
+const universityService = require('../services/universityService');
+
+const router = express.Router();
+const adminAuth = [requireAuth, requireRole('admin'), attachUser];
+
+const WEEK_MS = 7 * 24 * 60 * 60 * 1000;
+
+// Active users per week for the last `weeks` weeks, oldest first. `lastActiveAt`
+// records only the most recent visit, so a user falls in exactly one bucket —
+// these are "users last seen in week N", which is the honest reading of the
+// data we keep, not a true rolling-active count.
+const activeUsersByWeek = async (weeks) => {
+  const now = Date.now();
+  const buckets = [];
+
+  for (let i = weeks - 1; i >= 0; i -= 1) {
+    const start = new Date(now - (i + 1) * WEEK_MS);
+    const end = new Date(now - i * WEEK_MS);
+    // eslint-disable-next-line no-await-in-loop
+    const activeUsers = await User.countDocuments({
+      lastActiveAt: { $gte: start, $lt: end },
+    });
+    buckets.push({
+      weekStart: start.toISOString().slice(0, 10),
+      activeUsers,
+    });
+  }
+
+  return buckets;
+};
+
+// Badges awarded per week over the same window, oldest first, plus the
+// all-time total (S8 D5/D8). Awards are dated since S8 through
+// `users.badgeAwards`; a badge earned before that has no entry and lands in
+// neither figure — `badges[]` still counts it on the learner's own profile.
+// One aggregation unwinds every user's awards and buckets them by the week
+// index from the window start, so the route does not loop over weeks.
+const badgesAwardedByWeek = async (weeks) => {
+  const now = Date.now();
+  const windowStart = new Date(now - weeks * WEEK_MS);
+
+  const [result] = await User.aggregate([
+    { $unwind: '$badgeAwards' },
+    {
+      $facet: {
+        total: [{ $count: 'count' }],
+        byWeek: [
+          { $match: { 'badgeAwards.awardedAt': { $gte: windowStart, $lt: new Date(now) } } },
+          {
+            $group: {
+              _id: {
+                $floor: {
+                  $divide: [{ $subtract: ['$badgeAwards.awardedAt', windowStart] }, WEEK_MS],
+                },
+              },
+              count: { $sum: 1 },
+            },
+          },
+        ],
+      },
+    },
+  ]);
+
+  const countByIndex = new Map(((result && result.byWeek) || []).map((b) => [b._id, b.count]));
+  const buckets = [];
+  for (let i = 0; i < weeks; i += 1) {
+    const start = new Date(windowStart.getTime() + i * WEEK_MS);
+    buckets.push({
+      weekStart: start.toISOString().slice(0, 10),
+      badgesAwarded: countByIndex.get(i) || 0,
+    });
+  }
+
+  const total = result && result.total && result.total[0] ? result.total[0].count : 0;
+  return { badgesAwardedTotal: total, badgesAwardedByWeek: buckets };
+};
+
+// GET /api/admin/kpis?weeks=8
+router.get('/kpis', ...adminAuth, async (req, res, next) => {
+  try {
+    const weeks = Math.min(Math.max(Number(req.query.weeks) || 8, 1), 26);
+
+    const [totalUsers, totalCourses, publishedCourses, usersByRole] = await Promise.all([
+      User.countDocuments(),
+      Course.countDocuments(),
+      Course.countDocuments({ isPublished: true }),
+      User.aggregate([{ $group: { _id: '$role', count: { $sum: 1 } } }]),
+    ]);
+
+    const weekAgo = new Date(Date.now() - WEEK_MS);
+    const weeklyActiveUsers = await User.countDocuments({ lastActiveAt: { $gte: weekAgo } });
+    const activeByWeek = await activeUsersByWeek(weeks);
+    const { badgesAwardedTotal, badgesAwardedByWeek: badgesByWeek } =
+      await badgesAwardedByWeek(weeks);
+    // Session items live in the DynamoDB progress table (S8 D6). Same `weeks`
+    // window as the two weekly series, so the three figures describe one
+    // period.
+    const sessionStats = await progressService.getSessionStats(
+      new Date(Date.now() - weeks * WEEK_MS).toISOString(),
+    );
+
+    res.json({
+      data: {
+        totalUsers,
+        totalCourses,
+        publishedCourses,
+        weeklyActiveUsers,
+        usersByRole: Object.fromEntries(usersByRole.map((r) => [r._id, r.count])),
+        activeByWeek,
+        badgesAwardedTotal,
+        badgesAwardedByWeek: badgesByWeek,
+        sessions: sessionStats.sessions,
+        avgSessionDurationSec: sessionStats.avgSessionDurationSec,
+        medianSessionDurationSec: sessionStats.medianSessionDurationSec,
+      },
+    });
+  } catch (err) {
+    next(err);
+  }
+});
+
+// GET /api/admin/users
+router.get('/users', ...adminAuth, async (req, res, next) => {
+  try {
+    const { role, page = 1, limit = 20 } = req.query;
+    const filter = role ? { role } : {};
+    const users = await User.find(filter)
+      .select('-__v')
+      .sort({ createdAt: -1 })
+      .skip((page - 1) * limit)
+      .limit(Number(limit));
+    const total = await User.countDocuments(filter);
+    res.json({ data: users, meta: { total, page: Number(page), limit: Number(limit) } });
+  } catch (err) {
+    next(err);
+  }
+});
+
+// PATCH /api/admin/users/:id/role
+// Delegates to authService, which moves the user between Cognito groups —
+// Cognito owns roles, and a Mongo-only write is overwritten by the next
+// request's claim sync. Takes effect for the target user when their token
+// next refreshes.
+router.patch('/users/:id/role', ...adminAuth, async (req, res, next) => {
+  try {
+    if (req.params.id === req.dbUser._id.toString()) {
+      throw badRequest('You cannot change your own role');
+    }
+
+    const user = await authService.setUserRole(req.params.id, req.body.role);
+    res.json({
+      data: user,
+      meta: { note: 'Takes effect when the user next signs in or refreshes their token.' },
+    });
+  } catch (err) {
+    next(err);
+  }
+});
+
+// PATCH /api/admin/users/:id/active — body { isActive: boolean }
+// Delegates to authService, which disables or enables the user in Cognito,
+// revokes their refresh tokens on deactivate, and mirrors the flag into Mongo
+// so `attachUser` locks them out on their very next request (S8 D3). The
+// acting admin's id is passed so the service can refuse self-deactivation.
+router.patch('/users/:id/active', ...adminAuth, async (req, res, next) => {
+  try {
+    const { isActive } = req.body;
+    if (typeof isActive !== 'boolean') throw badRequest('isActive must be a boolean');
+
+    const user = await authService.setUserActive(req.params.id, isActive, req.dbUser._id);
+    res.json({ data: user });
+  } catch (err) {
+    next(err);
+  }
+});
+
+// GET /api/admin/settings/instructor-invite-code
+// The code is a shared secret, but the admin is the one who hands it to
+// teaching staff, so it is returned in clear — `source` tells the panel
+// whether it is the environment seed or a value an admin saved.
+router.get('/settings/instructor-invite-code', ...adminAuth, async (_req, res, next) => {
+  try {
+    res.json({ data: await settingsService.readInstructorInviteCode() });
+  } catch (err) {
+    next(err);
+  }
+});
+
+// PUT /api/admin/settings/instructor-invite-code — body { code: string }
+// Takes effect on the next claim: the compare reads Mongo per request, and
+// accounts already promoted keep their Cognito group. An empty code disables
+// instructor self-signup.
+router.put('/settings/instructor-invite-code', ...adminAuth, async (req, res, next) => {
+  try {
+    const { code } = req.body || {};
+    res.json({ data: await settingsService.setInstructorInviteCode(code, req.dbUser._id) });
+  } catch (err) {
+    next(err);
+  }
+});
+
+// GET /api/admin/courses
+router.get('/courses', ...adminAuth, async (req, res, next) => {
+  try {
+    const courses = await Course.find()
+      .populate('instructor', 'firstName lastName email')
+      .sort({ createdAt: -1 });
+    res.json({ data: courses });
+  } catch (err) {
+    next(err);
+  }
+});
+
+// GET /api/admin/badges — list every badge
+router.get('/badges', ...adminAuth, async (_req, res, next) => {
+  try {
+    const badges = await Badge.find().sort({ 'criteria.threshold': 1 });
+    res.json({ data: badges });
+  } catch (err) {
+    next(err);
+  }
+});
+
+// POST /api/admin/badges — create a badge
+router.post('/badges', ...adminAuth, async (req, res, next) => {
+  try {
+    const { name, description, icon, criteria, xpValue } = req.body;
+    if (!name || !description) throw badRequest('name and description are required');
+    if (!criteria || !CRITERIA_TYPES.includes(criteria.type)) {
+      throw badRequest(`criteria.type must be one of ${CRITERIA_TYPES.join(', ')}`);
+    }
+    if (typeof criteria.threshold !== 'number' || criteria.threshold < 1) {
+      throw badRequest('criteria.threshold must be a positive number');
+    }
+
+    const badge = await Badge.create({ name, description, icon, criteria, xpValue });
+    res.status(201).json({ data: badge });
+  } catch (err) {
+    next(err);
+  }
+});
+
+// PATCH /api/admin/courses/:id/publish
+// Delegates to the service so the admin toggle honours the same publish rule
+// as the instructor's publish endpoint (S8 D1): 409 when the course has no
+// module or a module has no lesson. Unpublishing has no precondition.
+router.patch('/courses/:id/publish', ...adminAuth, async (req, res, next) => {
+  try {
+    const { isPublished } = req.body;
+    const course = await courseService.setCoursePublished(req.params.id, Boolean(isPublished));
+    res.json({ data: course });
+  } catch (err) {
+    next(err);
+  }
+});
+
+// DELETE /api/admin/courses/:id — unpublished courses only (409 otherwise).
+// Cascades in Mongo; learner progress records are retained (S8 D2).
+router.delete('/courses/:id', ...adminAuth, async (req, res, next) => {
+  try {
+    const result = await courseService.deleteCourse(req.params.id, {
+      id: req.dbUser._id,
+      role: req.dbUser.role,
+    });
+    res.json({ data: result });
+  } catch (err) {
+    next(err);
+  }
+});
+
+// ── Universities & departments (S7 D3) ────────────────────────────────────────
+//
+// Reference data every student's signup and course listing depends on, so the
+// service refuses deletes that would orphan a reference (409) rather than
+// cascading. Validation and the writable-field allowlists live in the service.
+
+// POST /api/admin/universities
+router.post('/universities', ...adminAuth, async (req, res, next) => {
+  try {
+    const university = await universityService.createUniversity(req.body);
+    res.status(201).json({ data: university });
+  } catch (err) {
+    next(err);
+  }
+});
+
+// PATCH /api/admin/universities/:id
+router.patch('/universities/:id', ...adminAuth, async (req, res, next) => {
+  try {
+    const university = await universityService.updateUniversity(req.params.id, req.body);
+    res.json({ data: university });
+  } catch (err) {
+    next(err);
+  }
+});
+
+// DELETE /api/admin/universities/:id — 409 while it still has departments
+router.delete('/universities/:id', ...adminAuth, async (req, res, next) => {
+  try {
+    res.json({ data: await universityService.deleteUniversity(req.params.id) });
+  } catch (err) {
+    next(err);
+  }
+});
+
+// POST /api/admin/universities/:id/departments
+router.post('/universities/:id/departments', ...adminAuth, async (req, res, next) => {
+  try {
+    const department = await universityService.createDepartment(req.params.id, req.body);
+    res.status(201).json({ data: department });
+  } catch (err) {
+    next(err);
+  }
+});
+
+// PATCH /api/admin/departments/:id
+router.patch('/departments/:id', ...adminAuth, async (req, res, next) => {
+  try {
+    const department = await universityService.updateDepartment(req.params.id, req.body);
+    res.json({ data: department });
+  } catch (err) {
+    next(err);
+  }
+});
+
+// DELETE /api/admin/departments/:id — 409 while users or courses reference it
+router.delete('/departments/:id', ...adminAuth, async (req, res, next) => {
+  try {
+    res.json({ data: await universityService.deleteDepartment(req.params.id) });
+  } catch (err) {
+    next(err);
+  }
+});
+
+module.exports = router;
