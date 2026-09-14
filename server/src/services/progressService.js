@@ -110,6 +110,40 @@ const recordSubmission = async (userId, lessonId, runResult, code = '') => {
   };
 };
 
+// A tutorial has nothing to submit, so finishing one is a plain completion
+// rather than an attempt: `attempts` and `codeSubmissions` stay untouched so
+// the pass-rate denominator the pilot reports keeps meaning "submissions". The
+// return shape matches `recordSubmission` so the route's award path is shared.
+const recordCompletion = async (userId, lessonId) => {
+  const stored = await progressTable.getProgress(userId, lessonId);
+  const wasCompleted = stored?.status === 'completed';
+  const now = new Date().toISOString();
+
+  const updates = {};
+  if (!stored) {
+    updates.attempts = 0;
+    updates.score = 0;
+    updates.hintsUsed = 0;
+    updates.codeSubmissions = [];
+    updates.startedAt = now;
+  }
+  if (!wasCompleted) {
+    updates.status = 'completed';
+    updates.score = 100;
+    updates.completedAt = now;
+  }
+  if (Object.keys(updates).length > 0) {
+    await progressTable.updateProgress(userId, lessonId, updates);
+  }
+
+  return {
+    attempts: stored?.attempts || 0,
+    status: 'completed',
+    firstCompletion: !wasCompleted,
+    hintsUsed: stored?.hintsUsed || 0,
+  };
+};
+
 // `hintsUsed` is the count of DISTINCT hints revealed, derived from the highest
 // index the learner has opened — not an increment per request. Hint state lives
 // in client component state, so a page refresh replays reveals from index 0;
@@ -339,6 +373,7 @@ const getSessionStats = async (sinceIso) => {
 module.exports = {
   recordLessonStart,
   recordSubmission,
+  recordCompletion,
   recordHintReveal,
   recordRun,
   recordQuestionAsked,

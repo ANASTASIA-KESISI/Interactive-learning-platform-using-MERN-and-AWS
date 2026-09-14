@@ -57,6 +57,15 @@ const lessonSchema = new mongoose.Schema(
     passMark: { type: Number, default: 70, min: 1, max: 100 },
     order: { type: Number, required: true, min: 0 },
     xpReward: { type: Number, default: 10, min: 0 },
+    // Hint cost, as the percentage of `xpReward` a learner keeps after
+    // revealing one hint / two or more. The defaults are the pilot rule
+    // (decided 2026-05-10: 100 → 50 → 20); an instructor can tune them per
+    // lesson (S9). Kept as a percentage rather than points so a later change
+    // to `xpReward` never leaves the cost out of step with it.
+    hintXp: {
+      afterOne: { type: Number, default: 50, min: 0, max: 100 },
+      afterMore: { type: Number, default: 20, min: 0, max: 100 },
+    },
   },
   { timestamps: true },
 );

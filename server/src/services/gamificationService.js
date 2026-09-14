@@ -5,11 +5,23 @@ const { Badge } = require('../models/Badge');
 //   0 hints → 100% XP
 //   1 hint  →  50% XP
 //   2+      →  20% XP
-// Encourages self-attempt before scaffolding without zeroing the reward.
-const applyHintDiscount = (xpReward, hintsUsed) => {
+// Encourages self-attempt before scaffolding without zeroing the reward. The
+// two percentages are the lesson's `hintXp` (S9, instructor-tunable); these
+// defaults stand in for a lesson saved before the field existed.
+const DEFAULT_HINT_XP = Object.freeze({ afterOne: 50, afterMore: 20 });
+
+const pct = (value, fallback) => {
+  const n = Number(value);
+  return Number.isFinite(n) ? Math.min(100, Math.max(0, n)) : fallback;
+};
+
+const applyHintDiscount = (xpReward, hintsUsed, hintXp = DEFAULT_HINT_XP) => {
   if (hintsUsed <= 0) return xpReward;
-  if (hintsUsed === 1) return Math.round(xpReward * 0.5);
-  return Math.round(xpReward * 0.2);
+  const kept =
+    hintsUsed === 1
+      ? pct(hintXp?.afterOne, DEFAULT_HINT_XP.afterOne)
+      : pct(hintXp?.afterMore, DEFAULT_HINT_XP.afterMore);
+  return Math.round((xpReward * kept) / 100);
 };
 
 // Calendar-day diff in UTC. Two events on the same UTC date return 0,
@@ -99,8 +111,8 @@ const evaluateBadges = (user, allBadges, now = new Date()) => {
   return newlyAwarded;
 };
 
-// Called from the submit route when a student passes a lesson for the first
-// time. `hintsUsed` is the count from the progress record at submit time.
+// Called from the submit, quiz and complete routes when a student finishes a
+// lesson for the first time. `hintsUsed` is the count from the progress record at submit time.
 // `lessonType` and `courseCompleted` come from the same request that already
 // resolved them, so no counter here costs an extra query. `now` is
 // injectable for tests.
@@ -108,6 +120,7 @@ const onLessonCompleted = async ({
   userId,
   xpReward,
   hintsUsed = 0,
+  hintXp = DEFAULT_HINT_XP,
   lessonType = null,
   courseCompleted = false,
   now = new Date(),
@@ -115,12 +128,15 @@ const onLessonCompleted = async ({
   const user = await User.findById(userId);
   if (!user) return { xpDelta: 0, newBadges: [] };
 
-  const xpDelta = applyHintDiscount(xpReward, hintsUsed);
+  const xpDelta = applyHintDiscount(xpReward, hintsUsed, hintXp);
   user.xpPoints += xpDelta;
   user.lessonsCompleted = (user.lessonsCompleted || 0) + 1;
   // Unaided means no hint was revealed before the pass — the same input the
-  // XP discount reads, so the badge and the XP can never disagree.
-  if (hintsUsed <= 0) user.unaidedCompletions = (user.unaidedCompletions || 0) + 1;
+  // XP discount reads, so the badge and the XP can never disagree. A tutorial
+  // has nothing to be aided on, so reading one is not an unaided solve.
+  if (hintsUsed <= 0 && lessonType !== 'tutorial') {
+    user.unaidedCompletions = (user.unaidedCompletions || 0) + 1;
+  }
   if (lessonType === 'quiz') user.quizzesPassed = (user.quizzesPassed || 0) + 1;
   if (courseCompleted) user.coursesCompleted = (user.coursesCompleted || 0) + 1;
   updateStreak(user, now);
@@ -202,6 +218,7 @@ module.exports = {
   onLessonCompleted,
   onNotesChanged,
   applyHintDiscount,
+  DEFAULT_HINT_XP,
   xpForLevel,
   levelFromXp,
   rankForLevel,

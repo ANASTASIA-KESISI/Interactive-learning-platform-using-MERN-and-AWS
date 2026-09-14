@@ -64,15 +64,19 @@ const getCourseLeaderboard = async (
 
   const viewer = viewerId ? { id: viewerId, role: viewerRole } : null;
   const course = await courseService.getCourseById(courseId, viewer);
-  // lessonId → xpReward. The board ranks by XP earned in THIS course, so the
-  // per-lesson reward has to come from the course document: a progress item
-  // records `hintsUsed` but never the XP it produced. The banked total lives
+  // lessonId → { xpReward, hintXp }. The board ranks by XP earned in THIS
+  // course, so the per-lesson reward and hint cost have to come from the
+  // course document: a progress item records `hintsUsed` but never the XP it
+  // produced. The banked total lives
   // on `User.xpPoints`, which is global — ranking by that would let a learner
   // top the board for a course they never opened.
   const lessonXp = new Map();
   for (const module of course.modules || []) {
     for (const lesson of module.lessons || []) {
-      lessonXp.set(lesson._id.toString(), Number(lesson.xpReward) || 0);
+      lessonXp.set(lesson._id.toString(), {
+        xpReward: Number(lesson.xpReward) || 0,
+        hintXp: lesson.hintXp,
+      });
     }
   }
   const lessonIds = [...lessonXp.keys()];
@@ -102,9 +106,11 @@ const getCourseLeaderboard = async (
     // The same discount the learner actually banked, so the board agrees with
     // the XP their profile credits them for this work rather than paying a
     // hint-heavy completion the same as an unaided one.
+    const lesson = lessonXp.get(String(record.lessonId)) || { xpReward: 0 };
     entry.xp += gamificationService.applyHintDiscount(
-      lessonXp.get(String(record.lessonId)) || 0,
+      lesson.xpReward,
       Number(record.hintsUsed) || 0,
+      lesson.hintXp,
     );
     entry.completions += 1;
     if (at > entry.lastCompletionAt) entry.lastCompletionAt = at;

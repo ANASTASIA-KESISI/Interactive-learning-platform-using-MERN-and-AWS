@@ -660,6 +660,43 @@ describe('S7 authoring field validation', () => {
     ).rejects.toMatchObject({ status: 400 });
   });
 
+  // S9: the hint cost is instructor-tunable, within bounds that keep hints
+  // progressive — the deeper hint can never pay better than the first.
+  const ownedLesson = () => {
+    const lesson = { moduleId: 'module1', save: jest.fn().mockResolvedValue(true) };
+    Lesson.findById.mockReturnValue(query(lesson));
+    Module.findById.mockReturnValue(query({ _id: 'module1', courseId: 'course1' }));
+    Course.findById.mockReturnValue(
+      query({ _id: 'course1', instructor: { toString: () => 'owner1' } }),
+    );
+    return lesson;
+  };
+
+  test.each([
+    ['a non-object', 'half'],
+    ['a missing afterMore', { afterOne: 50 }],
+    ['a non-integer', { afterOne: 50.5, afterMore: 20 }],
+    ['a value above 100', { afterOne: 120, afterMore: 20 }],
+    ['a negative value', { afterOne: 50, afterMore: -1 }],
+    ['afterMore above afterOne', { afterOne: 20, afterMore: 50 }],
+  ])('rejects a hint cost with %s', async (_label, hintXp) => {
+    ownedLesson();
+
+    await expect(
+      courseService.updateLesson('lesson1', 'owner1', { hintXp }),
+    ).rejects.toMatchObject({ status: 400 });
+  });
+
+  test('stores a valid hint cost, coercing form strings to integers', async () => {
+    const lesson = ownedLesson();
+
+    await courseService.updateLesson('lesson1', 'owner1', {
+      hintXp: { afterOne: '75', afterMore: '75' },
+    });
+
+    expect(lesson.hintXp).toEqual({ afterOne: 75, afterMore: 75 });
+  });
+
   test('stores a task inside the cap', async () => {
     const lesson = { moduleId: 'module1', save: jest.fn().mockResolvedValue(true) };
     Lesson.findById.mockReturnValue(query(lesson));

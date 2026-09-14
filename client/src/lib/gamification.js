@@ -17,3 +17,24 @@ export const formatXp = (n) => {
   if (xp < 1000) return String(Math.round(xp));
   return `${(xp / 1000).toFixed(1).replace(/\.0$/, '')}k`;
 };
+
+// Hint cost (S9). The server's `applyHintDiscount` is authoritative and the
+// lesson carries its own `hintXp`; a lesson saved before the field existed
+// arrives without it and falls back to the pilot rule (100 → 50 → 20).
+export const DEFAULT_HINT_XP = Object.freeze({ afterOne: 50, afterMore: 20 });
+
+const pct = (value, fallback) => {
+  const n = Number(value);
+  return Number.isFinite(n) ? Math.min(100, Math.max(0, n)) : fallback;
+};
+
+// Percentage of the reward kept once `hintsUsed` hints have been revealed.
+export const hintXpPercent = (hintsUsed, hintXp) => {
+  if (hintsUsed <= 0) return 100;
+  return hintsUsed === 1
+    ? pct(hintXp?.afterOne, DEFAULT_HINT_XP.afterOne)
+    : pct(hintXp?.afterMore, DEFAULT_HINT_XP.afterMore);
+};
+
+export const hintDiscountedXp = (xpReward, hintsUsed, hintXp) =>
+  Math.round(((Number(xpReward) || 0) * hintXpPercent(hintsUsed, hintXp)) / 100);

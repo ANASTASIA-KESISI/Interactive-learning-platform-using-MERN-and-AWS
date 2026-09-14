@@ -597,3 +597,63 @@ describe('progressService.getSessionStats', () => {
     expect(stats).toEqual({ sessions: 0, avgSessionDurationSec: 0, medianSessionDurationSec: 0 });
   });
 });
+
+// A tutorial is finished by reading it, not by submitting anything, so its
+// completion must not look like an attempt: the pass-rate denominator the pilot
+// reports is "submissions", and a read would dilute it.
+describe('progressService.recordCompletion', () => {
+  beforeEach(() => jest.clearAllMocks());
+
+  test('a first completion seeds the item as completed with zero attempts', async () => {
+    progressTable.getProgress.mockResolvedValue(null);
+
+    const result = await progressService.recordCompletion('u1', 'l1');
+
+    expect(result).toEqual({
+      attempts: 0,
+      status: 'completed',
+      firstCompletion: true,
+      hintsUsed: 0,
+    });
+    const [, , updates] = progressTable.updateProgress.mock.calls[0];
+    expect(updates).toMatchObject({
+      attempts: 0,
+      score: 100,
+      hintsUsed: 0,
+      codeSubmissions: [],
+      status: 'completed',
+    });
+    expect(updates.startedAt).toEqual(expect.any(String));
+    expect(updates.completedAt).toEqual(expect.any(String));
+  });
+
+  test('an opened-but-unfinished item is completed without touching its history', async () => {
+    progressTable.getProgress.mockResolvedValue({
+      status: 'in_progress',
+      attempts: 0,
+      hintsUsed: 0,
+      startedAt: '2026-09-01T00:00:00.000Z',
+      timeSpent: 90,
+    });
+
+    const result = await progressService.recordCompletion('u1', 'l1');
+
+    expect(result.firstCompletion).toBe(true);
+    const [, , updates] = progressTable.updateProgress.mock.calls[0];
+    expect(Object.keys(updates).sort()).toEqual(['completedAt', 'score', 'status']);
+  });
+
+  test('a repeat completion writes nothing and is not a first completion', async () => {
+    progressTable.getProgress.mockResolvedValue({
+      status: 'completed',
+      attempts: 0,
+      completedAt: '2026-09-01T00:00:00.000Z',
+    });
+
+    const result = await progressService.recordCompletion('u1', 'l1');
+
+    expect(result.firstCompletion).toBe(false);
+    expect(result.status).toBe('completed');
+    expect(progressTable.updateProgress).not.toHaveBeenCalled();
+  });
+});

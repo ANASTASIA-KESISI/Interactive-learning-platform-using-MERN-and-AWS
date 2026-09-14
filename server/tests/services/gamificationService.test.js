@@ -28,6 +28,28 @@ describe('applyHintDiscount', () => {
   test('treats negative hints as zero', () => {
     expect(applyHintDiscount(20, -1)).toBe(20);
   });
+
+  // S9: the two percentages come from the lesson. A lesson saved before the
+  // field existed (undefined, or a partial object) falls back to the pilot rule.
+  test('honours a lesson-specific hint cost', () => {
+    const hintXp = { afterOne: 80, afterMore: 60 };
+    expect(applyHintDiscount(20, 0, hintXp)).toBe(20);
+    expect(applyHintDiscount(20, 1, hintXp)).toBe(16);
+    expect(applyHintDiscount(20, 2, hintXp)).toBe(12);
+    expect(applyHintDiscount(20, 9, hintXp)).toBe(12);
+  });
+
+  test('a zero cost keeps full XP; a 100% cost zeroes it', () => {
+    expect(applyHintDiscount(20, 3, { afterOne: 100, afterMore: 100 })).toBe(20);
+    expect(applyHintDiscount(20, 1, { afterOne: 0, afterMore: 0 })).toBe(0);
+  });
+
+  test('falls back to the pilot rule for a missing or partial hintXp', () => {
+    expect(applyHintDiscount(20, 1, undefined)).toBe(10);
+    expect(applyHintDiscount(20, 2, null)).toBe(4);
+    expect(applyHintDiscount(20, 2, { afterOne: 80 })).toBe(4);
+    expect(applyHintDiscount(20, 1, { afterOne: 'abc' })).toBe(10);
+  });
 });
 
 describe('utcDayDiff', () => {

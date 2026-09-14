@@ -33,6 +33,7 @@ const LESSON_WRITABLE = [
   'expectedOutput',
   'hints',
   'xpReward',
+  'hintXp',
   'questions',
   'passMark',
 ];
@@ -113,7 +114,31 @@ const cleanLessonInput = (updates) => {
     }
     clean.passMark = n;
   }
+  if ('hintXp' in clean) clean.hintXp = cleanHintXp(clean.hintXp);
   return clean;
+};
+
+// The hint cost is a pair of percentages of `xpReward` kept after one hint and
+// after two or more. The second may not exceed the first: a ladder where the
+// deeper hint pays better would reward revealing everything at once, the
+// opposite of progressive scaffolding.
+const cleanHintXp = (value) => {
+  if (!value || typeof value !== 'object') {
+    throw badRequest('hintXp must be an object with afterOne and afterMore');
+  }
+  const read = (field) => {
+    const n = Number(value[field]);
+    if (!Number.isInteger(n) || n < 0 || n > 100) {
+      throw badRequest(`hintXp.${field} must be an integer between 0 and 100`);
+    }
+    return n;
+  };
+  const afterOne = read('afterOne');
+  const afterMore = read('afterMore');
+  if (afterMore > afterOne) {
+    throw badRequest('hintXp.afterMore may not exceed hintXp.afterOne');
+  }
+  return { afterOne, afterMore };
 };
 
 // ── Course ────────────────────────────────────────────────────────────────────
@@ -170,7 +195,7 @@ const getCourseById = async (courseId, viewer = null) => {
       options: { sort: { order: 1 } },
       populate: {
         path: 'lessons',
-        select: 'title type order xpReward language',
+        select: 'title type order xpReward hintXp language',
         options: { sort: { order: 1 } },
       },
     });

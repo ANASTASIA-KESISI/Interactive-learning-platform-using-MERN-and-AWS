@@ -24,16 +24,20 @@ router.get(
   async (req, res, next) => {
     try {
       let revealedCount = 0;
+      let completed = false;
       if (req.dbUser.role === 'student') {
         const progress = await progressService.getLessonProgress(
           req.dbUser._id.toString(),
           req.params.id,
         );
         revealedCount = progress?.hintsUsed || 0;
+        completed = progress?.status === 'completed';
       }
 
+      // `completed` lets a reading lesson render "Completed" instead of a
+      // second "Mark as complete" that would award nothing.
       const lesson = await courseService.getLessonForStudent(req.params.id, revealedCount);
-      res.json({ data: lesson });
+      res.json({ data: { ...lesson, completed } });
     } catch (err) {
       next(err);
     }
@@ -217,6 +221,7 @@ router.post('/:id/submit', ...learnerOrPreview, async (req, res, next) => {
           userId: req.dbUser._id,
           xpReward: lesson.xpReward,
           hintsUsed: progressUpdate.hintsUsed,
+          hintXp: lesson.hintXp,
           lessonType: lesson.type,
           courseCompleted: flags.courseCompleted,
         });
@@ -297,6 +302,7 @@ router.post('/:id/quiz', ...learnerOrPreview, async (req, res, next) => {
           userId: req.dbUser._id,
           xpReward: lesson.xpReward,
           hintsUsed: progressUpdate.hintsUsed,
+          hintXp: lesson.hintXp,
           lessonType: lesson.type,
           courseCompleted: flags.courseCompleted,
         });
@@ -309,6 +315,74 @@ router.post('/:id/quiz', ...learnerOrPreview, async (req, res, next) => {
     res.json({
       data: {
         quiz,
+        progress: progressUpdate,
+        xpDelta: gamificationResult.xpDelta,
+        newBadges: gamificationResult.newBadges,
+        gamification,
+        moduleCompleted,
+        nextLessonId: context.nextLessonId,
+      },
+    });
+  } catch (err) {
+    next(err);
+  }
+});
+
+// POST /api/lessons/:id/complete — a learner marks a `type: 'tutorial'` lesson
+// as read.
+//
+// A tutorial has no code to validate and no answer sheet to grade, so without
+// this it had no completion path at all: it never reached the progress table,
+// never awarded its xpReward and never counted towards module or course
+// completion. The award path is the one /submit and /quiz share; the response
+// is the same shape with neither `execution` nor `quiz`. Exercises and quizzes
+// are refused here so a learner cannot claim their XP without passing them.
+router.post('/:id/complete', ...learnerOrPreview, async (req, res, next) => {
+  try {
+    const lesson = await courseService.getLessonById(req.params.id);
+    if (lesson.type !== 'tutorial') {
+      return res
+        .status(400)
+        .json({ error: { message: 'Only a tutorial can be marked complete without a submission' } });
+    }
+
+    const context = await courseService.getLessonContext(req.params.id);
+
+    let progressUpdate = { previewMode: true };
+    let gamificationResult = { xpDelta: 0, newBadges: [] };
+    let gamification = null;
+    let moduleCompleted = false;
+
+    if (req.dbUser.role === 'student') {
+      progressUpdate = await progressService.recordCompletion(
+        req.dbUser._id.toString(),
+        req.params.id,
+      );
+
+      let user = req.dbUser;
+      if (progressUpdate.firstCompletion) {
+        const flags = await completionFlags(
+          req.dbUser._id.toString(),
+          req.params.id,
+          context,
+        );
+        moduleCompleted = flags.moduleCompleted;
+
+        gamificationResult = await gamificationService.onLessonCompleted({
+          userId: req.dbUser._id,
+          xpReward: lesson.xpReward,
+          hintsUsed: 0,
+          lessonType: lesson.type,
+          courseCompleted: flags.courseCompleted,
+        });
+        user = (await authService.getByCognitoId(req.user.cognitoId)) || req.dbUser;
+      }
+
+      gamification = gamificationService.gamificationSummary(user);
+    }
+
+    res.json({
+      data: {
         progress: progressUpdate,
         xpDelta: gamificationResult.xpDelta,
         newBadges: gamificationResult.newBadges,

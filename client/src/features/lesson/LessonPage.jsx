@@ -4,9 +4,16 @@ import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import Editor from '@monaco-editor/react';
 
-import { getLesson, revealHint, runCode, submitCode } from '../../services/lessons.js';
+import {
+  completeLesson,
+  getLesson,
+  revealHint,
+  runCode,
+  submitCode,
+} from '../../services/lessons.js';
 import { Spinner, ErrorBanner } from '../../components/Spinner.jsx';
 import { titleCase } from '../../lib/labels.js';
+import { hintDiscountedXp, hintXpPercent } from '../../lib/gamification.js';
 import { Card, Chip, EmptyState, Tabs } from '../../components/ui/index.js';
 import { useAuth } from '../../hooks/useAuth.js';
 import { useTimeOnTask } from '../../hooks/useTimeOnTask.js';
@@ -92,27 +99,100 @@ export const LessonPage = () => {
 
 // ── Reading lessons (tutorial) ───────────────────────────────────────────────
 // The old single-column layout, plus the notes section every lesson now has.
-const ReadingView = ({ lesson }) => (
-  <div className="mx-auto max-w-3xl space-y-6 px-4">
-    <LessonHeader lesson={lesson} />
+//
+// A tutorial has nothing to submit, so "Mark as complete" is its completion
+// event: it is what records progress, awards the lesson's XP and lets the
+// module and course finish. Without it a course of tutorials could never be
+// completed at all.
+const ReadingView = ({ lesson }) => {
+  const navigate = useNavigate();
+  const { refreshProfile } = useAuth();
+  const [busy, setBusy] = useState(false);
+  const [result, setResult] = useState(null); // last /complete payload
+  const [actionError, setActionError] = useState(null);
+  const [celebration, setCelebration] = useState(null);
 
-    <article className="prose prose-slate max-w-none">
-      <ReactMarkdown remarkPlugins={[remarkGfm]}>
-        {lesson.content || '_(This lesson has no content yet.)_'}
-      </ReactMarkdown>
-    </article>
+  const completed = Boolean(lesson.completed) || Boolean(result && !result.progress?.previewMode);
 
-    {/* The panel sizes itself to its container, so the container is what
-        decides how much room a reading lesson's notes get. */}
-    <Card title="Your notes">
-      <div className="h-56">
-        <LessonNotesPanel lessonId={lesson._id} className="h-full" />
+  const handleComplete = async () => {
+    setBusy(true);
+    setActionError(null);
+    try {
+      const res = await completeLesson(lesson._id);
+      setResult(res);
+      if (res.progress?.firstCompletion) {
+        setCelebration(res);
+        // The header XP pill and rank chip are rendered from /api/me.
+        refreshProfile?.().catch(() => {});
+      }
+    } catch (err) {
+      setActionError(errorMessage(err));
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const goToNextLesson = () => {
+    setCelebration(null);
+    const next = celebration?.nextLessonId || lesson.nextLessonId;
+    if (next) return navigate(`/lessons/${next}`);
+    return navigate(lesson.courseId ? `/courses/${lesson.courseId}` : '/courses');
+  };
+
+  return (
+    <div className="mx-auto max-w-3xl space-y-6 px-4">
+      <LessonHeader lesson={lesson} />
+
+      <article className="prose prose-slate max-w-none">
+        <ReactMarkdown remarkPlugins={[remarkGfm]}>
+          {lesson.content || '_(This lesson has no content yet.)_'}
+        </ReactMarkdown>
+      </article>
+
+      {/* The panel sizes itself to its container, so the container is what
+          decides how much room a reading lesson's notes get. */}
+      <Card title="Your notes">
+        <div className="h-56">
+          <LessonNotesPanel lessonId={lesson._id} className="h-full" />
+        </div>
+      </Card>
+
+      <div className="flex flex-wrap items-center gap-3" role="status" aria-live="polite">
+        {completed ? (
+          <Chip tone="success">✓ Completed</Chip>
+        ) : (
+          <button
+            type="button"
+            className="btn-primary"
+            onClick={handleComplete}
+            disabled={busy}
+          >
+            {busy ? 'Saving…' : `Mark as complete · +${lesson.xpReward} XP`}
+          </button>
+        )}
+        {result?.progress?.previewMode && (
+          <span className="rounded-md bg-sky-50 px-3 py-2 text-xs text-sky-900">
+            Preview mode — no XP awarded and no progress recorded.
+          </span>
+        )}
+        {actionError && <span className="text-xs text-red-600">{actionError}</span>}
       </div>
-    </Card>
 
-    <LessonNav lesson={lesson} />
-  </div>
-);
+      <LessonNav lesson={lesson} />
+
+      {celebration && (
+        <CompletionOverlay
+          xpDelta={celebration.xpDelta ?? 0}
+          gamification={celebration.gamification}
+          newBadges={celebration.newBadges || []}
+          moduleCompleted={Boolean(celebration.moduleCompleted)}
+          onNextLesson={goToNextLesson}
+          onClose={() => setCelebration(null)}
+        />
+      )}
+    </div>
+  );
+};
 
 const LessonHeader = ({ lesson, compact = false }) => (
   <header className={compact ? 'min-w-0' : 'space-y-2'}>
@@ -440,6 +520,7 @@ const ChallengeTab = ({ lesson, onAskInstructor }) => (
         hintCount={lesson.hintCount}
         initialRevealed={lesson.revealedHints || []}
         xpReward={lesson.xpReward}
+        hintXp={lesson.hintXp}
       />
     )}
 
@@ -457,7 +538,7 @@ const ChallengeTab = ({ lesson, onAskInstructor }) => (
 // hints this learner has already unlocked (replayed from their progress record
 // so a refresh doesn't hide them again). Each new hint arrives from the reveal
 // endpoint, which is also what logs the scaffolding event for analytics.
-const HintList = ({ lessonId, hintCount, initialRevealed, xpReward = 0 }) => {
+const HintList = ({ lessonId, hintCount, initialRevealed, xpReward = 0, hintXp }) => {
   const [hints, setHints] = useState(initialRevealed);
   const [revealing, setRevealing] = useState(false);
   const [revealError, setRevealError] = useState(null);
@@ -477,10 +558,10 @@ const HintList = ({ lessonId, hintCount, initialRevealed, xpReward = 0 }) => {
 
   const revealedCount = hints.length;
   const allRevealed = revealedCount >= hintCount;
-  // Mirrors the server rule (0 hints → full, 1 → 50%, 2+ → 20%). Shown BEFORE
-  // the reveal so the trade-off is an informed choice, which is the point of
-  // scaffolding being progressive rather than free.
-  const nextReward = revealedCount === 0 ? Math.round(xpReward * 0.5) : Math.round(xpReward * 0.2);
+  // Mirrors the server rule with this lesson's own hint cost (default 100 →
+  // 50 → 20). Shown BEFORE the reveal so the trade-off is an informed choice,
+  // which is the point of scaffolding being progressive rather than free.
+  const nextReward = hintDiscountedXp(xpReward, revealedCount + 1, hintXp);
 
   return (
     <div className="rounded-lg border border-slate-200 bg-white p-4">
@@ -626,8 +707,8 @@ const TestsPanel = ({ lesson, result, actionError, busy, onRun, onSubmit, onRese
             {discounted && (
               <div className="rounded-md bg-slate-50 px-3 py-2 text-xs text-slate-600">
                 Earned {xpDelta} of {lesson.xpReward} XP — {hintsUsed} hint
-                {hintsUsed === 1 ? '' : 's'} used ({hintsUsed === 1 ? '50%' : '20%'} of full
-                reward).
+                {hintsUsed === 1 ? '' : 's'} used ({hintXpPercent(hintsUsed, lesson.hintXp)}% of
+                full reward).
               </div>
             )}
 

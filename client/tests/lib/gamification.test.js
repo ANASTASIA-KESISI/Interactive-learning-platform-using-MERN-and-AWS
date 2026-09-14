@@ -1,4 +1,10 @@
-import { levelProgressPct, formatXp } from '../../src/lib/gamification.js';
+import {
+  levelProgressPct,
+  formatXp,
+  hintXpPercent,
+  hintDiscountedXp,
+  DEFAULT_HINT_XP,
+} from '../../src/lib/gamification.js';
 
 describe('levelProgressPct', () => {
   test('returns the percentage of the current level filled', () => {
@@ -35,5 +41,30 @@ describe('formatXp', () => {
     expect(formatXp(undefined)).toBe('0');
     expect(formatXp('abc')).toBe('0');
     expect(formatXp('1500')).toBe('1.5k');
+  });
+});
+
+// S9: the hint cost comes from the lesson; a lesson without one uses the pilot
+// rule. These only format what the server decides, so the numbers must match
+// applyHintDiscount exactly.
+describe('hint cost mirror', () => {
+  test('defaults to 100 → 50 → 20 when the lesson carries no hintXp', () => {
+    expect(hintXpPercent(0)).toBe(100);
+    expect(hintXpPercent(1)).toBe(DEFAULT_HINT_XP.afterOne);
+    expect(hintXpPercent(2)).toBe(DEFAULT_HINT_XP.afterMore);
+    expect(hintDiscountedXp(20, 1)).toBe(10);
+    expect(hintDiscountedXp(20, 3)).toBe(4);
+  });
+
+  test('uses the lesson\'s own cost when present', () => {
+    const hintXp = { afterOne: 80, afterMore: 60 };
+    expect(hintDiscountedXp(20, 1, hintXp)).toBe(16);
+    expect(hintDiscountedXp(20, 2, hintXp)).toBe(12);
+    expect(hintXpPercent(5, hintXp)).toBe(60);
+  });
+
+  test('a partial or malformed hintXp falls back field by field', () => {
+    expect(hintXpPercent(2, { afterOne: 80 })).toBe(20);
+    expect(hintXpPercent(1, { afterOne: 'x', afterMore: 5 })).toBe(50);
   });
 });

@@ -196,11 +196,13 @@ Endpoints are designed around **user roles and screens**, not around internal re
 - `GET /api/courses` / `GET /api/courses/:id` — list filterable by `departmentId` and `semester` *(S7)*
 - `GET /api/courses/:id/leaderboard?window=7d|30d|all` — top 5 by completions plus the viewer's own row *(S7)*
 - `POST /api/courses/:id/enroll`
-- `GET /api/lessons/:id` — lesson content + hints metadata (not hint text until revealed) + `task`, module title, prev/next lesson, instructor
+- `GET /api/lessons/:id` — lesson content + hints metadata (not hint text until revealed) + `task`, module title, prev/next lesson, instructor, and `completed` for a student
 - `POST /api/lessons/:id/hint` — reveal next hint (logged)
 - `POST /api/lessons/:id/run` — execute only: no validation, no gamification, increments `runs`. Never reveals `expectedOutput` or whether the answer is right *(S7)*
 - `POST /api/lessons/:id/submit` — execute + validate + record progress + apply gamification; response bundles all of it plus the gamification summary, `moduleCompleted` and `nextLessonId` that drive the completion overlay
 - `POST /api/lessons/:id/quiz` — grade an answer sheet for a `type: 'quiz'` lesson *(S7)*. A sibling of `/submit`, not a branch inside it: the two share every downstream effect (progress, gamification, module completion, celebration payload) but nothing of their input or grading. Response is the same shape with `quiz` in place of `execution`
+- `POST /api/lessons/:id/complete` — mark a `type: 'tutorial'` lesson as read *(S9)*. The third sibling on the same award path: a tutorial has nothing to submit or grade, so this is its completion event — first completion records progress (no attempt), awards `xpReward`, counts towards module/course completion. Refused for exercises and quizzes. Response is the same shape with neither `execution` nor `quiz`
+- Lessons carry `hintXp: { afterOne, afterMore }` *(S9)* — the percentage of `xpReward` kept after one / two-or-more hints (defaults 50 / 20, the pilot rule). Instructor-editable per exercise, bounded 0–100 with `afterMore ≤ afterOne`; the award path, the leaderboard and the student's "using a hint lowers this to…" text all read it
 - `GET /api/student/progress`
 
 **Notes** *(S7, all roles — only a student's note stamps a progress event)*

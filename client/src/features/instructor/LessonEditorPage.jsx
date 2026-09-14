@@ -38,6 +38,10 @@ export const LessonEditorPage = () => {
           language: l.language || 'javascript',
           hints: (l.hints && l.hints.length > 0) ? l.hints : [''],
           xpReward: l.xpReward ?? 10,
+          hintXp: {
+            afterOne: l.hintXp?.afterOne ?? 50,
+            afterMore: l.hintXp?.afterMore ?? 20,
+          },
           questions: (l.questions && l.questions.length > 0)
             ? l.questions.map((q) => ({
                 prompt: q.prompt || '',
@@ -54,6 +58,9 @@ export const LessonEditorPage = () => {
 
   const update = (field) => (e) =>
     setForm((f) => ({ ...f, [field]: e.target.value }));
+
+  const updateHintXp = (field) => (e) =>
+    setForm((f) => ({ ...f, hintXp: { ...f.hintXp, [field]: e.target.value } }));
 
   const updateHint = (i) => (e) => {
     setForm((f) => {
@@ -130,6 +137,15 @@ export const LessonEditorPage = () => {
         hints: form.hints.map((h) => h.trim()).filter(Boolean),
         xpReward: Number(form.xpReward) || 0,
       };
+
+      // Only an exercise has hints to price. The server clamps and re-validates
+      // this (0–100, second step never above the first).
+      if (form.type === 'exercise') {
+        payload.hintXp = {
+          afterOne: Number(form.hintXp.afterOne),
+          afterMore: Number(form.hintXp.afterMore),
+        };
+      }
 
       // Only a quiz sends a question set, so switching a lesson's type never
       // silently wipes the other type's body. The server re-validates all of
@@ -400,6 +416,44 @@ export const LessonEditorPage = () => {
             <label htmlFor="expectedOutput" className="label">Expected stdout (exact match, trimmed)</label>
             <textarea id="expectedOutput" value={form.expectedOutput} onChange={update('expectedOutput')} rows={3} className="field font-mono text-sm" />
           </div>
+
+          <fieldset>
+            <legend className="label">Hint cost (% of XP reward the learner keeps)</legend>
+            <div className="flex flex-wrap items-end gap-4">
+              <div>
+                <label htmlFor="hintXpAfterOne" className="text-xs text-slate-500">After 1 hint</label>
+                <input
+                  id="hintXpAfterOne"
+                  type="number"
+                  min="0"
+                  max="100"
+                  step="1"
+                  value={form.hintXp.afterOne}
+                  onChange={updateHintXp('afterOne')}
+                  className="field w-24"
+                />
+              </div>
+              <div>
+                <label htmlFor="hintXpAfterMore" className="text-xs text-slate-500">After 2+ hints</label>
+                <input
+                  id="hintXpAfterMore"
+                  type="number"
+                  min="0"
+                  max="100"
+                  step="1"
+                  value={form.hintXp.afterMore}
+                  onChange={updateHintXp('afterMore')}
+                  className="field w-24"
+                />
+              </div>
+              <p className="text-xs text-slate-500">
+                With {Number(form.xpReward) || 0} XP: no hint → {Number(form.xpReward) || 0},
+                one → {Math.round(((Number(form.xpReward) || 0) * (Number(form.hintXp.afterOne) || 0)) / 100)},
+                two or more → {Math.round(((Number(form.xpReward) || 0) * (Number(form.hintXp.afterMore) || 0)) / 100)}.
+                The second step may not exceed the first.
+              </p>
+            </div>
+          </fieldset>
 
           <div>
             <div className="flex items-center justify-between">

@@ -30,6 +30,13 @@ export const runCode = (lessonId, code) =>
 export const submitQuiz = (lessonId, answers) =>
   api.post(`/lessons/${lessonId}/quiz`, { answers }).then(unwrap);
 
+// Marks a `type: 'tutorial'` lesson as read. Same response shape as a passing
+// submit or quiz (progress, xpDelta, newBadges, gamification, moduleCompleted,
+// nextLessonId) so the completion overlay consumes one contract. The server
+// refuses it for exercises and quizzes — their XP needs a pass.
+export const completeLesson = (lessonId) =>
+  api.post(`/lessons/${lessonId}/complete`).then(unwrap);
+
 // Active seconds spent on the lesson page. Telemetry only — the response says
 // nothing a screen needs, so callers ignore it and swallow failures.
 export const reportTimeOnTask = (lessonId, seconds) =>
